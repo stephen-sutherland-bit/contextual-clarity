@@ -1,0 +1,204 @@
+import { useState, useMemo } from "react";
+import { motion } from "framer-motion";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
+import TeachingCard from "@/components/TeachingCard";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Search as SearchIcon, BookOpen, HelpCircle, Tag } from "lucide-react";
+import { teachings, themes } from "@/data/teachings";
+import { Link } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
+
+const Search = () => {
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const results = useMemo(() => {
+    if (searchQuery.length < 2) return { teachings: [], questions: [], themes: [] };
+
+    const query = searchQuery.toLowerCase();
+
+    const matchedTeachings = teachings.filter(t =>
+      t.title.toLowerCase().includes(query) ||
+      t.quickAnswer.toLowerCase().includes(query) ||
+      t.keywords.some(k => k.toLowerCase().includes(query)) ||
+      t.scriptures.some(s => s.toLowerCase().includes(query)) ||
+      t.doctrines.some(d => d.toLowerCase().includes(query))
+    );
+
+    const matchedQuestions = new Set<string>();
+    teachings.forEach(t => {
+      t.questionsAnswered.forEach(q => {
+        if (q.toLowerCase().includes(query)) {
+          matchedQuestions.add(q);
+        }
+      });
+    });
+
+    const matchedThemes = themes.filter(t => 
+      t.toLowerCase().includes(query)
+    );
+
+    return {
+      teachings: matchedTeachings,
+      questions: Array.from(matchedQuestions),
+      themes: matchedThemes
+    };
+  }, [searchQuery]);
+
+  const hasResults = results.teachings.length > 0 || 
+                     results.questions.length > 0 || 
+                     results.themes.length > 0;
+
+  return (
+    <>
+      <Helmet>
+        <title>Search | The Christian Theologist</title>
+        <meta 
+          name="description" 
+          content="Search the teaching library by topic, scripture, keyword, or question. Find contextual Bible studies on any subject." 
+        />
+      </Helmet>
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-1">
+          {/* Search Header */}
+          <section className="bg-gradient-hero py-12 md:py-16 border-b border-border/50">
+            <div className="container px-4">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="max-w-2xl mx-auto text-center"
+              >
+                <h1 className="text-3xl md:text-4xl font-heading font-bold mb-6">
+                  Search the Library
+                </h1>
+                <div className="relative">
+                  <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by topic, scripture, keyword, question..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-12 h-14 text-lg"
+                    autoFocus
+                  />
+                </div>
+                <p className="mt-3 text-sm text-muted-foreground">
+                  Try: "covenant", "Matthew 24", "trinity", "AD 70", "elect"
+                </p>
+              </motion.div>
+            </div>
+          </section>
+
+          {/* Results */}
+          <section className="py-8 md:py-12">
+            <div className="container px-4">
+              {searchQuery.length < 2 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <SearchIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>Start typing to search...</p>
+                </div>
+              ) : !hasResults ? (
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground mb-2">
+                    No results found for "{searchQuery}"
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Try different keywords or browse our{" "}
+                    <Link to="/teachings" className="text-primary hover:underline">
+                      complete library
+                    </Link>
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-10">
+                  {/* Questions */}
+                  {results.questions.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.4 }}
+                    >
+                      <div className="flex items-center gap-2 mb-4">
+                        <HelpCircle className="h-5 w-5 text-primary" />
+                        <h2 className="font-heading font-semibold text-lg">
+                          Questions ({results.questions.length})
+                        </h2>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {results.questions.map(question => {
+                          const teaching = teachings.find(t => 
+                            t.questionsAnswered.includes(question)
+                          );
+                          return (
+                            <Link
+                              key={question}
+                              to={`/teaching/${teaching?.id}`}
+                              className="p-4 bg-card border border-border/50 rounded-lg hover:border-primary/30 hover:bg-highlight-soft/30 transition-all"
+                            >
+                              <p className="text-sm font-medium">{question}</p>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* Themes */}
+                  {results.themes.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.4, delay: 0.1 }}
+                    >
+                      <div className="flex items-center gap-2 mb-4">
+                        <Tag className="h-5 w-5 text-primary" />
+                        <h2 className="font-heading font-semibold text-lg">
+                          Themes ({results.themes.length})
+                        </h2>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {results.themes.map(theme => (
+                          <Link key={theme} to={`/teachings?theme=${encodeURIComponent(theme)}`}>
+                            <Badge variant="secondary" className="cursor-pointer hover:bg-primary/10">
+                              {theme}
+                            </Badge>
+                          </Link>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* Teachings */}
+                  {results.teachings.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.4, delay: 0.2 }}
+                    >
+                      <div className="flex items-center gap-2 mb-4">
+                        <BookOpen className="h-5 w-5 text-primary" />
+                        <h2 className="font-heading font-semibold text-lg">
+                          Teachings ({results.teachings.length})
+                        </h2>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {results.teachings.map((teaching, index) => (
+                          <TeachingCard key={teaching.id} teaching={teaching} index={index} />
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </div>
+              )}
+            </div>
+          </section>
+        </main>
+        <Footer />
+      </div>
+    </>
+  );
+};
+
+export default Search;
