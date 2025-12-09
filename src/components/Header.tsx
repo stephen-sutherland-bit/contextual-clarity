@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { BookOpen, Search, Menu, X } from "lucide-react";
+import { BookOpen, Search, Menu, X, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -49,6 +49,13 @@ const Header = () => {
             className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
             About
+          </Link>
+          <Link 
+            to="/admin" 
+            className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+          >
+            <Settings className="h-4 w-4" />
+            Admin
           </Link>
           <Button variant="warm" size="sm" asChild>
             <Link to="/search" className="flex items-center gap-2">
@@ -113,6 +120,13 @@ const Header = () => {
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Search
+              </Link>
+              <Link 
+                to="/admin" 
+                className="block px-4 py-2 rounded-md hover:bg-secondary transition-colors"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Admin
               </Link>
             </div>
           </motion.nav>
