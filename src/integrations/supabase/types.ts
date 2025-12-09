@@ -14,7 +14,60 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      teachings: {
+        Row: {
+          created_at: string
+          date: string
+          doctrines: string[] | null
+          document_id: string
+          full_content: string
+          id: string
+          keywords: string[] | null
+          primary_theme: string
+          questions_answered: string[] | null
+          quick_answer: string | null
+          reading_order: number | null
+          scriptures: string[] | null
+          secondary_themes: string[] | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          date?: string
+          doctrines?: string[] | null
+          document_id: string
+          full_content: string
+          id?: string
+          keywords?: string[] | null
+          primary_theme: string
+          questions_answered?: string[] | null
+          quick_answer?: string | null
+          reading_order?: number | null
+          scriptures?: string[] | null
+          secondary_themes?: string[] | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          doctrines?: string[] | null
+          document_id?: string
+          full_content?: string
+          id?: string
+          keywords?: string[] | null
+          primary_theme?: string
+          questions_answered?: string[] | null
+          quick_answer?: string | null
+          reading_order?: number | null
+          scriptures?: string[] | null
+          secondary_themes?: string[] | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
