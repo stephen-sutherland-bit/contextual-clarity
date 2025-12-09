@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -8,7 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, FileText, Database, Check, Copy } from "lucide-react";
+import { Loader2, FileText, Database, Check, Copy, Upload, Mic } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+
+const MAX_CHUNK_SIZE = 20 * 1024 * 1024; // 20MB to stay under Whisper's 25MB limit
 
 const Admin = () => {
   const { toast } = useToast();
@@ -17,6 +20,9 @@ const Admin = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isIndexing, setIsIndexing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [transcriptionProgress, setTranscriptionProgress] = useState(0);
+  const [isDragOver, setIsDragOver] = useState(false);
   
   // Metadata state
   const [title, setTitle] = useState("");
@@ -27,6 +33,151 @@ const Admin = () => {
   const [keywords, setKeywords] = useState<string[]>([]);
   const [questionsAnswered, setQuestionsAnswered] = useState<string[]>([]);
   const [quickAnswer, setQuickAnswer] = useState("");
+
+  // Convert file to base64
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        const result = reader.result as string;
+        // Remove the data URL prefix (e.g., "data:audio/mp3;base64,")
+        const base64 = result.split(',')[1];
+        resolve(base64);
+      };
+      reader.onerror = reject;
+    });
+  };
+
+  // Split large audio file into chunks (for files > 20MB)
+  const splitAudioFile = async (file: File): Promise<{ base64: string; start: number; end: number }[]> => {
+    const chunks: { base64: string; start: number; end: number }[] = [];
+    const totalSize = file.size;
+    
+    if (totalSize <= MAX_CHUNK_SIZE) {
+      // File is small enough, no need to split
+      const base64 = await fileToBase64(file);
+      return [{ base64, start: 0, end: totalSize }];
+    }
+    
+    // For larger files, we need to split them
+    // Note: This is a simplified approach - for production, you'd want to split on audio boundaries
+    let start = 0;
+    while (start < totalSize) {
+      const end = Math.min(start + MAX_CHUNK_SIZE, totalSize);
+      const chunk = file.slice(start, end);
+      const chunkFile = new File([chunk], file.name, { type: file.type });
+      const base64 = await fileToBase64(chunkFile);
+      chunks.push({ base64, start, end });
+      start = end;
+    }
+    
+    return chunks;
+  };
+
+  // Transcribe audio file
+  const transcribeAudio = async (file: File) => {
+    setIsTranscribing(true);
+    setTranscriptionProgress(0);
+
+    try {
+      const chunks = await splitAudioFile(file);
+      const totalChunks = chunks.length;
+      let fullTranscript = "";
+
+      toast({
+        title: "Transcribing",
+        description: `Processing ${totalChunks} chunk${totalChunks > 1 ? 's' : ''}...`,
+      });
+
+      for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i];
+        
+        const response = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/transcribe-audio`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            },
+            body: JSON.stringify({
+              audio: chunk.base64,
+              mimeType: file.type,
+              chunkIndex: i,
+              totalChunks,
+            }),
+          }
+        );
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || "Transcription failed");
+        }
+
+        const result = await response.json();
+        fullTranscript += (fullTranscript ? " " : "") + result.text;
+        
+        setTranscriptionProgress(((i + 1) / totalChunks) * 100);
+      }
+
+      setTranscript(fullTranscript);
+      toast({
+        title: "Success",
+        description: "Audio transcribed successfully",
+      });
+    } catch (error) {
+      console.error("Error transcribing audio:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to transcribe audio",
+        variant: "destructive",
+      });
+    } finally {
+      setIsTranscribing(false);
+      setTranscriptionProgress(0);
+    }
+  };
+
+  // Handle file drop
+  const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragOver(false);
+
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      const file = files[0];
+      const validTypes = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/m4a', 'audio/mp4', 'audio/webm', 'audio/ogg', 'audio/x-m4a'];
+      
+      if (validTypes.includes(file.type) || file.name.match(/\.(mp3|wav|m4a|mp4|webm|ogg)$/i)) {
+        transcribeAudio(file);
+      } else {
+        toast({
+          title: "Invalid file type",
+          description: "Please upload an audio file (MP3, WAV, M4A, MP4, WebM, or OGG)",
+          variant: "destructive",
+        });
+      }
+    }
+  }, [toast]);
+
+  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  }, []);
+
+  // Handle file input
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      transcribeAudio(files[0]);
+    }
+  };
 
   const processTranscript = async () => {
     if (!transcript.trim()) {
@@ -246,6 +397,62 @@ const Admin = () => {
           <div className="grid gap-8 lg:grid-cols-2">
             {/* Input Section */}
             <div className="space-y-6">
+              {/* Audio Upload Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Mic className="h-5 w-5" />
+                    Upload Audio (Optional)
+                  </CardTitle>
+                  <CardDescription>
+                    Drag and drop an audio file to transcribe it automatically
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div
+                    onDrop={handleDrop}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                      isDragOver
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-primary/50"
+                    }`}
+                  >
+                    {isTranscribing ? (
+                      <div className="space-y-4">
+                        <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+                        <p className="text-sm text-muted-foreground">Transcribing audio...</p>
+                        <Progress value={transcriptionProgress} className="w-full max-w-xs mx-auto" />
+                        <p className="text-xs text-muted-foreground">{Math.round(transcriptionProgress)}%</p>
+                      </div>
+                    ) : (
+                      <>
+                        <Upload className="h-8 w-8 mx-auto mb-4 text-muted-foreground" />
+                        <p className="text-sm text-muted-foreground mb-2">
+                          Drag and drop an audio file here
+                        </p>
+                        <p className="text-xs text-muted-foreground mb-4">
+                          Supports MP3, WAV, M4A, MP4, WebM, OGG
+                        </p>
+                        <label>
+                          <input
+                            type="file"
+                            accept="audio/*,.mp3,.wav,.m4a,.mp4,.webm,.ogg"
+                            onChange={handleFileInput}
+                            className="hidden"
+                          />
+                          <Button variant="outline" size="sm" asChild>
+                            <span>Or click to browse</span>
+                          </Button>
+                        </label>
+                      </>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Transcript Card */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -253,15 +460,15 @@ const Admin = () => {
                     Step 1: Paste Transcript
                   </CardTitle>
                   <CardDescription>
-                    Paste your raw transcript from Zoom or Otter here
+                    Paste your raw transcript from Zoom or Otter here, or use the audio upload above
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <Textarea
-                    placeholder="Paste your transcript here..."
+                    placeholder="Paste your transcript here or upload an audio file above..."
                     value={transcript}
                     onChange={(e) => setTranscript(e.target.value)}
-                    className="min-h-[300px] font-mono text-sm"
+                    className="min-h-[250px] font-mono text-sm"
                   />
                   <Button
                     onClick={processTranscript}
