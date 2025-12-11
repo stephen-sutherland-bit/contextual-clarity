@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, FileText, Database, Check, Copy, Upload, Mic } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import ApiUsageCard from "@/components/ApiUsageCard";
 
 const MAX_CHUNK_SIZE = 20 * 1024 * 1024; // 20MB to stay under Whisper's 25MB limit
 
@@ -393,9 +394,11 @@ const Admin = () => {
         <Header />
         
         <main className="flex-1 container mx-auto px-4 py-8">
-          <h1 className="font-display text-3xl md:text-4xl font-bold text-foreground mb-8">
+          <h1 className="font-display text-3xl md:text-4xl font-bold text-foreground mb-6">
             Teaching Processor
           </h1>
+
+          <ApiUsageCard />
 
           <div className="grid gap-8 lg:grid-cols-2">
             {/* Input Section */}

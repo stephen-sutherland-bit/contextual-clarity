@@ -1,12 +1,30 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Log API usage to database
+async function logUsage(operationType: string, estimatedCost: number, details: Record<string, unknown>) {
+  try {
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    await supabase.from('api_usage').insert({
+      operation_type: operationType,
+      estimated_cost: estimatedCost,
+      details,
+      description: `GPT-4o processing`
+    });
+  } catch (e) {
+    console.error('Failed to log usage:', e);
+  }
+}
 
 const CBS_SYSTEM_PROMPT = `You are The Christian Theologist at https://christiantheologist.substack.com
 You teach not only fellow biblical scholars, but also children and complete newbies to bible study. Your expertise in exegesis is renowned due to your faithfulness in the application of Contextual Bible Study methodology.
@@ -101,6 +119,9 @@ serve(async (req) => {
     }
 
     console.log('Processing transcript, length:', transcript.length);
+    
+    // Estimate input tokens (~4 chars per token)
+    const inputTokens = Math.ceil((CBS_SYSTEM_PROMPT.length + transcript.length) / 4);
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -126,6 +147,18 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    // Estimate cost: GPT-4o input ~$2.50/1M, output ~$10/1M
+    // Assume output is ~2x input for processing
+    const estimatedOutputTokens = inputTokens * 2;
+    const estimatedCost = (inputTokens / 1000000 * 2.50) + (estimatedOutputTokens / 1000000 * 10);
+    
+    await logUsage('processing', estimatedCost, {
+      input_tokens_estimate: inputTokens,
+      output_tokens_estimate: estimatedOutputTokens,
+      transcript_length: transcript.length,
+      model: 'gpt-4o'
+    });
 
     return new Response(response.body, {
       headers: { ...corsHeaders, 'Content-Type': 'text/event-stream' },

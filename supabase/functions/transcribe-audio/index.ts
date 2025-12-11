@@ -1,7 +1,10 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -16,6 +19,21 @@ function base64ToUint8Array(base64String: string): Uint8Array {
     bytes[i] = binaryString.charCodeAt(i);
   }
   return bytes;
+}
+
+// Log API usage to database
+async function logUsage(operationType: string, estimatedCost: number, details: Record<string, unknown>) {
+  try {
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    await supabase.from('api_usage').insert({
+      operation_type: operationType,
+      estimated_cost: estimatedCost,
+      details,
+      description: `Whisper transcription`
+    });
+  } catch (e) {
+    console.error('Failed to log usage:', e);
+  }
 }
 
 serve(async (req) => {
@@ -37,6 +55,7 @@ serve(async (req) => {
 
     // Convert base64 to binary
     const binaryAudio = base64ToUint8Array(audio);
+    const audioSizeBytes = binaryAudio.length;
     
     // Determine file extension and audio mime type from original mime type
     // Whisper expects audio files, so convert video mime types to audio
@@ -96,6 +115,18 @@ serve(async (req) => {
 
     const result = await response.json();
     console.log(`Chunk ${chunkIndex + 1} transcribed successfully, length: ${result.text?.length || 0}`);
+
+    // Estimate cost: Whisper is ~$0.006 per minute, estimate ~1MB per minute of audio
+    const estimatedMinutes = audioSizeBytes / (1024 * 1024); // rough estimate
+    const estimatedCost = estimatedMinutes * 0.006;
+    
+    await logUsage('transcription', estimatedCost, {
+      chunk_index: chunkIndex,
+      total_chunks: totalChunks,
+      audio_size_bytes: audioSizeBytes,
+      estimated_minutes: estimatedMinutes,
+      text_length: result.text?.length || 0
+    });
 
     return new Response(JSON.stringify({ 
       text: result.text,
