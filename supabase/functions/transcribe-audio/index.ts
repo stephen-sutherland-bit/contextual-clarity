@@ -38,18 +38,40 @@ serve(async (req) => {
     // Convert base64 to binary
     const binaryAudio = base64ToUint8Array(audio);
     
-    // Determine file extension from mime type
-    const extension = mimeType?.includes('mp3') ? 'mp3' 
-      : mimeType?.includes('wav') ? 'wav'
-      : mimeType?.includes('m4a') ? 'm4a'
-      : mimeType?.includes('webm') ? 'webm'
-      : mimeType?.includes('ogg') ? 'ogg'
-      : mimeType?.includes('mp4') ? 'mp4'
-      : 'mp3';
+    // Determine file extension and audio mime type from original mime type
+    // Whisper expects audio files, so convert video mime types to audio
+    let extension = 'mp3';
+    let audioMimeType = 'audio/mpeg';
+    
+    if (mimeType?.includes('mp3') || mimeType?.includes('mpeg')) {
+      extension = 'mp3';
+      audioMimeType = 'audio/mpeg';
+    } else if (mimeType?.includes('wav')) {
+      extension = 'wav';
+      audioMimeType = 'audio/wav';
+    } else if (mimeType?.includes('m4a')) {
+      extension = 'm4a';
+      audioMimeType = 'audio/m4a';
+    } else if (mimeType?.includes('webm')) {
+      extension = 'webm';
+      audioMimeType = 'audio/webm';
+    } else if (mimeType?.includes('ogg')) {
+      extension = 'ogg';
+      audioMimeType = 'audio/ogg';
+    } else if (mimeType?.includes('mp4')) {
+      // MP4 files (even video/mp4) should be sent as audio/mp4 to Whisper
+      extension = 'mp4';
+      audioMimeType = 'audio/mp4';
+    } else if (mimeType?.includes('flac')) {
+      extension = 'flac';
+      audioMimeType = 'audio/flac';
+    }
+
+    console.log(`Using extension: ${extension}, audioMimeType: ${audioMimeType}`);
 
     // Prepare form data for Whisper API
     const formData = new FormData();
-    const blob = new Blob([binaryAudio.buffer as ArrayBuffer], { type: mimeType || 'audio/mpeg' });
+    const blob = new Blob([binaryAudio.buffer as ArrayBuffer], { type: audioMimeType });
     formData.append('file', blob, `audio.${extension}`);
     formData.append('model', 'whisper-1');
     formData.append('language', 'en');
