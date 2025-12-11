@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      api_usage: {
+        Row: {
+          created_at: string
+          description: string | null
+          details: Json | null
+          estimated_cost: number
+          id: string
+          operation_type: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          details?: Json | null
+          estimated_cost?: number
+          id?: string
+          operation_type: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          details?: Json | null
+          estimated_cost?: number
+          id?: string
+          operation_type?: string
+        }
+        Relationships: []
+      }
       teachings: {
         Row: {
           created_at: string

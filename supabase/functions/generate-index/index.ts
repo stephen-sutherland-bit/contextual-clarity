@@ -1,12 +1,30 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Log API usage to database
+async function logUsage(operationType: string, estimatedCost: number, details: Record<string, unknown>) {
+  try {
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    await supabase.from('api_usage').insert({
+      operation_type: operationType,
+      estimated_cost: estimatedCost,
+      details,
+      description: `GPT-4o indexing`
+    });
+  } catch (e) {
+    console.error('Failed to log usage:', e);
+  }
+}
 
 const INDEX_SYSTEM_PROMPT = `You are an expert theological indexer for The Christian Theologist. Your task is to analyse a teaching document and extract comprehensive metadata for indexing and search purposes.
 
@@ -51,6 +69,9 @@ serve(async (req) => {
     }
 
     console.log('Generating index for content, length:', content.length);
+    
+    // Estimate input tokens (~4 chars per token)
+    const inputTokens = Math.ceil((INDEX_SYSTEM_PROMPT.length + content.length) / 4);
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -137,6 +158,18 @@ serve(async (req) => {
 
     const metadata = JSON.parse(toolCall.function.arguments);
     console.log('Extracted metadata:', metadata);
+
+    // Estimate cost: GPT-4o input ~$2.50/1M, output ~$10/1M
+    // Output for indexing is relatively small (~500 tokens)
+    const estimatedOutputTokens = 500;
+    const estimatedCost = (inputTokens / 1000000 * 2.50) + (estimatedOutputTokens / 1000000 * 10);
+    
+    await logUsage('indexing', estimatedCost, {
+      input_tokens_estimate: inputTokens,
+      output_tokens_estimate: estimatedOutputTokens,
+      content_length: content.length,
+      model: 'gpt-4o'
+    });
 
     return new Response(JSON.stringify(metadata), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
