@@ -66,7 +66,7 @@ const Methodology = () => {
   return (
     <>
       <Helmet>
-        <title>CBS Methodology | The Christian Theologist</title>
+        <title>CBS Methodology | The Berean Press</title>
         <meta 
           name="description" 
           content="Learn the Contextual Bible Study (CBS) methodology. Context is king—interpret Scripture in its original historical, cultural, and covenantal setting." 
@@ -210,16 +210,16 @@ const Methodology = () => {
                   Ready to Study in Context?
                 </h2>
                 <p className="text-muted-foreground mb-6">
-                  Start with our recommended reading path for newcomers, or browse all teachings 
+                  Start with our Foundations phase for newcomers, or browse all teachings 
                   to find specific topics that interest you.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <a 
-                    href="/teachings?path=recommended"
+                    href="/teachings?phase=foundations"
                     className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-accent text-primary-foreground rounded-lg font-medium shadow-card hover:shadow-elevated transition-shadow"
                   >
                     <CheckCircle className="h-5 w-5" />
-                    Start the Reading Path
+                    Start with Foundations
                   </a>
                   <a 
                     href="/teachings"

@@ -23,6 +23,7 @@ export type Database = {
           full_content: string
           id: string
           keywords: string[] | null
+          phase: string
           primary_theme: string
           questions_answered: string[] | null
           quick_answer: string | null
@@ -40,6 +41,7 @@ export type Database = {
           full_content: string
           id?: string
           keywords?: string[] | null
+          phase?: string
           primary_theme: string
           questions_answered?: string[] | null
           quick_answer?: string | null
@@ -57,6 +59,7 @@ export type Database = {
           full_content?: string
           id?: string
           keywords?: string[] | null
+          phase?: string
           primary_theme?: string
           questions_answered?: string[] | null
           quick_answer?: string | null

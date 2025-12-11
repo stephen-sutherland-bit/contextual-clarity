@@ -1,13 +1,55 @@
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import QuestionCard from "./QuestionCard";
-import { featuredQuestions } from "@/data/teachings";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 const FeaturedQuestions = () => {
-  // Show first 6 questions on homepage
-  const displayedQuestions = featuredQuestions.slice(0, 6);
+  const [displayedQuestions, setDisplayedQuestions] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchQuestions = async () => {
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from("teachings")
+        .select("questions_answered")
+        .limit(10);
+
+      if (error) {
+        console.error("Error fetching questions:", error);
+      } else if (data) {
+        const questions: string[] = [];
+        data.forEach((t) => {
+          (t.questions_answered || []).forEach((q: string) => {
+            if (questions.length < 6 && !questions.includes(q)) {
+              questions.push(q);
+            }
+          });
+        });
+        setDisplayedQuestions(questions);
+      }
+      setIsLoading(false);
+    };
+
+    fetchQuestions();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <section className="py-16 md:py-24 bg-background">
+        <div className="container px-4 flex justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </section>
+    );
+  }
+
+  if (displayedQuestions.length === 0) {
+    return null;
+  }
 
   return (
     <section className="py-16 md:py-24 bg-background">

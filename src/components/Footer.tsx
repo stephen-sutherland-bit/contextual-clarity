@@ -13,12 +13,15 @@ const Footer = () => {
                 <BookOpen className="h-5 w-5" />
               </div>
               <span className="font-heading text-lg font-semibold">
-                The Christian Theologist
+                The Berean Press
               </span>
             </Link>
-            <p className="text-muted-foreground text-sm max-w-md leading-relaxed">
-              Sound exegesis with context as king. Exploring Scripture through the lens of 
-              Contextual Bible Study methodology, making ancient wisdom accessible to all.
+            <p className="text-muted-foreground text-sm max-w-md leading-relaxed mb-2">
+              Correcting misinterpretations through Contextual Bible Study. 
+              Exploring Scripture with context as king, making ancient wisdom accessible to all.
+            </p>
+            <p className="text-xs text-muted-foreground italic">
+              Like the Bereans of Acts 17:11, we examine the Scriptures diligently.
             </p>
           </div>
 
@@ -54,19 +57,8 @@ const Footer = () => {
             <h4 className="font-heading font-semibold mb-4">Connect</h4>
             <ul className="space-y-2 text-sm">
               <li>
-                <a 
-                  href="https://christiantheologist.substack.com" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1"
-                >
-                  Substack
-                  <ExternalLink className="h-3 w-3" />
-                </a>
-              </li>
-              <li>
                 <Link to="/about" className="text-muted-foreground hover:text-foreground transition-colors">
-                  About
+                  About Us
                 </Link>
               </li>
             </ul>
@@ -75,14 +67,15 @@ const Footer = () => {
 
         <div className="mt-12 pt-6 border-t border-border/50">
           <p className="text-xs text-muted-foreground text-center">
-            For more in-depth studies with sound exegesis and context as king, visit{" "}
+            Teachings derived from{" "}
             <a 
               href="https://christiantheologist.substack.com" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="text-primary hover:underline"
+              className="text-primary hover:underline inline-flex items-center gap-1"
             >
-              christiantheologist.substack.com
+              The Christian Theologist
+              <ExternalLink className="h-3 w-3" />
             </a>
           </p>
         </div>
