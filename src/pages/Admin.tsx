@@ -33,6 +33,7 @@ const Admin = () => {
   const [keywords, setKeywords] = useState<string[]>([]);
   const [questionsAnswered, setQuestionsAnswered] = useState<string[]>([]);
   const [quickAnswer, setQuickAnswer] = useState("");
+  const [phase, setPhase] = useState<string>("foundations");
 
   // Convert file to base64
   const fileToBase64 = (file: File): Promise<string> => {
@@ -339,6 +340,7 @@ const Admin = () => {
         questions_answered: questionsAnswered,
         quick_answer: quickAnswer,
         full_content: processedContent,
+        phase,
       });
 
       if (error) throw error;
@@ -359,6 +361,7 @@ const Admin = () => {
       setKeywords([]);
       setQuestionsAnswered([]);
       setQuickAnswer("");
+      setPhase("foundations");
     } catch (error) {
       console.error("Error saving teaching:", error);
       toast({
@@ -382,7 +385,7 @@ const Admin = () => {
   return (
     <>
       <Helmet>
-        <title>Admin - The Christian Theologist</title>
+        <title>Admin - The Berean Press</title>
         <meta name="robots" content="noindex, nofollow" />
       </Helmet>
       

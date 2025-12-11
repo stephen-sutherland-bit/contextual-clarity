@@ -1,62 +1,100 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import TeachingCard from "@/components/TeachingCard";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search as SearchIcon, BookOpen, HelpCircle, Tag } from "lucide-react";
-import { teachings, themes } from "@/data/teachings";
+import { Search as SearchIcon, BookOpen, HelpCircle, Tag, Loader2 } from "lucide-react";
+import { themes, type Teaching, type Phase } from "@/data/teachings";
+import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 
 const Search = () => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [teachings, setTeachings] = useState<Teaching[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchTeachings = async () => {
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from("teachings")
+        .select("*")
+        .order("reading_order", { ascending: true });
+
+      if (error) {
+        console.error("Error fetching teachings:", error);
+      } else if (data) {
+        const mapped: Teaching[] = data.map((t) => ({
+          id: t.id,
+          title: t.title,
+          date: t.date,
+          primaryTheme: t.primary_theme,
+          secondaryThemes: t.secondary_themes || [],
+          scriptures: t.scriptures || [],
+          doctrines: t.doctrines || [],
+          keywords: t.keywords || [],
+          questionsAnswered: t.questions_answered || [],
+          quickAnswer: t.quick_answer || "",
+          fullContent: t.full_content,
+          readingOrder: t.reading_order || undefined,
+          phase: (t.phase as Phase) || "foundations",
+        }));
+        setTeachings(mapped);
+      }
+      setIsLoading(false);
+    };
+
+    fetchTeachings();
+  }, []);
 
   const results = useMemo(() => {
-    if (searchQuery.length < 2) return { teachings: [], questions: [], themes: [] };
+    if (searchQuery.length < 2)
+      return { teachings: [], questions: [], themes: [] };
 
     const query = searchQuery.toLowerCase();
 
-    const matchedTeachings = teachings.filter(t =>
-      t.title.toLowerCase().includes(query) ||
-      t.quickAnswer.toLowerCase().includes(query) ||
-      t.keywords.some(k => k.toLowerCase().includes(query)) ||
-      t.scriptures.some(s => s.toLowerCase().includes(query)) ||
-      t.doctrines.some(d => d.toLowerCase().includes(query))
+    const matchedTeachings = teachings.filter(
+      (t) =>
+        t.title.toLowerCase().includes(query) ||
+        t.quickAnswer.toLowerCase().includes(query) ||
+        t.keywords.some((k) => k.toLowerCase().includes(query)) ||
+        t.scriptures.some((s) => s.toLowerCase().includes(query)) ||
+        t.doctrines.some((d) => d.toLowerCase().includes(query))
     );
 
     const matchedQuestions = new Set<string>();
-    teachings.forEach(t => {
-      t.questionsAnswered.forEach(q => {
+    teachings.forEach((t) => {
+      t.questionsAnswered.forEach((q) => {
         if (q.toLowerCase().includes(query)) {
           matchedQuestions.add(q);
         }
       });
     });
 
-    const matchedThemes = themes.filter(t => 
-      t.toLowerCase().includes(query)
-    );
+    const matchedThemes = themes.filter((t) => t.toLowerCase().includes(query));
 
     return {
       teachings: matchedTeachings,
       questions: Array.from(matchedQuestions),
-      themes: matchedThemes
+      themes: matchedThemes,
     };
-  }, [searchQuery]);
+  }, [searchQuery, teachings]);
 
-  const hasResults = results.teachings.length > 0 || 
-                     results.questions.length > 0 || 
-                     results.themes.length > 0;
+  const hasResults =
+    results.teachings.length > 0 ||
+    results.questions.length > 0 ||
+    results.themes.length > 0;
 
   return (
     <>
       <Helmet>
-        <title>Search | The Christian Theologist</title>
-        <meta 
-          name="description" 
-          content="Search the teaching library by topic, scripture, keyword, or question. Find contextual Bible studies on any subject." 
+        <title>Search | The Berean Press</title>
+        <meta
+          name="description"
+          content="Search the teaching library by topic, scripture, keyword, or question. Find contextual Bible studies on any subject."
         />
       </Helmet>
       <div className="min-h-screen flex flex-col">
@@ -94,7 +132,11 @@ const Search = () => {
           {/* Results */}
           <section className="py-8 md:py-12">
             <div className="container px-4">
-              {searchQuery.length < 2 ? (
+              {isLoading ? (
+                <div className="flex justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : searchQuery.length < 2 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <SearchIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p>Start typing to search...</p>
@@ -127,8 +169,8 @@ const Search = () => {
                         </h2>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {results.questions.map(question => {
-                          const teaching = teachings.find(t => 
+                        {results.questions.map((question) => {
+                          const teaching = teachings.find((t) =>
                             t.questionsAnswered.includes(question)
                           );
                           return (
@@ -159,9 +201,15 @@ const Search = () => {
                         </h2>
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        {results.themes.map(theme => (
-                          <Link key={theme} to={`/teachings?theme=${encodeURIComponent(theme)}`}>
-                            <Badge variant="secondary" className="cursor-pointer hover:bg-primary/10">
+                        {results.themes.map((theme) => (
+                          <Link
+                            key={theme}
+                            to={`/teachings?theme=${encodeURIComponent(theme)}`}
+                          >
+                            <Badge
+                              variant="secondary"
+                              className="cursor-pointer hover:bg-primary/10"
+                            >
                               {theme}
                             </Badge>
                           </Link>
@@ -185,7 +233,11 @@ const Search = () => {
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {results.teachings.map((teaching, index) => (
-                          <TeachingCard key={teaching.id} teaching={teaching} index={index} />
+                          <TeachingCard
+                            key={teaching.id}
+                            teaching={teaching}
+                            index={index}
+                          />
                         ))}
                       </div>
                     </motion.div>

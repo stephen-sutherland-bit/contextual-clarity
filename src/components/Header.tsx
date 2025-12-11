@@ -16,7 +16,7 @@ const Header = () => {
           </div>
           <div className="flex flex-col">
             <span className="font-heading text-lg font-semibold leading-tight">
-              The Christian Theologist
+              The Berean Press
             </span>
             <span className="text-xs text-muted-foreground hidden sm:block">
               Context is King

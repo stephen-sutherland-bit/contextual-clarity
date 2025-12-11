@@ -3,17 +3,17 @@ import Footer from "@/components/Footer";
 import HeroSection from "@/components/HeroSection";
 import FeaturedQuestions from "@/components/FeaturedQuestions";
 import MethodologyPreview from "@/components/MethodologyPreview";
-import RecommendedPath from "@/components/RecommendedPath";
+import PhaseOverview from "@/components/PhaseOverview";
 import { Helmet } from "react-helmet-async";
 
 const Index = () => {
   return (
     <>
       <Helmet>
-        <title>The Christian Theologist | Contextual Bible Study</title>
+        <title>The Berean Press | Contextual Bible Study</title>
         <meta 
           name="description" 
-          content="Discover biblical teachings where context is king. Sound exegesis and CBS methodology making ancient Scripture accessible. Answers your pastor couldn't explain." 
+          content="Correcting misinterpretations through Contextual Bible Study. Sound exegesis making ancient Scripture accessible. Answers your pastor couldn't explain." 
         />
       </Helmet>
       <div className="min-h-screen flex flex-col">
@@ -22,7 +22,7 @@ const Index = () => {
           <HeroSection />
           <FeaturedQuestions />
           <MethodologyPreview />
-          <RecommendedPath />
+          <PhaseOverview />
         </main>
         <Footer />
       </div>

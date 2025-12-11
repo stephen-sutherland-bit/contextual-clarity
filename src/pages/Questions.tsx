@@ -1,28 +1,43 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import QuestionCard from "@/components/QuestionCard";
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
-import { teachings } from "@/data/teachings";
+import { Search, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { Helmet } from "react-helmet-async";
 
 const Questions = () => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [allQuestions, setAllQuestions] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Get all unique questions
-  const allQuestions = useMemo(() => {
-    const questions = new Set<string>();
-    teachings.forEach(t => {
-      t.questionsAnswered.forEach(q => questions.add(q));
-    });
-    return Array.from(questions);
+  useEffect(() => {
+    const fetchQuestions = async () => {
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from("teachings")
+        .select("questions_answered");
+
+      if (error) {
+        console.error("Error fetching questions:", error);
+      } else if (data) {
+        const questions = new Set<string>();
+        data.forEach((t) => {
+          (t.questions_answered || []).forEach((q: string) => questions.add(q));
+        });
+        setAllQuestions(Array.from(questions));
+      }
+      setIsLoading(false);
+    };
+
+    fetchQuestions();
   }, []);
 
   const filteredQuestions = useMemo(() => {
     if (searchQuery === "") return allQuestions;
-    return allQuestions.filter(q => 
+    return allQuestions.filter((q) =>
       q.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [allQuestions, searchQuery]);
@@ -30,10 +45,10 @@ const Questions = () => {
   return (
     <>
       <Helmet>
-        <title>Questions Answered | The Christian Theologist</title>
-        <meta 
-          name="description" 
-          content="Find answers to common biblical questions. Quick answers with links to full contextual teachings. What is the Trinity? What does 'the world' mean? And more." 
+        <title>Questions Answered | The Berean Press</title>
+        <meta
+          name="description"
+          content="Find answers to common biblical questions. Quick answers with links to full contextual teachings. What is the Trinity? What does 'the world' mean? And more."
         />
       </Helmet>
       <div className="min-h-screen flex flex-col">
@@ -52,8 +67,9 @@ const Questions = () => {
                   Questions Answered
                 </h1>
                 <p className="text-lg text-muted-foreground">
-                  Click any question to get a quick answer. Then, if you want to understand 
-                  the full context and reasoning, dive into the complete teaching.
+                  Click any question to get a quick answer. Then, if you want to
+                  understand the full context and reasoning, dive into the
+                  complete teaching.
                 </p>
               </motion.div>
             </div>
@@ -77,22 +93,36 @@ const Questions = () => {
           {/* Questions Grid */}
           <section className="py-8 md:py-12">
             <div className="container px-4">
-              <div className="mb-6 text-sm text-muted-foreground">
-                {filteredQuestions.length} questions
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {filteredQuestions.map((question, index) => (
-                  <QuestionCard key={question} question={question} index={index} />
-                ))}
-              </div>
-
-              {filteredQuestions.length === 0 && (
-                <div className="text-center py-12">
-                  <p className="text-muted-foreground">
-                    No questions found matching your search.
-                  </p>
+              {isLoading ? (
+                <div className="flex justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
+              ) : (
+                <>
+                  <div className="mb-6 text-sm text-muted-foreground">
+                    {filteredQuestions.length} questions
+                  </div>
+
+                  {filteredQuestions.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {filteredQuestions.map((question, index) => (
+                        <QuestionCard
+                          key={question}
+                          question={question}
+                          index={index}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <p className="text-muted-foreground">
+                        {allQuestions.length === 0
+                          ? "No teachings have been added yet."
+                          : "No questions found matching your search."}
+                      </p>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </section>
