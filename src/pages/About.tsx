@@ -9,10 +9,10 @@ const About = () => {
   return (
     <>
       <Helmet>
-        <title>About | The Christian Theologist</title>
+        <title>About | The Berean Press</title>
         <meta 
           name="description" 
-          content="Learn about The Christian Theologist and our mission to make contextual Bible study accessible to everyone." 
+          content="Learn about The Berean Press and our mission to correct misinterpretations through Contextual Bible Study." 
         />
       </Helmet>
       <div className="min-h-screen flex flex-col">
@@ -28,11 +28,11 @@ const About = () => {
                 className="max-w-3xl mx-auto text-center"
               >
                 <h1 className="text-4xl md:text-5xl font-heading font-bold mb-6">
-                  About The Christian Theologist
+                  About The Berean Press
                 </h1>
                 <p className="text-lg md:text-xl text-muted-foreground leading-relaxed">
-                  Sound exegesis with context as king. Making ancient wisdom accessible 
-                  through Contextual Bible Study methodology.
+                  Correcting misinterpretations through Contextual Bible Study—like the 
+                  Bereans of Acts 17:11 who diligently searched the scriptures.
                 </p>
               </motion.div>
             </div>
@@ -65,10 +65,11 @@ const About = () => {
                   </p>
 
                   <p className="text-lg leading-relaxed mb-6">
-                    The Christian Theologist exists to bridge that gap. We take theological 
-                    content—often from informal Bible studies full of the "ums" and tangents 
-                    that make for rich discussion—and transform it into accessible, pedagogically 
-                    sound teachings that work for complete newcomers and seasoned scholars alike.
+                    The Berean Press exists to bridge that gap. We take theological 
+                    content from The Christian Theologist—often from informal Bible studies 
+                    full of the "ums" and tangents that make for rich discussion—and transform 
+                    it into accessible, pedagogically sound teachings that work for complete 
+                    newcomers and seasoned scholars alike.
                   </p>
 
                   <p className="text-lg leading-relaxed">
@@ -143,10 +144,10 @@ const About = () => {
                   </div>
 
                   <p className="text-lg text-muted-foreground leading-relaxed mb-6">
-                    These teachings emerge from weekly informal Bible studies—whānau 
-                    (family) discussions where questions are explored, tangents become 
-                    insights, and the seemingly "useless talk" often contains the most 
-                    valuable pedagogical gems.
+                    These teachings emerge from weekly informal Bible studies led by 
+                    Jim of The Christian Theologist—whānau (family) discussions where 
+                    questions are explored, tangents become insights, and the seemingly 
+                    "useless talk" often contains the most valuable pedagogical gems.
                   </p>
 
                   <p className="text-lg text-muted-foreground leading-relaxed">
@@ -165,10 +166,10 @@ const About = () => {
                   className="mt-16 p-8 bg-secondary/30 rounded-2xl text-center"
                 >
                   <h3 className="font-heading font-semibold text-xl mb-3">
-                    Want More?
+                    Want More From The Christian Theologist?
                   </h3>
                   <p className="text-muted-foreground mb-6">
-                    For regular in-depth studies, subscribe to our Substack.
+                    For regular in-depth studies directly from Jim, subscribe to his Substack.
                   </p>
                   <Button variant="hero" asChild>
                     <a 
