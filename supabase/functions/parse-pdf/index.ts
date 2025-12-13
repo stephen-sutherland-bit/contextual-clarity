@@ -1,86 +1,53 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import * as pdfjsLib from "https://esm.sh/pdfjs-dist@4.0.379/build/pdf.mjs";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Simple PDF text extraction using pdf-parse compatible approach
+// Extract text from PDF using pdf.js
 async function extractTextFromPDF(base64Data: string): Promise<string> {
-  // Convert base64 to Uint8Array
-  const binaryString = atob(base64Data);
-  const bytes = new Uint8Array(binaryString.length);
-  for (let i = 0; i < binaryString.length; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-
-  // Basic PDF text extraction
-  // This extracts visible text content from PDF streams
-  const text = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
-  
-  // Extract text between stream markers and decode
-  const textContent: string[] = [];
-  
-  // Pattern to find text content in PDF
-  // Look for BT (begin text) ... ET (end text) blocks
-  const btEtPattern = /BT([\s\S]*?)ET/g;
-  let match;
-  
-  while ((match = btEtPattern.exec(text)) !== null) {
-    const textBlock = match[1];
-    
-    // Extract text from Tj and TJ operators
-    const tjPattern = /\(([^)]*)\)\s*Tj/g;
-    let tjMatch;
-    while ((tjMatch = tjPattern.exec(textBlock)) !== null) {
-      textContent.push(tjMatch[1]);
+  try {
+    // Convert base64 to Uint8Array
+    const binaryString = atob(base64Data);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
     }
+
+    // Load the PDF document
+    const loadingTask = pdfjsLib.getDocument({ data: bytes });
+    const pdf = await loadingTask.promise;
     
-    // Extract text from TJ arrays
-    const tjArrayPattern = /\[([\s\S]*?)\]\s*TJ/g;
-    let tjArrayMatch;
-    while ((tjArrayMatch = tjArrayPattern.exec(textBlock)) !== null) {
-      const arrayContent = tjArrayMatch[1];
-      const textParts = arrayContent.match(/\(([^)]*)\)/g);
-      if (textParts) {
-        textContent.push(textParts.map(p => p.slice(1, -1)).join(''));
+    console.log(`PDF loaded successfully with ${pdf.numPages} pages`);
+    
+    const textContent: string[] = [];
+    
+    // Extract text from each page
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+      const page = await pdf.getPage(pageNum);
+      const content = await page.getTextContent();
+      
+      // Combine all text items from the page
+      const pageText = content.items
+        .filter((item: unknown) => typeof item === 'object' && item !== null && 'str' in item)
+        .map((item: unknown) => (item as { str: string }).str)
+        .join(' ');
+      
+      if (pageText.trim()) {
+        textContent.push(pageText);
       }
     }
+    
+    // Join all pages with double newlines
+    return textContent.join('\n\n').trim();
+  } catch (error) {
+    console.error('Error extracting text from PDF:', error);
+    throw error;
   }
-  
-  // If we couldn't extract text using PDF operators, try to find readable text
-  if (textContent.length === 0) {
-    // Look for plain text that might be in the PDF
-    const plainTextPattern = /[\x20-\x7E\n\r\t]{20,}/g;
-    const plainMatches = text.match(plainTextPattern);
-    if (plainMatches) {
-      // Filter out PDF syntax
-      const filtered = plainMatches.filter(m => 
-        !m.includes('stream') && 
-        !m.includes('endstream') &&
-        !m.includes('endobj') &&
-        !m.includes('/Type') &&
-        !m.includes('/Font') &&
-        !m.includes('/Resources')
-      );
-      textContent.push(...filtered);
-    }
-  }
-  
-  // Clean up extracted text
-  let result = textContent.join('\n')
-    .replace(/\\n/g, '\n')
-    .replace(/\\r/g, '')
-    .replace(/\\t/g, ' ')
-    .replace(/\\\(/g, '(')
-    .replace(/\\\)/g, ')')
-    .replace(/\\'/g, "'")
-    .replace(/\s+/g, ' ')
-    .trim();
-  
-  return result;
 }
 
 // Log usage to database
