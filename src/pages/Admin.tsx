@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, FileText, Database, Check, Copy, Upload, Mic, BookOpen } from "lucide-react";
+import { Loader2, FileText, Database, Check, Copy, Upload, Mic, BookOpen, FileUp } from "lucide-react";
 import BookPreview from "@/components/BookPreview";
 import { Progress } from "@/components/ui/progress";
 import ApiUsageCard from "@/components/ApiUsageCard";
@@ -25,6 +25,9 @@ const Admin = () => {
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [transcriptionProgress, setTranscriptionProgress] = useState(0);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [isPdfDragOver, setIsPdfDragOver] = useState(false);
+  const [isParsing, setIsParsing] = useState(false);
+  const [contentSource, setContentSource] = useState<'audio' | 'pdf' | 'manual' | null>(null);
   
   // Metadata state
   const [title, setTitle] = useState("");
@@ -181,6 +184,110 @@ const Admin = () => {
     const files = e.target.files;
     if (files && files.length > 0) {
       transcribeAudio(files[0]);
+      setContentSource('audio');
+    }
+  };
+
+  // Parse PDF file
+  const parsePdf = async (file: File) => {
+    setIsParsing(true);
+
+    try {
+      // Convert file to base64
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => {
+          const result = reader.result as string;
+          const base64Data = result.split(',')[1];
+          resolve(base64Data);
+        };
+        reader.onerror = reject;
+      });
+
+      toast({
+        title: "Parsing PDF",
+        description: "Extracting text from your PDF...",
+      });
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/parse-pdf`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({
+            pdfBase64: base64,
+            filename: file.name,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to parse PDF");
+      }
+
+      const result = await response.json();
+      
+      // Set the extracted text directly to processed content (skipping transcript step)
+      setProcessedContent(result.text);
+      setContentSource('pdf');
+      
+      toast({
+        title: "Success",
+        description: `PDF parsed successfully (${result.charCount.toLocaleString()} characters)`,
+      });
+    } catch (error) {
+      console.error("Error parsing PDF:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to parse PDF",
+        variant: "destructive",
+      });
+    } finally {
+      setIsParsing(false);
+    }
+  };
+
+  // Handle PDF drop
+  const handlePdfDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsPdfDragOver(false);
+
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      const file = files[0];
+      
+      if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
+        parsePdf(file);
+      } else {
+        toast({
+          title: "Invalid file type",
+          description: "Please upload a PDF file",
+          variant: "destructive",
+        });
+      }
+    }
+  }, [toast]);
+
+  const handlePdfDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsPdfDragOver(true);
+  }, []);
+
+  const handlePdfDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsPdfDragOver(false);
+  }, []);
+
+  // Handle PDF file input
+  const handlePdfFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      parsePdf(files[0]);
     }
   };
 
@@ -432,6 +539,59 @@ const Admin = () => {
           <div className="grid gap-8 lg:grid-cols-2">
             {/* Input Section */}
             <div className="space-y-6">
+              {/* PDF Import Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileUp className="h-5 w-5" />
+                    Import PDF (Pre-Processed)
+                  </CardTitle>
+                  <CardDescription>
+                    Upload a PDF that's already been processed — skips transcription and goes straight to metadata
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div
+                    onDrop={handlePdfDrop}
+                    onDragOver={handlePdfDragOver}
+                    onDragLeave={handlePdfDragLeave}
+                    className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                      isPdfDragOver
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-primary/50"
+                    }`}
+                  >
+                    {isParsing ? (
+                      <div className="space-y-4">
+                        <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+                        <p className="text-sm text-muted-foreground">Parsing PDF...</p>
+                      </div>
+                    ) : (
+                      <>
+                        <FileUp className="h-8 w-8 mx-auto mb-4 text-muted-foreground" />
+                        <p className="text-sm text-muted-foreground mb-2">
+                          Drag and drop a PDF file here
+                        </p>
+                        <p className="text-xs text-muted-foreground mb-4">
+                          Content will go directly to Step 2
+                        </p>
+                        <label>
+                          <input
+                            type="file"
+                            accept=".pdf,application/pdf"
+                            onChange={handlePdfFileInput}
+                            className="hidden"
+                          />
+                          <Button variant="outline" size="sm" asChild>
+                            <span>Or click to browse</span>
+                          </Button>
+                        </label>
+                      </>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
               {/* Audio Upload Card */}
               <Card>
                 <CardHeader>
@@ -531,6 +691,17 @@ const Admin = () => {
                     <span className="flex items-center gap-2">
                       <FileText className="h-5 w-5" />
                       Step 2: Review & Edit
+                      {contentSource && (
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${
+                          contentSource === 'pdf' 
+                            ? 'bg-primary/10 text-primary' 
+                            : contentSource === 'audio'
+                            ? 'bg-secondary text-secondary-foreground'
+                            : 'bg-muted text-muted-foreground'
+                        }`}>
+                          {contentSource === 'pdf' ? 'From PDF' : contentSource === 'audio' ? 'From Audio' : 'Manual'}
+                        </span>
+                      )}
                     </span>
                     {processedContent && (
                       <Button
@@ -544,7 +715,10 @@ const Admin = () => {
                     )}
                   </CardTitle>
                   <CardDescription>
-                    Review the AI-processed content and make any corrections
+                    {contentSource === 'pdf' 
+                      ? "Review the imported PDF content and generate metadata"
+                      : "Review the AI-processed content and make any corrections"
+                    }
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
