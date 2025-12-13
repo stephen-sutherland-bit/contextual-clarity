@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, FileText, Database, Check, Copy, Upload, Mic } from "lucide-react";
+import { Loader2, FileText, Database, Check, Copy, Upload, Mic, BookOpen } from "lucide-react";
+import BookPreview from "@/components/BookPreview";
 import { Progress } from "@/components/ui/progress";
 import ApiUsageCard from "@/components/ApiUsageCard";
 
@@ -35,6 +36,8 @@ const Admin = () => {
   const [questionsAnswered, setQuestionsAnswered] = useState<string[]>([]);
   const [quickAnswer, setQuickAnswer] = useState("");
   const [phase, setPhase] = useState<string>("foundations");
+  const [showBookPreview, setShowBookPreview] = useState(false);
+  const [coverImage, setCoverImage] = useState<string>("");
 
   // Convert file to base64
   const fileToBase64 = (file: File): Promise<string> => {
@@ -383,6 +386,32 @@ const Admin = () => {
     });
   };
 
+  const generateCoverIllustration = async (): Promise<string> => {
+    const response = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-illustration`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          title: title || "Untitled Teaching",
+          theme: primaryTheme || "Biblical Studies",
+          scriptures,
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error("Failed to generate illustration");
+    }
+
+    const data = await response.json();
+    setCoverImage(data.imageUrl);
+    return data.imageUrl;
+  };
+
   return (
     <>
       <Helmet>
@@ -525,24 +554,34 @@ const Admin = () => {
                     onChange={(e) => setProcessedContent(e.target.value)}
                     className="min-h-[300px] font-mono text-sm"
                   />
-                  <Button
-                    onClick={generateIndex}
-                    disabled={isIndexing || !processedContent.trim()}
-                    variant="secondary"
-                    className="w-full"
-                  >
-                    {isIndexing ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Generating Index...
-                      </>
-                    ) : (
-                      <>
-                        <Database className="mr-2 h-4 w-4" />
-                        Generate Index
-                      </>
-                    )}
-                  </Button>
+                  <div className="flex gap-3">
+                    <Button
+                      onClick={generateIndex}
+                      disabled={isIndexing || !processedContent.trim()}
+                      variant="secondary"
+                      className="flex-1"
+                    >
+                      {isIndexing ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Generating Index...
+                        </>
+                      ) : (
+                        <>
+                          <Database className="mr-2 h-4 w-4" />
+                          Generate Index
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      onClick={() => setShowBookPreview(true)}
+                      disabled={!processedContent.trim()}
+                      variant="outline"
+                    >
+                      <BookOpen className="mr-2 h-4 w-4" />
+                      Preview as Book
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -667,6 +706,21 @@ const Admin = () => {
 
         <Footer />
       </div>
+
+      {/* Book Preview Modal */}
+      {showBookPreview && (
+        <BookPreview
+          title={title || "Untitled Teaching"}
+          primaryTheme={primaryTheme || "Biblical Studies"}
+          content={processedContent}
+          scriptures={scriptures}
+          questionsAnswered={questionsAnswered}
+          quickAnswer={quickAnswer || "This teaching explores key biblical concepts through contextual study."}
+          onClose={() => setShowBookPreview(false)}
+          coverImage={coverImage}
+          onGenerateCover={generateCoverIllustration}
+        />
+      )}
     </>
   );
 };
