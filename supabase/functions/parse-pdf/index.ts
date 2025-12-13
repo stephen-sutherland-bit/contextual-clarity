@@ -1,19 +1,15 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+// @ts-ignore - pdfjs-serverless types not fully compatible
+import { getDocument } from "https://esm.sh/pdfjs-serverless@0.4.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Use Mozilla's pdf.js via CDN with proper configuration
+// Extract text from PDF using pdfjs-serverless (designed for edge/serverless)
 async function extractTextFromPDF(base64Data: string): Promise<string> {
-  // Dynamically import pdf.js with legacy build that works without workers
-  const pdfjsLib = await import("https://esm.sh/pdfjs-dist@3.11.174/legacy/build/pdf.mjs");
-  
-  // Disable worker to avoid GlobalWorkerOptions error
-  pdfjsLib.GlobalWorkerOptions.workerSrc = '';
-  
   // Convert base64 to Uint8Array
   const binaryString = atob(base64Data);
   const bytes = new Uint8Array(binaryString.length);
@@ -21,15 +17,8 @@ async function extractTextFromPDF(base64Data: string): Promise<string> {
     bytes[i] = binaryString.charCodeAt(i);
   }
 
-  // Load the PDF with worker disabled
-  const loadingTask = pdfjsLib.getDocument({
-    data: bytes,
-    useWorkerFetch: false,
-    isEvalSupported: false,
-    useSystemFonts: true,
-  });
-  
-  const pdf = await loadingTask.promise;
+  // Load the PDF document
+  const pdf = await getDocument(bytes).promise;
   console.log(`PDF loaded successfully with ${pdf.numPages} pages`);
   
   const textContent: string[] = [];
@@ -41,12 +30,7 @@ async function extractTextFromPDF(base64Data: string): Promise<string> {
     
     // Combine all text items from the page
     const pageText = content.items
-      .map((item: Record<string, unknown>) => {
-        if ('str' in item && typeof item.str === 'string') {
-          return item.str;
-        }
-        return '';
-      })
+      .map((item: { str?: string }) => item.str || '')
       .filter((text: string) => text.length > 0)
       .join(' ');
     
