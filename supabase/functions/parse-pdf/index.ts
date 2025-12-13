@@ -1,38 +1,61 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { extractText, getDocumentProxy } from "https://esm.sh/unpdf@0.12.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Extract text from PDF using unpdf
+// Use Mozilla's pdf.js via CDN with proper configuration
 async function extractTextFromPDF(base64Data: string): Promise<string> {
-  try {
-    // Convert base64 to Uint8Array
-    const binaryString = atob(base64Data);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-
-    // Get the PDF document proxy
-    const pdf = await getDocumentProxy(bytes);
-    
-    console.log(`PDF loaded successfully with ${pdf.numPages} pages`);
-    
-    // Extract all text from the PDF
-    const { text } = await extractText(pdf);
-    
-    // text is an array of strings (one per page), join them
-    const fullText = Array.isArray(text) ? text.join('\n\n') : String(text);
-    
-    return fullText.trim();
-  } catch (error) {
-    console.error('Error extracting text from PDF:', error);
-    throw error;
+  // Dynamically import pdf.js with legacy build that works without workers
+  const pdfjsLib = await import("https://esm.sh/pdfjs-dist@3.11.174/legacy/build/pdf.mjs");
+  
+  // Disable worker to avoid GlobalWorkerOptions error
+  pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+  
+  // Convert base64 to Uint8Array
+  const binaryString = atob(base64Data);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
   }
+
+  // Load the PDF with worker disabled
+  const loadingTask = pdfjsLib.getDocument({
+    data: bytes,
+    useWorkerFetch: false,
+    isEvalSupported: false,
+    useSystemFonts: true,
+  });
+  
+  const pdf = await loadingTask.promise;
+  console.log(`PDF loaded successfully with ${pdf.numPages} pages`);
+  
+  const textContent: string[] = [];
+  
+  // Extract text from each page
+  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+    const page = await pdf.getPage(pageNum);
+    const content = await page.getTextContent();
+    
+    // Combine all text items from the page
+    const pageText = content.items
+      .map((item: Record<string, unknown>) => {
+        if ('str' in item && typeof item.str === 'string') {
+          return item.str;
+        }
+        return '';
+      })
+      .filter((text: string) => text.length > 0)
+      .join(' ');
+    
+    if (pageText.trim()) {
+      textContent.push(pageText);
+    }
+  }
+  
+  return textContent.join('\n\n').trim();
 }
 
 // Log usage to database
