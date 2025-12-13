@@ -1,14 +1,13 @@
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import * as pdfjsLib from "https://esm.sh/pdfjs-dist@4.0.379/build/pdf.mjs";
+import { extractText, getDocumentProxy } from "https://esm.sh/unpdf@0.12.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Extract text from PDF using pdf.js
+// Extract text from PDF using unpdf
 async function extractTextFromPDF(base64Data: string): Promise<string> {
   try {
     // Convert base64 to Uint8Array
@@ -18,32 +17,18 @@ async function extractTextFromPDF(base64Data: string): Promise<string> {
       bytes[i] = binaryString.charCodeAt(i);
     }
 
-    // Load the PDF document
-    const loadingTask = pdfjsLib.getDocument({ data: bytes });
-    const pdf = await loadingTask.promise;
+    // Get the PDF document proxy
+    const pdf = await getDocumentProxy(bytes);
     
     console.log(`PDF loaded successfully with ${pdf.numPages} pages`);
     
-    const textContent: string[] = [];
+    // Extract all text from the PDF
+    const { text } = await extractText(pdf);
     
-    // Extract text from each page
-    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-      const page = await pdf.getPage(pageNum);
-      const content = await page.getTextContent();
-      
-      // Combine all text items from the page
-      const pageText = content.items
-        .filter((item: unknown) => typeof item === 'object' && item !== null && 'str' in item)
-        .map((item: unknown) => (item as { str: string }).str)
-        .join(' ');
-      
-      if (pageText.trim()) {
-        textContent.push(pageText);
-      }
-    }
+    // text is an array of strings (one per page), join them
+    const fullText = Array.isArray(text) ? text.join('\n\n') : String(text);
     
-    // Join all pages with double newlines
-    return textContent.join('\n\n').trim();
+    return fullText.trim();
   } catch (error) {
     console.error('Error extracting text from PDF:', error);
     throw error;
