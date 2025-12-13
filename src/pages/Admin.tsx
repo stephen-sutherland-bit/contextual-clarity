@@ -5,6 +5,13 @@ import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -853,6 +860,26 @@ const Admin = () => {
                       </span>
                     ))}
                   </div>
+                </div>
+
+                {/* Phase Selection */}
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Learning Phase</label>
+                  <Select value={phase} onValueChange={setPhase}>
+                    <SelectTrigger className="w-full md:w-[300px]">
+                      <SelectValue placeholder="Select a phase" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="foundations">1. Foundations – Basics of Biblical Interpretation</SelectItem>
+                      <SelectItem value="essentials">2. Essentials – Covenant Basics</SelectItem>
+                      <SelectItem value="building-blocks">3. Building Blocks – Mosaic to New Covenant</SelectItem>
+                      <SelectItem value="moving-on">4. Moving On – Life in the New Covenant</SelectItem>
+                      <SelectItem value="advanced">5. Advanced – Doctrinal Deep Dives</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Choose the thematic phase for this teaching based on its content
+                  </p>
                 </div>
 
                 <Button
