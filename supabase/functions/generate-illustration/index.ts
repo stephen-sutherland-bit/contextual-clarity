@@ -42,10 +42,12 @@ serve(async (req) => {
         Authorization: `Bearer ${openAIApiKey}`,
       },
       body: JSON.stringify({
-        model: "gpt-image-1",
+        model: "dall-e-3",
         prompt,
         n: 1,
-        size: "1024x1536",
+        size: "1024x1792",
+        quality: "hd",
+        response_format: "b64_json",
       }),
     });
 
