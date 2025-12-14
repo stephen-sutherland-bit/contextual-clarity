@@ -46,7 +46,6 @@ serve(async (req) => {
         prompt,
         n: 1,
         size: "1024x1536",
-        response_format: "b64_json",
       }),
     });
 
@@ -57,9 +56,11 @@ serve(async (req) => {
     }
 
     const data = await response.json();
+    // gpt-image-1 returns base64 in data[0].b64_json
     const base64Image = data.data?.[0]?.b64_json;
 
     if (!base64Image) {
+      console.error("Response structure:", JSON.stringify(data));
       throw new Error("No image data received from OpenAI");
     }
 
