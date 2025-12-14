@@ -2,6 +2,7 @@ import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import BookPreview from "@/components/BookPreview";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,12 +22,15 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { type Teaching, type Phase, phases } from "@/data/teachings";
 import { Helmet } from "react-helmet-async";
+import { useToast } from "@/hooks/use-toast";
 
 const TeachingDetail = () => {
   const { id } = useParams();
+  const { toast } = useToast();
   const [teaching, setTeaching] = useState<Teaching | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [showFullContent, setShowFullContent] = useState(false);
+  const [showBookPreview, setShowBookPreview] = useState(false);
+  const [coverImage, setCoverImage] = useState<string | undefined>();
 
   useEffect(() => {
     const fetchTeaching = async () => {
@@ -58,12 +62,56 @@ const TeachingDetail = () => {
           readingOrder: data.reading_order || undefined,
           phase: (data.phase as Phase) || "foundations",
         });
+        setCoverImage((data as any).cover_image || undefined);
       }
       setIsLoading(false);
     };
 
     fetchTeaching();
   }, [id]);
+
+  // Strip HTML for BookPreview content
+  const stripHtml = (html: string) => {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    return doc.body.textContent || "";
+  };
+
+  // Generate cover image via edge function
+  const handleGenerateCover = async (): Promise<string> => {
+    if (!teaching) throw new Error("No teaching loaded");
+
+    const response = await supabase.functions.invoke("generate-illustration", {
+      body: {
+        title: teaching.title,
+        theme: teaching.primaryTheme,
+        scriptures: teaching.scriptures.slice(0, 5),
+      },
+    });
+
+    if (response.error) throw response.error;
+
+    const imageUrl = response.data?.image;
+    if (!imageUrl) throw new Error("No image returned");
+
+    // Save to database
+    const { error: updateError } = await supabase
+      .from("teachings")
+      .update({ cover_image: imageUrl })
+      .eq("id", teaching.id);
+
+    if (updateError) {
+      console.error("Failed to save cover image:", updateError);
+      toast({
+        title: "Warning",
+        description: "Cover generated but failed to save to database",
+        variant: "destructive",
+      });
+    } else {
+      setCoverImage(imageUrl);
+    }
+
+    return imageUrl;
+  };
 
   if (isLoading) {
     return (
@@ -182,33 +230,21 @@ const TeachingDetail = () => {
                 transition={{ duration: 0.5, delay: 0.2 }}
                 className="mb-8"
               >
-                {!showFullContent ? (
-                  <div className="text-center py-8 border-y border-border/50">
-                    <p className="text-muted-foreground mb-4">
-                      Want to understand the full context and reasoning?
-                    </p>
-                    <Button
-                      variant="hero"
-                      size="lg"
-                      onClick={() => setShowFullContent(true)}
-                      className="flex items-center gap-2"
-                    >
-                      <BookOpen className="h-5 w-5" />
-                      Read Full Teaching
-                      <ChevronDown className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="prose-teaching">
-                    <Separator className="mb-8" />
-                    <h2>Full Teaching</h2>
-                    <div
-                      dangerouslySetInnerHTML={{
-                        __html: teaching.fullContent || "<p>Full teaching content will appear here.</p>",
-                      }}
-                    />
-                  </div>
-                )}
+                <div className="text-center py-8 border-y border-border/50">
+                  <p className="text-muted-foreground mb-4">
+                    Want to understand the full context and reasoning?
+                  </p>
+                  <Button
+                    variant="hero"
+                    size="lg"
+                    onClick={() => setShowBookPreview(true)}
+                    className="flex items-center gap-2"
+                  >
+                    <BookOpen className="h-5 w-5" />
+                    Read Full Teaching
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </div>
               </motion.div>
 
               {/* Scripture References */}
@@ -314,6 +350,21 @@ const TeachingDetail = () => {
         </main>
         <Footer />
       </div>
+
+      {/* Book Preview Modal */}
+      {showBookPreview && (
+        <BookPreview
+          title={teaching.title}
+          primaryTheme={teaching.primaryTheme}
+          content={stripHtml(teaching.fullContent || "")}
+          scriptures={teaching.scriptures}
+          questionsAnswered={teaching.questionsAnswered}
+          quickAnswer={teaching.quickAnswer}
+          coverImage={coverImage}
+          onClose={() => setShowBookPreview(false)}
+          onGenerateCover={handleGenerateCover}
+        />
+      )}
     </>
   );
 };
