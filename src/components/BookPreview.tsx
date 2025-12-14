@@ -19,7 +19,30 @@ interface BookPreviewProps {
 // Split content into pages of roughly equal size
 const splitContentIntoPages = (content: string, charsPerPage: number = 1200): string[] => {
   const pages: string[] = [];
-  const paragraphs = content.split(/\n\n+/);
+  
+  // First try to split by paragraph breaks
+  let paragraphs = content.split(/\n\n+/).filter(p => p.trim());
+  
+  // If no paragraph breaks, split by sentences for very long content
+  if (paragraphs.length <= 1 && content.length > charsPerPage) {
+    // Split by sentence endings followed by space and capital letter
+    const sentences = content.split(/(?<=[.!?])\s+(?=[A-Z])/);
+    paragraphs = [];
+    let currentPara = "";
+    
+    for (const sentence of sentences) {
+      if (currentPara.length + sentence.length > 400 && currentPara.length > 0) {
+        paragraphs.push(currentPara.trim());
+        currentPara = sentence;
+      } else {
+        currentPara += (currentPara ? " " : "") + sentence;
+      }
+    }
+    if (currentPara.trim()) {
+      paragraphs.push(currentPara.trim());
+    }
+  }
+
   let currentPage = "";
 
   for (const paragraph of paragraphs) {
@@ -35,7 +58,7 @@ const splitContentIntoPages = (content: string, charsPerPage: number = 1200): st
     pages.push(currentPage.trim());
   }
 
-  return pages;
+  return pages.length > 0 ? pages : ["No content available"];
 };
 
 const Page = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
