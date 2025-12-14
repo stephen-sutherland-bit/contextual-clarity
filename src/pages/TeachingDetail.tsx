@@ -70,10 +70,22 @@ const TeachingDetail = () => {
     fetchTeaching();
   }, [id]);
 
-  // Strip HTML for BookPreview content
+  // Strip HTML for BookPreview content, preserving paragraph breaks
   const stripHtml = (html: string) => {
-    const doc = new DOMParser().parseFromString(html, "text/html");
-    return doc.body.textContent || "";
+    // First add line breaks before block elements
+    let text = html
+      .replace(/<\/p>/gi, "\n\n")
+      .replace(/<\/div>/gi, "\n\n")
+      .replace(/<\/h[1-6]>/gi, "\n\n")
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<li>/gi, "\n• ");
+    
+    // Now strip remaining HTML tags
+    const doc = new DOMParser().parseFromString(text, "text/html");
+    text = doc.body.textContent || "";
+    
+    // Clean up excessive whitespace while preserving paragraph breaks
+    return text.replace(/\n{3,}/g, "\n\n").trim();
   };
 
   // Generate cover image via edge function
