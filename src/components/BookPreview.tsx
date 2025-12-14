@@ -62,7 +62,7 @@ const splitContentIntoPages = (content: string, charsPerPage: number = 1200): st
 };
 
 const Page = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
-  <div className={`bg-card h-full w-full p-8 flex flex-col shadow-lg ${className}`}>
+  <div className={`bg-card h-full w-full p-6 flex flex-col shadow-lg overflow-hidden ${className}`}>
     {children}
   </div>
 );
@@ -286,14 +286,14 @@ const BookPreview = ({
           {contentPages.map((pageContent, index) => (
             <div key={`content-${index}`}>
               <Page>
-                <div className="prose-teaching text-sm leading-relaxed flex-1 overflow-hidden">
+                <div className="prose-teaching text-sm leading-relaxed flex-1 overflow-y-auto">
                   {pageContent.split("\n\n").map((para, pIndex) => (
-                    <p key={pIndex} className="mb-3 text-foreground/90">
+                    <p key={pIndex} className="mb-3 text-foreground/90 break-words">
                       {para}
                     </p>
                   ))}
                 </div>
-                <div className="mt-auto pt-4 text-center">
+                <div className="mt-auto pt-2 text-center flex-shrink-0">
                   <span className="text-xs text-muted-foreground">
                     {index + 3} / {totalPages}
                   </span>
@@ -305,31 +305,41 @@ const BookPreview = ({
           {/* Scriptures Page */}
           <div>
             <Page>
-              <h2 className="font-heading text-xl text-primary mb-4 border-b border-border pb-2">
+              <h2 className="font-heading text-lg text-primary mb-3 border-b border-border pb-2 flex-shrink-0">
                 Scripture References
               </h2>
-              <div className="flex-1">
-                <div className="flex flex-wrap gap-2">
-                  {scriptures.map((scripture, index) => (
+              <div className="flex-1 overflow-y-auto min-h-0">
+                <div className="flex flex-wrap gap-1.5">
+                  {scriptures.slice(0, 20).map((scripture, index) => (
                     <span
                       key={index}
-                      className="bg-scripture-bg text-scripture px-3 py-1.5 rounded text-sm"
+                      className="bg-scripture-bg text-scripture px-2 py-1 rounded text-xs"
                     >
                       {scripture}
                     </span>
                   ))}
+                  {scriptures.length > 20 && (
+                    <span className="text-xs text-muted-foreground px-2 py-1">
+                      +{scriptures.length - 20} more
+                    </span>
+                  )}
                 </div>
               </div>
-              <div className="mt-auto pt-8">
-                <h3 className="font-heading text-lg text-primary mb-3">
+              <div className="pt-4 flex-shrink-0">
+                <h3 className="font-heading text-base text-primary mb-2">
                   Questions Answered
                 </h3>
-                <ul className="space-y-1">
-                  {questionsAnswered.slice(0, 5).map((q, index) => (
-                    <li key={index} className="text-sm text-foreground/80">
+                <ul className="space-y-0.5 overflow-hidden">
+                  {questionsAnswered.slice(0, 4).map((q, index) => (
+                    <li key={index} className="text-xs text-foreground/80 line-clamp-2">
                       • {q}
                     </li>
                   ))}
+                  {questionsAnswered.length > 4 && (
+                    <li className="text-xs text-muted-foreground">
+                      +{questionsAnswered.length - 4} more questions
+                    </li>
+                  )}
                 </ul>
               </div>
             </Page>
