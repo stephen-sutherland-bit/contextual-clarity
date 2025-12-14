@@ -343,6 +343,30 @@ const TeachingDetail = () => {
                   variant="warm"
                   size="sm"
                   className="flex items-center gap-2"
+                  onClick={async () => {
+                    const url = window.location.href;
+                    const shareData = {
+                      title: teaching.title,
+                      text: teaching.quickAnswer || `Read "${teaching.title}" on The Berean Press`,
+                      url: url,
+                    };
+                    
+                    if (navigator.share && navigator.canShare?.(shareData)) {
+                      try {
+                        await navigator.share(shareData);
+                      } catch (err) {
+                        if ((err as Error).name !== 'AbortError') {
+                          console.error('Share failed:', err);
+                        }
+                      }
+                    } else {
+                      await navigator.clipboard.writeText(url);
+                      toast({
+                        title: "Link copied",
+                        description: "Teaching URL has been copied to your clipboard.",
+                      });
+                    }
+                  }}
                 >
                   <Share2 className="h-4 w-4" />
                   Share Teaching
