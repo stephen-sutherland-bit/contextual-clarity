@@ -17,6 +17,7 @@ import {
   ExternalLink,
   Share2,
   Loader2,
+  ImagePlus,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,6 +32,7 @@ const TeachingDetail = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [showBookPreview, setShowBookPreview] = useState(false);
   const [coverImage, setCoverImage] = useState<string | undefined>();
+  const [isGeneratingCover, setIsGeneratingCover] = useState(false);
 
   useEffect(() => {
     const fetchTeaching = async () => {
@@ -123,6 +125,32 @@ const TeachingDetail = () => {
     }
 
     return imageUrl;
+  };
+
+  // Regenerate cover from the detail page
+  const handleRegenerateCover = async () => {
+    setIsGeneratingCover(true);
+    toast({
+      title: "Generating cover...",
+      description: "Creating AI illustration for this teaching",
+    });
+    
+    try {
+      await handleGenerateCover();
+      toast({
+        title: "Cover updated",
+        description: "New cover image has been generated and saved",
+      });
+    } catch (error) {
+      console.error("Cover generation failed:", error);
+      toast({
+        title: "Generation failed",
+        description: "Could not generate cover image. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingCover(false);
+    }
   };
 
   if (isLoading) {
@@ -339,38 +367,54 @@ const TeachingDetail = () => {
                 transition={{ duration: 0.5, delay: 0.6 }}
                 className="pt-8 border-t border-border/50 flex flex-wrap gap-4 justify-between items-center"
               >
-                <Button
-                  variant="warm"
-                  size="sm"
-                  className="flex items-center gap-2"
-                  onClick={async () => {
-                    const url = window.location.href;
-                    const shareData = {
-                      title: teaching.title,
-                      text: teaching.quickAnswer || `Read "${teaching.title}" on The Berean Press`,
-                      url: url,
-                    };
-                    
-                    if (navigator.share && navigator.canShare?.(shareData)) {
-                      try {
-                        await navigator.share(shareData);
-                      } catch (err) {
-                        if ((err as Error).name !== 'AbortError') {
-                          console.error('Share failed:', err);
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="warm"
+                    size="sm"
+                    className="flex items-center gap-2"
+                    onClick={async () => {
+                      const url = window.location.href;
+                      const shareData = {
+                        title: teaching.title,
+                        text: teaching.quickAnswer || `Read "${teaching.title}" on The Berean Press`,
+                        url: url,
+                      };
+                      
+                      if (navigator.share && navigator.canShare?.(shareData)) {
+                        try {
+                          await navigator.share(shareData);
+                        } catch (err) {
+                          if ((err as Error).name !== 'AbortError') {
+                            console.error('Share failed:', err);
+                          }
                         }
+                      } else {
+                        await navigator.clipboard.writeText(url);
+                        toast({
+                          title: "Link copied",
+                          description: "Teaching URL has been copied to your clipboard.",
+                        });
                       }
-                    } else {
-                      await navigator.clipboard.writeText(url);
-                      toast({
-                        title: "Link copied",
-                        description: "Teaching URL has been copied to your clipboard.",
-                      });
-                    }
-                  }}
-                >
-                  <Share2 className="h-4 w-4" />
-                  Share Teaching
-                </Button>
+                    }}
+                  >
+                    <Share2 className="h-4 w-4" />
+                    Share Teaching
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-2"
+                    onClick={handleRegenerateCover}
+                    disabled={isGeneratingCover}
+                  >
+                    {isGeneratingCover ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <ImagePlus className="h-4 w-4" />
+                    )}
+                    {coverImage ? "Regenerate Cover" : "Generate Cover"}
+                  </Button>
+                </div>
                 <a
                   href="https://christiantheologist.substack.com"
                   target="_blank"
