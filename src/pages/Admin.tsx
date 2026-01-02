@@ -15,7 +15,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, FileText, Database, Check, Copy, Upload, Mic, BookOpen, FileUp } from "lucide-react";
+import { Loader2, FileText, Database, Check, Copy, Upload, Mic, BookOpen, FileUp, ImagePlus } from "lucide-react";
 import BookPreview from "@/components/BookPreview";
 import { Progress } from "@/components/ui/progress";
 import ApiUsageCard from "@/components/ApiUsageCard";
@@ -48,6 +48,10 @@ const Admin = () => {
   const [phase, setPhase] = useState<string>("foundations");
   const [showBookPreview, setShowBookPreview] = useState(false);
   const [coverImage, setCoverImage] = useState<string>("");
+  
+  // Batch cover generation state
+  const [isBatchGenerating, setIsBatchGenerating] = useState(false);
+  const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0, currentTitle: "" });
 
   // Convert file to base64
   const fileToBase64 = (file: File): Promise<string> => {
@@ -547,6 +551,97 @@ const Admin = () => {
     return data.imageUrl;
   };
 
+  const generateBatchCovers = async () => {
+    setIsBatchGenerating(true);
+    setBatchProgress({ current: 0, total: 0, currentTitle: "" });
+
+    try {
+      // Fetch all teachings without cover images
+      const { data: teachings, error } = await supabase
+        .from("teachings")
+        .select("id, title, primary_theme, scriptures")
+        .is("cover_image", null)
+        .order("created_at", { ascending: true });
+
+      if (error) throw error;
+
+      if (!teachings || teachings.length === 0) {
+        toast({
+          title: "All done!",
+          description: "All teachings already have cover images",
+        });
+        setIsBatchGenerating(false);
+        return;
+      }
+
+      setBatchProgress({ current: 0, total: teachings.length, currentTitle: "" });
+
+      let successCount = 0;
+      let failCount = 0;
+
+      for (let i = 0; i < teachings.length; i++) {
+        const teaching = teachings[i];
+        setBatchProgress({ 
+          current: i + 1, 
+          total: teachings.length, 
+          currentTitle: teaching.title 
+        });
+
+        try {
+          const response = await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-illustration`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+              },
+              body: JSON.stringify({
+                title: teaching.title,
+                theme: teaching.primary_theme,
+                scriptures: teaching.scriptures,
+              }),
+            }
+          );
+
+          if (!response.ok) {
+            throw new Error("Generation failed");
+          }
+
+          const data = await response.json();
+
+          // Update the teaching with the new cover image
+          const { error: updateError } = await supabase
+            .from("teachings")
+            .update({ cover_image: data.imageUrl })
+            .eq("id", teaching.id);
+
+          if (updateError) throw updateError;
+
+          successCount++;
+        } catch (err) {
+          console.error(`Failed to generate cover for "${teaching.title}":`, err);
+          failCount++;
+        }
+      }
+
+      toast({
+        title: "Batch generation complete",
+        description: `Generated ${successCount} covers${failCount > 0 ? `, ${failCount} failed` : ""}`,
+      });
+    } catch (error) {
+      console.error("Error in batch generation:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch teachings for batch generation",
+        variant: "destructive",
+      });
+    } finally {
+      setIsBatchGenerating(false);
+      setBatchProgress({ current: 0, total: 0, currentTitle: "" });
+    }
+  };
+
   return (
     <>
       <Helmet>
@@ -562,7 +657,50 @@ const Admin = () => {
             Teaching Processor
           </h1>
 
-          <ApiUsageCard />
+          <div className="grid gap-6 md:grid-cols-2 mb-8">
+            <ApiUsageCard />
+            
+            {/* Batch Cover Generation Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ImagePlus className="h-5 w-5" />
+                  Batch Cover Generation
+                </CardTitle>
+                <CardDescription>
+                  Generate AI cover illustrations for all teachings without covers
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {isBatchGenerating ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span className="text-sm text-muted-foreground">
+                        Generating {batchProgress.current} of {batchProgress.total}
+                      </span>
+                    </div>
+                    <Progress 
+                      value={(batchProgress.current / batchProgress.total) * 100} 
+                      className="w-full" 
+                    />
+                    <p className="text-xs text-muted-foreground truncate">
+                      Current: {batchProgress.currentTitle}
+                    </p>
+                  </div>
+                ) : (
+                  <Button 
+                    onClick={generateBatchCovers}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    <ImagePlus className="h-4 w-4 mr-2" />
+                    Generate Missing Covers
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          </div>
 
           <div className="grid gap-8 lg:grid-cols-2">
             {/* Input Section */}
