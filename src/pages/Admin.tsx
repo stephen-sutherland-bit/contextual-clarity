@@ -440,6 +440,25 @@ const Admin = () => {
     setIsSaving(true);
 
     try {
+      // Generate cover image first
+      toast({
+        title: "Generating cover...",
+        description: "Creating AI illustration for the teaching",
+      });
+      
+      let generatedCoverImage = coverImage;
+      if (!generatedCoverImage) {
+        try {
+          generatedCoverImage = await generateCoverIllustration();
+        } catch (coverError) {
+          console.error("Cover generation failed:", coverError);
+          toast({
+            title: "Warning",
+            description: "Cover image generation failed, saving without cover",
+          });
+        }
+      }
+
       // Generate a document ID
       const { count } = await supabase
         .from("teachings")
@@ -459,6 +478,7 @@ const Admin = () => {
         quick_answer: quickAnswer,
         full_content: processedContent,
         phase,
+        cover_image: generatedCoverImage || null,
       });
 
       if (error) throw error;
@@ -480,6 +500,7 @@ const Admin = () => {
       setQuestionsAnswered([]);
       setQuickAnswer("");
       setPhase("foundations");
+      setCoverImage("");
     } catch (error) {
       console.error("Error saving teaching:", error);
       toast({
