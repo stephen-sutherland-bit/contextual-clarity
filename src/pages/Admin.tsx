@@ -550,6 +550,37 @@ const Admin = () => {
     setFailedInSession([]);
   };
 
+  // Retry only failed PDFs from the last batch
+  const retryFailedPdfs = () => {
+    if (failedInSession.length === 0) return;
+    
+    // Filter pdfQueue to only the failed files
+    const failedFiles = pdfQueue.filter(f => failedInSession.includes(f.name));
+    
+    if (failedFiles.length === 0) {
+      toast({
+        title: "No failed files in queue",
+        description: "Please re-upload the failed PDFs to retry them.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Set the queue to only failed files
+    setPdfQueue(failedFiles);
+    // Clear the failed list so they get processed fresh
+    setFailedInSession([]);
+    // Keep processedInSession to show progress
+    
+    toast({
+      title: "Retrying failed files",
+      description: `${failedFiles.length} file(s) will be reprocessed.`,
+    });
+    
+    // Start processing immediately
+    setTimeout(() => processPdfBatch(false, false), 100);
+  };
+
   // Process the PDF queue in batch (with resume support)
   const processPdfBatch = async (isResume = false, useDbResume = false) => {
     if (pdfQueue.length === 0 && !isResume) return;
@@ -1503,6 +1534,46 @@ const Admin = () => {
                       <p className="text-xs text-muted-foreground">
                         Progress is saved automatically. You can safely close this page and resume later.
                       </p>
+                    </div>
+                  ) : failedInSession.length > 0 && pdfQueue.length > 0 ? (
+                    /* Retry failed PDFs panel - shows after batch with failures */
+                    <div className="space-y-4">
+                      <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-medium text-destructive">
+                            {failedInSession.length} file{failedInSession.length > 1 ? 's' : ''} failed to import
+                          </p>
+                          <p className="text-xs text-green-600">
+                            {processedInSession.length} succeeded
+                          </p>
+                        </div>
+                        <ul className="text-xs text-muted-foreground max-h-32 overflow-y-auto space-y-1">
+                          {failedInSession.map((filename, idx) => (
+                            <li key={idx} className="truncate text-destructive">
+                              ✗ {filename}
+                            </li>
+                          ))}
+                        </ul>
+                        <div className="flex gap-2">
+                          <Button 
+                            onClick={retryFailedPdfs} 
+                            variant="destructive"
+                            className="flex-1"
+                          >
+                            <Loader2 className="h-4 w-4 mr-2" />
+                            Retry Failed ({failedInSession.length})
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            onClick={() => {
+                              setFailedInSession([]);
+                              setProcessedInSession([]);
+                            }}
+                          >
+                            Dismiss
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   ) : pdfQueue.length > 0 ? (
                     <div className="space-y-4">
