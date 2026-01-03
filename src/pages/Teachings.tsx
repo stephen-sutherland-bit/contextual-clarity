@@ -27,7 +27,21 @@ const Teachings = () => {
       setIsLoading(true);
       const { data, error } = await supabase
         .from("teachings")
-        .select("*")
+        .select(`
+          id,
+          title,
+          date,
+          primary_theme,
+          secondary_themes,
+          scriptures,
+          doctrines,
+          keywords,
+          questions_answered,
+          quick_answer,
+          reading_order,
+          phase,
+          cover_image
+        `)
         .order("reading_order", { ascending: true });
 
       if (error) {
@@ -44,7 +58,7 @@ const Teachings = () => {
           keywords: t.keywords || [],
           questionsAnswered: t.questions_answered || [],
           quickAnswer: t.quick_answer || "",
-          fullContent: t.full_content,
+          fullContent: "", // Not fetched for list view - loaded on detail page
           readingOrder: t.reading_order || undefined,
           phase: (t.phase as Phase) || "foundations",
         }));
