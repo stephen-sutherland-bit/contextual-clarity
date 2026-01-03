@@ -8,9 +8,15 @@ import { Search, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Helmet } from "react-helmet-async";
 
+interface QuestionWithTeaching {
+  question: string;
+  teachingId: string;
+  quickAnswer: string;
+}
+
 const Questions = () => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [allQuestions, setAllQuestions] = useState<string[]>([]);
+  const [allQuestions, setAllQuestions] = useState<QuestionWithTeaching[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -18,16 +24,22 @@ const Questions = () => {
       setIsLoading(true);
       const { data, error } = await supabase
         .from("teachings")
-        .select("questions_answered");
+        .select("id, quick_answer, questions_answered");
 
       if (error) {
         console.error("Error fetching questions:", error);
       } else if (data) {
-        const questions = new Set<string>();
-        data.forEach((t) => {
-          (t.questions_answered || []).forEach((q: string) => questions.add(q));
+        const questionsWithTeaching: QuestionWithTeaching[] = [];
+        data.forEach((teaching) => {
+          (teaching.questions_answered || []).forEach((q: string) => {
+            questionsWithTeaching.push({
+              question: q,
+              teachingId: teaching.id,
+              quickAnswer: teaching.quick_answer || "",
+            });
+          });
         });
-        setAllQuestions(Array.from(questions));
+        setAllQuestions(questionsWithTeaching);
       }
       setIsLoading(false);
     };
@@ -38,7 +50,7 @@ const Questions = () => {
   const filteredQuestions = useMemo(() => {
     if (searchQuery === "") return allQuestions;
     return allQuestions.filter((q) =>
-      q.toLowerCase().includes(searchQuery.toLowerCase())
+      q.question.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [allQuestions, searchQuery]);
 
@@ -105,10 +117,12 @@ const Questions = () => {
 
                   {filteredQuestions.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {filteredQuestions.map((question, index) => (
+                      {filteredQuestions.map((q, index) => (
                         <QuestionCard
-                          key={question}
-                          question={question}
+                          key={`${q.teachingId}-${q.question}`}
+                          question={q.question}
+                          teachingId={q.teachingId}
+                          quickAnswer={q.quickAnswer}
                           index={index}
                         />
                       ))}

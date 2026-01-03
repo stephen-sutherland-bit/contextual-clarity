@@ -6,8 +6,14 @@ import QuestionCard from "./QuestionCard";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
+interface QuestionWithTeaching {
+  question: string;
+  teachingId: string;
+  quickAnswer: string;
+}
+
 const FeaturedQuestions = () => {
-  const [displayedQuestions, setDisplayedQuestions] = useState<string[]>([]);
+  const [displayedQuestions, setDisplayedQuestions] = useState<QuestionWithTeaching[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -15,17 +21,21 @@ const FeaturedQuestions = () => {
       setIsLoading(true);
       const { data, error } = await supabase
         .from("teachings")
-        .select("questions_answered")
+        .select("id, quick_answer, questions_answered")
         .limit(10);
 
       if (error) {
         console.error("Error fetching questions:", error);
       } else if (data) {
-        const questions: string[] = [];
+        const questions: QuestionWithTeaching[] = [];
         data.forEach((t) => {
           (t.questions_answered || []).forEach((q: string) => {
-            if (questions.length < 6 && !questions.includes(q)) {
-              questions.push(q);
+            if (questions.length < 6 && !questions.some(existing => existing.question === q)) {
+              questions.push({
+                question: q,
+                teachingId: t.id,
+                quickAnswer: t.quick_answer || "",
+              });
             }
           });
         });
@@ -71,8 +81,14 @@ const FeaturedQuestions = () => {
         </motion.div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-10">
-          {displayedQuestions.map((question, index) => (
-            <QuestionCard key={question} question={question} index={index} />
+          {displayedQuestions.map((q, index) => (
+            <QuestionCard
+              key={`${q.teachingId}-${q.question}`}
+              question={q.question}
+              teachingId={q.teachingId}
+              quickAnswer={q.quickAnswer}
+              index={index}
+            />
           ))}
         </div>
 

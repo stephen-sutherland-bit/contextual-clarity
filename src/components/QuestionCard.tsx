@@ -2,29 +2,23 @@ import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { HelpCircle, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
-import { teachings } from "@/data/teachings";
 
 interface QuestionCardProps {
   question: string;
+  teachingId: string;
+  quickAnswer: string;
   index: number;
 }
 
-const QuestionCard = ({ question, index }: QuestionCardProps) => {
-  // Find the teaching that answers this question
-  const teaching = teachings.find(t => 
-    t.questionsAnswered.includes(question)
-  );
-
-  if (!teaching) return null;
-
+const QuestionCard = ({ question, teachingId, quickAnswer, index }: QuestionCardProps) => {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay: index * 0.1 }}
+      transition={{ duration: 0.5, delay: Math.min(index * 0.05, 0.5) }}
       viewport={{ once: true }}
     >
-      <Link to={`/teaching/${teaching.id}`}>
+      <Link to={`/teaching/${teachingId}`}>
         <Card variant="question" className="group h-full">
           <CardContent className="p-5">
             <div className="flex items-start gap-3">
@@ -36,7 +30,7 @@ const QuestionCard = ({ question, index }: QuestionCardProps) => {
                   {question}
                 </p>
                 <p className="mt-2 text-sm text-muted-foreground line-clamp-2">
-                  {teaching.quickAnswer.substring(0, 120)}...
+                  {quickAnswer ? `${quickAnswer.substring(0, 120)}...` : "Click to learn more"}
                 </p>
               </div>
               <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all flex-shrink-0 mt-1" />
