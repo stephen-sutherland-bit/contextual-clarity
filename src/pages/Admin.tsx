@@ -53,6 +53,17 @@ const Admin = () => {
   const [isBatchGenerating, setIsBatchGenerating] = useState(false);
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0, currentTitle: "" });
 
+  // Bulk PDF import state
+  const [pdfQueue, setPdfQueue] = useState<File[]>([]);
+  const [isBatchImporting, setIsBatchImporting] = useState(false);
+  const [batchImportProgress, setBatchImportProgress] = useState({ 
+    current: 0, 
+    total: 0, 
+    currentFile: "", 
+    stage: "" 
+  });
+  const [bulkPhase, setBulkPhase] = useState<string>("foundations");
+
   // Convert file to base64
   const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -263,24 +274,35 @@ const Admin = () => {
     }
   };
 
-  // Handle PDF drop
+  // Handle PDF drop (supports multiple files for bulk import)
   const handlePdfDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsPdfDragOver(false);
 
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-      const file = files[0];
-      
-      if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
-        parsePdf(file);
-      } else {
-        toast({
-          title: "Invalid file type",
-          description: "Please upload a PDF file",
-          variant: "destructive",
-        });
-      }
+    const files = Array.from(e.dataTransfer.files);
+    const pdfFiles = files.filter(
+      file => file.type === 'application/pdf' || file.name.endsWith('.pdf')
+    );
+    
+    if (pdfFiles.length === 0) {
+      toast({
+        title: "Invalid file type",
+        description: "Please upload PDF files",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (pdfFiles.length === 1) {
+      // Single file - use original flow
+      parsePdf(pdfFiles[0]);
+    } else {
+      // Multiple files - add to queue
+      setPdfQueue(prev => [...prev, ...pdfFiles]);
+      toast({
+        title: "PDFs added to queue",
+        description: `${pdfFiles.length} files added. Select phase and start processing.`,
+      });
     }
   }, [toast]);
 
@@ -294,12 +316,173 @@ const Admin = () => {
     setIsPdfDragOver(false);
   }, []);
 
-  // Handle PDF file input
+  // Handle PDF file input (supports multiple files)
   const handlePdfFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      parsePdf(files[0]);
+      const pdfFiles = Array.from(files);
+      if (pdfFiles.length === 1) {
+        parsePdf(pdfFiles[0]);
+      } else {
+        setPdfQueue(prev => [...prev, ...pdfFiles]);
+        toast({
+          title: "PDFs added to queue",
+          description: `${pdfFiles.length} files added. Select phase and start processing.`,
+        });
+      }
     }
+  };
+
+  // Clear the PDF queue
+  const clearPdfQueue = () => {
+    setPdfQueue([]);
+    toast({
+      title: "Queue cleared",
+      description: "All PDFs removed from the queue",
+    });
+  };
+
+  // Process the PDF queue in batch
+  const processPdfBatch = async () => {
+    if (pdfQueue.length === 0) return;
+
+    setIsBatchImporting(true);
+    setBatchImportProgress({ current: 0, total: pdfQueue.length, currentFile: "", stage: "" });
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (let i = 0; i < pdfQueue.length; i++) {
+      const file = pdfQueue[i];
+      setBatchImportProgress({ 
+        current: i + 1, 
+        total: pdfQueue.length, 
+        currentFile: file.name, 
+        stage: "Parsing PDF" 
+      });
+
+      try {
+        // Step 1: Parse PDF
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          reader.onload = () => {
+            const result = reader.result as string;
+            const base64Data = result.split(',')[1];
+            resolve(base64Data);
+          };
+          reader.onerror = reject;
+        });
+
+        const parseResponse = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/parse-pdf`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            },
+            body: JSON.stringify({ pdfBase64: base64, filename: file.name }),
+          }
+        );
+
+        if (!parseResponse.ok) throw new Error("Failed to parse PDF");
+        const parseResult = await parseResponse.json();
+        const content = parseResult.text;
+
+        // Step 2: Generate metadata
+        setBatchImportProgress(prev => ({ ...prev, stage: "Generating metadata" }));
+        
+        const indexResponse = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-index`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            },
+            body: JSON.stringify({ content, title: "" }),
+          }
+        );
+
+        if (!indexResponse.ok) throw new Error("Failed to generate metadata");
+        const metadata = await indexResponse.json();
+
+        // Step 3: Generate cover
+        setBatchImportProgress(prev => ({ ...prev, stage: "Generating cover" }));
+        
+        let coverImageUrl = "";
+        try {
+          const coverResponse = await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-illustration`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+              },
+              body: JSON.stringify({
+                title: metadata.suggested_title || file.name,
+                theme: metadata.primary_theme || "Biblical Studies",
+                scriptures: metadata.scriptures || [],
+              }),
+            }
+          );
+
+          if (coverResponse.ok) {
+            const coverData = await coverResponse.json();
+            coverImageUrl = coverData.imageUrl;
+          }
+        } catch (coverErr) {
+          console.error("Cover generation failed for", file.name, coverErr);
+        }
+
+        // Step 4: Save to database
+        setBatchImportProgress(prev => ({ ...prev, stage: "Saving" }));
+
+        const { count } = await supabase
+          .from("teachings")
+          .select("*", { count: "exact", head: true });
+        
+        const documentId = `D-${String((count || 0) + 1).padStart(3, "0")}`;
+
+        const { error: insertError } = await supabase.from("teachings").insert({
+          document_id: documentId,
+          title: metadata.suggested_title || file.name.replace('.pdf', ''),
+          primary_theme: metadata.primary_theme || "Uncategorized",
+          secondary_themes: metadata.secondary_themes || [],
+          scriptures: metadata.scriptures || [],
+          doctrines: metadata.doctrines || [],
+          keywords: metadata.keywords || [],
+          questions_answered: metadata.questions_answered || [],
+          quick_answer: metadata.quick_answer || "",
+          full_content: content,
+          phase: bulkPhase,
+          cover_image: coverImageUrl || null,
+        });
+
+        if (insertError) throw insertError;
+
+        successCount++;
+      } catch (err) {
+        console.error(`Failed to process ${file.name}:`, err);
+        failCount++;
+      }
+
+      // Small delay between processing to avoid rate limiting
+      if (i < pdfQueue.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+
+    toast({
+      title: "Batch import complete",
+      description: `${successCount} teachings saved${failCount > 0 ? `, ${failCount} failed` : ""}`,
+    });
+
+    setPdfQueue([]);
+    setIsBatchImporting(false);
+    setBatchImportProgress({ current: 0, total: 0, currentFile: "", stage: "" });
   };
 
   const processTranscript = async () => {
@@ -705,56 +888,119 @@ const Admin = () => {
           <div className="grid gap-8 lg:grid-cols-2">
             {/* Input Section */}
             <div className="space-y-6">
-              {/* PDF Import Card */}
+              {/* Bulk PDF Import Card */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <FileUp className="h-5 w-5" />
-                    Import PDF (Pre-Processed)
+                    Bulk PDF Import
                   </CardTitle>
                   <CardDescription>
-                    Upload a PDF that's already been processed — skips transcription and goes straight to metadata
+                    Upload multiple PDFs at once — they'll be processed one at a time automatically
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <div
-                    onDrop={handlePdfDrop}
-                    onDragOver={handlePdfDragOver}
-                    onDragLeave={handlePdfDragLeave}
-                    className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-                      isPdfDragOver
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:border-primary/50"
-                    }`}
-                  >
-                    {isParsing ? (
-                      <div className="space-y-4">
-                        <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
-                        <p className="text-sm text-muted-foreground">Parsing PDF...</p>
+                <CardContent className="space-y-4">
+                  {isBatchImporting ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span className="text-sm text-muted-foreground">
+                          Processing {batchImportProgress.current} of {batchImportProgress.total}
+                        </span>
                       </div>
-                    ) : (
-                      <>
-                        <FileUp className="h-8 w-8 mx-auto mb-4 text-muted-foreground" />
-                        <p className="text-sm text-muted-foreground mb-2">
-                          Drag and drop a PDF file here
+                      <Progress 
+                        value={(batchImportProgress.current / batchImportProgress.total) * 100} 
+                        className="w-full" 
+                      />
+                      <p className="text-xs text-muted-foreground truncate">
+                        {batchImportProgress.currentFile}
+                      </p>
+                      <p className="text-xs text-primary font-medium">
+                        {batchImportProgress.stage}...
+                      </p>
+                    </div>
+                  ) : pdfQueue.length > 0 ? (
+                    <div className="space-y-4">
+                      <div className="bg-muted rounded-lg p-4">
+                        <p className="text-sm font-medium mb-2">
+                          {pdfQueue.length} PDF{pdfQueue.length > 1 ? 's' : ''} queued
                         </p>
-                        <p className="text-xs text-muted-foreground mb-4">
-                          Content will go directly to Step 2
-                        </p>
-                        <label>
-                          <input
-                            type="file"
-                            accept=".pdf,application/pdf"
-                            onChange={handlePdfFileInput}
-                            className="hidden"
-                          />
-                          <Button variant="outline" size="sm" asChild>
-                            <span>Or click to browse</span>
-                          </Button>
-                        </label>
-                      </>
-                    )}
-                  </div>
+                        <ul className="text-xs text-muted-foreground max-h-32 overflow-y-auto space-y-1">
+                          {pdfQueue.map((file, idx) => (
+                            <li key={idx} className="truncate">• {file.name}</li>
+                          ))}
+                        </ul>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Phase for all teachings:</label>
+                        <Select value={bulkPhase} onValueChange={setBulkPhase}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="foundations">Foundations</SelectItem>
+                            <SelectItem value="essentials">Essentials</SelectItem>
+                            <SelectItem value="building-blocks">Building Blocks</SelectItem>
+                            <SelectItem value="moving-on">Moving On</SelectItem>
+                            <SelectItem value="advanced">Advanced</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <Button onClick={processPdfBatch} className="flex-1">
+                          <FileText className="h-4 w-4 mr-2" />
+                          Start Processing
+                        </Button>
+                        <Button variant="outline" onClick={clearPdfQueue}>
+                          Clear
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      onDrop={handlePdfDrop}
+                      onDragOver={handlePdfDragOver}
+                      onDragLeave={handlePdfDragLeave}
+                      className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                        isPdfDragOver
+                          ? "border-primary bg-primary/5"
+                          : isParsing
+                            ? "border-primary"
+                            : "border-border hover:border-primary/50"
+                      }`}
+                    >
+                      {isParsing ? (
+                        <div className="space-y-4">
+                          <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+                          <p className="text-sm text-muted-foreground">Parsing PDF...</p>
+                        </div>
+                      ) : (
+                        <>
+                          <FileUp className="h-8 w-8 mx-auto mb-4 text-muted-foreground" />
+                          <p className="text-sm text-muted-foreground mb-2">
+                            Drag and drop PDF files here
+                          </p>
+                          <p className="text-xs text-muted-foreground mb-4">
+                            Single file → review flow | Multiple files → batch import
+                          </p>
+                          <label>
+                            <input
+                              type="file"
+                              accept=".pdf,application/pdf"
+                              multiple
+                              onChange={handlePdfFileInput}
+                              className="hidden"
+                            />
+                            <Button variant="outline" size="sm" asChild>
+                              <span>Or click to browse</span>
+                            </Button>
+                          </label>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
