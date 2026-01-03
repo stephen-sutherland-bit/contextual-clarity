@@ -15,7 +15,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, FileText, Database, Check, Copy, Upload, Mic, BookOpen, FileUp, ImagePlus } from "lucide-react";
+import { Loader2, FileText, Database, Check, Copy, Upload, Mic, BookOpen, FileUp, ImagePlus, Sparkles } from "lucide-react";
 import BookPreview from "@/components/BookPreview";
 import { Progress } from "@/components/ui/progress";
 import ApiUsageCard from "@/components/ApiUsageCard";
@@ -88,6 +88,13 @@ const Admin = () => {
   // Batch cover generation state
   const [isBatchGenerating, setIsBatchGenerating] = useState(false);
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0, currentTitle: "" });
+
+  // AI Phase categorization state
+  const [isCategorisingPhases, setIsCategorisingPhases] = useState(false);
+  const [phaseProgress, setPhaseProgress] = useState({ current: 0, total: 0, currentTitle: "" });
+  const [phaseResults, setPhaseResults] = useState<Array<{ id: string; title: string; suggested_phase: string; confidence: string; reasoning: string }>>([]);
+  const [suggestedPhase, setSuggestedPhase] = useState<string>("");
+  const [phaseReasoning, setPhaseReasoning] = useState<string>("");
 
   // Bulk PDF import state
   const [pdfQueue, setPdfQueue] = useState<File[]>([]);
@@ -815,6 +822,13 @@ const Admin = () => {
       setKeywords(metadata.keywords || []);
       setQuestionsAnswered(metadata.questions_answered || []);
       setQuickAnswer(metadata.quick_answer || "");
+      
+      // Set AI-suggested phase if available
+      if (metadata.suggested_phase) {
+        setPhase(metadata.suggested_phase);
+        setSuggestedPhase(metadata.suggested_phase);
+        setPhaseReasoning(metadata.phase_reasoning || "");
+      }
 
       toast({
         title: "Success",
@@ -906,6 +920,8 @@ const Admin = () => {
       setQuickAnswer("");
       setPhase("foundations");
       setCoverImage("");
+      setSuggestedPhase("");
+      setPhaseReasoning("");
     } catch (error) {
       console.error("Error saving teaching:", error);
       toast({
@@ -1043,6 +1059,111 @@ const Admin = () => {
     }
   };
 
+  // Batch AI phase categorization
+  const categoriseAllTeachings = async () => {
+    setIsCategorisingPhases(true);
+    setPhaseProgress({ current: 0, total: 0, currentTitle: "" });
+    setPhaseResults([]);
+
+    try {
+      // Fetch all teachings currently in 'foundations' phase (the default)
+      const { data: teachings, error } = await supabase
+        .from("teachings")
+        .select("id, title, primary_theme, secondary_themes, doctrines, scriptures, quick_answer, full_content")
+        .eq("phase", "foundations")
+        .order("created_at", { ascending: true });
+
+      if (error) throw error;
+
+      if (!teachings || teachings.length === 0) {
+        toast({
+          title: "All done!",
+          description: "No teachings in 'foundations' phase need categorisation",
+        });
+        setIsCategorisingPhases(false);
+        return;
+      }
+
+      setPhaseProgress({ current: 0, total: teachings.length, currentTitle: "Preparing..." });
+
+      // Process in batches of 5 to avoid timeouts
+      const batchSize = 5;
+      const results: Array<{ id: string; title: string; suggested_phase: string; confidence: string; reasoning: string }> = [];
+
+      for (let i = 0; i < teachings.length; i += batchSize) {
+        const batch = teachings.slice(i, i + batchSize);
+        setPhaseProgress({ 
+          current: i + 1, 
+          total: teachings.length, 
+          currentTitle: batch[0]?.title || "Processing..." 
+        });
+
+        try {
+          const response = await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/suggest-phase`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+              },
+              body: JSON.stringify({ teachings: batch }),
+            }
+          );
+
+          if (!response.ok) {
+            console.error("Phase suggestion failed for batch starting at", i);
+            continue;
+          }
+
+          const data = await response.json();
+          
+          // Apply the suggested phases to the database
+          for (const result of data.results) {
+            if (result.suggested_phase && !result.error) {
+              const { error: updateError } = await supabase
+                .from("teachings")
+                .update({ phase: result.suggested_phase })
+                .eq("id", result.id);
+
+              if (!updateError) {
+                results.push(result);
+              }
+            }
+          }
+
+          setPhaseResults([...results]);
+          setPhaseProgress({ 
+            current: Math.min(i + batchSize, teachings.length), 
+            total: teachings.length, 
+            currentTitle: batch[batch.length - 1]?.title || "" 
+          });
+        } catch (err) {
+          console.error("Error processing batch:", err);
+        }
+
+        // Small delay between batches
+        if (i + batchSize < teachings.length) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+
+      toast({
+        title: "Phase categorisation complete",
+        description: `${results.length} teachings categorised`,
+      });
+    } catch (error) {
+      console.error("Error in phase categorisation:", error);
+      toast({
+        title: "Error",
+        description: "Failed to categorise teachings",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCategorisingPhases(false);
+    }
+  };
+
   return (
     <>
       <Helmet>
@@ -1097,6 +1218,97 @@ const Admin = () => {
                   >
                     <ImagePlus className="h-4 w-4 mr-2" />
                     Generate Missing Covers
+                  </Button>
+                )}
+                </CardContent>
+            </Card>
+
+            {/* AI Phase Categorisation Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5" />
+                  AI Phase Categorisation
+                </CardTitle>
+                <CardDescription>
+                  Let AI analyse and categorise all teachings currently in "Foundations"
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {isCategorisingPhases ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span className="text-sm text-muted-foreground">
+                        Processing {phaseProgress.current} of {phaseProgress.total}
+                      </span>
+                    </div>
+                    <Progress 
+                      value={(phaseProgress.current / phaseProgress.total) * 100} 
+                      className="w-full" 
+                    />
+                    <p className="text-xs text-muted-foreground truncate">
+                      {phaseProgress.currentTitle}
+                    </p>
+                    {phaseResults.length > 0 && (
+                      <div className="max-h-32 overflow-y-auto text-xs space-y-1">
+                        {phaseResults.slice(-5).map((r, idx) => (
+                          <div key={idx} className="flex items-center gap-2">
+                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                              r.confidence === 'high' ? 'bg-green-500/10 text-green-600' :
+                              r.confidence === 'medium' ? 'bg-amber-500/10 text-amber-600' :
+                              'bg-muted text-muted-foreground'
+                            }`}>
+                              {r.suggested_phase}
+                            </span>
+                            <span className="truncate flex-1">{r.title}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : phaseResults.length > 0 ? (
+                  <div className="space-y-4">
+                    <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
+                      <p className="text-sm font-medium text-green-700 dark:text-green-400 mb-2">
+                        ✓ {phaseResults.length} teachings categorised
+                      </p>
+                      <div className="max-h-40 overflow-y-auto text-xs space-y-1">
+                        {phaseResults.map((r, idx) => (
+                          <div key={idx} className="flex items-start gap-2 py-1">
+                            <span className={`px-2 py-0.5 rounded text-xs font-medium shrink-0 ${
+                              r.suggested_phase === 'foundations' ? 'bg-blue-500/10 text-blue-600' :
+                              r.suggested_phase === 'essentials' ? 'bg-purple-500/10 text-purple-600' :
+                              r.suggested_phase === 'building-blocks' ? 'bg-amber-500/10 text-amber-600' :
+                              r.suggested_phase === 'moving-on' ? 'bg-green-500/10 text-green-600' :
+                              'bg-red-500/10 text-red-600'
+                            }`}>
+                              {r.suggested_phase}
+                            </span>
+                            <div className="min-w-0">
+                              <p className="font-medium truncate">{r.title}</p>
+                              <p className="text-muted-foreground">{r.reasoning}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <Button 
+                      onClick={() => setPhaseResults([])}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      Clear Results
+                    </Button>
+                  </div>
+                ) : (
+                  <Button 
+                    onClick={categoriseAllTeachings}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Categorise All Teachings
                   </Button>
                 )}
               </CardContent>
@@ -1619,7 +1831,15 @@ const Admin = () => {
 
                 {/* Phase Selection */}
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Learning Phase</label>
+                  <label className="text-sm font-medium mb-2 block flex items-center gap-2">
+                    Learning Phase
+                    {suggestedPhase && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary flex items-center gap-1">
+                        <Sparkles className="h-3 w-3" />
+                        AI Suggested
+                      </span>
+                    )}
+                  </label>
                   <Select value={phase} onValueChange={setPhase}>
                     <SelectTrigger className="w-full md:w-[300px]">
                       <SelectValue placeholder="Select a phase" />
@@ -1632,9 +1852,15 @@ const Admin = () => {
                       <SelectItem value="advanced">5. Advanced – Doctrinal Deep Dives</SelectItem>
                     </SelectContent>
                   </Select>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Choose the thematic phase for this teaching based on its content
-                  </p>
+                  {phaseReasoning ? (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      <span className="font-medium">AI reasoning:</span> {phaseReasoning}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Choose the thematic phase for this teaching based on its content
+                    </p>
+                  )}
                 </div>
 
                 <Button
