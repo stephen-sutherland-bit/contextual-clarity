@@ -37,6 +37,13 @@ You follow Contextual Bible Study (CBS) methodology:
 
 Use New Zealand English (e.g., judgement, fulfilment, honour, colour).
 
+**LEARNING PHASES** - Assign each teaching to one of these five scaffolded learning phases:
+1. **foundations**: The basics of biblical interpretation and Contextual Bible Study methodology. For newcomers learning how to read the Bible contextually.
+2. **essentials**: Covenant Basics. Understanding the fundamental nature of covenants in Scripture.
+3. **building-blocks**: Transition from Mosaic Covenant to the New Covenant - Fulfilment in AD70. How the old covenant ended and the new began.
+4. **moving-on**: Life in the New Covenant. Practical application and living under the new covenant.
+5. **advanced**: Doctrinal Deep Dives. Complex theological topics for those with solid foundations.
+
 Extract the following from the teaching:
 
 1. **Primary Theme**: The single main topic/focus of the teaching
@@ -51,7 +58,8 @@ Extract the following from the teaching:
    - Use NZ English (e.g., "Judgement" not "Judgment")
 6. **Questions Answered**: What questions does this teaching answer? Phrase as actual questions someone might ask.
 7. **Quick Answer**: A 2-3 sentence summary that directly answers the main question(s) this teaching addresses. This is shown before the full teaching.
-8. **Suggested Title**: A clear, descriptive title for the teaching`;
+8. **Suggested Title**: A clear, descriptive title for the teaching
+9. **Suggested Phase**: Which of the five learning phases (foundations, essentials, building-blocks, moving-on, advanced) best fits this teaching? Consider the complexity and where it fits in the learning journey.`;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -124,9 +132,18 @@ serve(async (req) => {
                   quick_answer: { 
                     type: 'string', 
                     description: '2-3 sentence summary that directly answers the main question(s)'
+                  },
+                  suggested_phase: { 
+                    type: 'string', 
+                    enum: ['foundations', 'essentials', 'building-blocks', 'moving-on', 'advanced'],
+                    description: 'The learning phase that best fits this teaching'
+                  },
+                  phase_reasoning: {
+                    type: 'string',
+                    description: 'Brief explanation of why this phase was chosen'
                   }
                 },
-                required: ['suggested_title', 'primary_theme', 'secondary_themes', 'scriptures', 'doctrines', 'keywords', 'questions_answered', 'quick_answer'],
+                required: ['suggested_title', 'primary_theme', 'secondary_themes', 'scriptures', 'doctrines', 'keywords', 'questions_answered', 'quick_answer', 'suggested_phase', 'phase_reasoning'],
                 additionalProperties: false
               }
             }
