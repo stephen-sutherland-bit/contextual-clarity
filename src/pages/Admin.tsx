@@ -119,6 +119,7 @@ const Admin = () => {
   
   // Database-based resume state (more reliable than localStorage)
   const [dbImportedFilenames, setDbImportedFilenames] = useState<string[]>([]);
+  const [dbImportedTeachingIdsByFilename, setDbImportedTeachingIdsByFilename] = useState<Record<string, string>>({});
   const [isCheckingDbResume, setIsCheckingDbResume] = useState(false);
   const [dbResumeAvailable, setDbResumeAvailable] = useState(false);
 
@@ -130,32 +131,57 @@ const Admin = () => {
     }
   }, []);
 
-  // Check DB for already imported files when PDF queue changes
+  const normalizeLoose = (value: string) =>
+    value
+      .toLowerCase()
+      .replace(/\.pdf$/i, "")
+      .replace(/[^a-z0-9]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  // Check DB for already imported files when PDF queue changes.
+  // We match by (1) source_filename when present (new imports) and (2) title vs filename (older imports).
   const checkDbForImportedFiles = useCallback(async (filenames: string[]) => {
     if (filenames.length === 0) return;
-    
+
     setIsCheckingDbResume(true);
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("teachings")
-        .select("source_filename")
-        .not("source_filename", "is", null);
-      
-      const importedFilenames = (data || [])
-        .map(t => t.source_filename)
-        .filter((f): f is string => !!f);
-      
-      setDbImportedFilenames(importedFilenames);
-      
-      // Check if any queued files are already imported
-      const alreadyImported = filenames.filter(f => importedFilenames.includes(f));
-      if (alreadyImported.length > 0) {
-        setDbResumeAvailable(true);
-      } else {
-        setDbResumeAvailable(false);
+        .select("id, source_filename, title")
+        .or("source_filename.not.is.null,title.not.is.null");
+
+      if (error) throw error;
+
+      const bySourceFilename = new Map<string, { id: string }>();
+      const byNormalizedTitle = new Map<string, { id: string }>();
+
+      for (const t of data || []) {
+        if (t.source_filename) bySourceFilename.set(t.source_filename, { id: t.id });
+        if (t.title) byNormalizedTitle.set(normalizeLoose(t.title), { id: t.id });
       }
+
+      const imported: string[] = [];
+      const idsByFilename: Record<string, string> = {};
+
+      for (const filename of filenames) {
+        const exact = bySourceFilename.get(filename);
+        const loose = byNormalizedTitle.get(normalizeLoose(filename));
+        const match = exact ?? loose;
+        if (match) {
+          imported.push(filename);
+          idsByFilename[filename] = match.id;
+        }
+      }
+
+      setDbImportedFilenames(imported);
+      setDbImportedTeachingIdsByFilename(idsByFilename);
+      setDbResumeAvailable(imported.length > 0);
     } catch (err) {
       console.error("Error checking DB for imported files:", err);
+      setDbImportedFilenames([]);
+      setDbImportedTeachingIdsByFilename({});
+      setDbResumeAvailable(false);
     } finally {
       setIsCheckingDbResume(false);
     }
@@ -168,6 +194,7 @@ const Admin = () => {
       checkDbForImportedFiles(filenames);
     } else {
       setDbImportedFilenames([]);
+      setDbImportedTeachingIdsByFilename({});
       setDbResumeAvailable(false);
     }
   }, [pdfQueue, checkDbForImportedFiles]);
@@ -1515,24 +1542,68 @@ const Admin = () => {
                       )}
                       
                       <div className="bg-muted rounded-lg p-4">
-                        <p className="text-sm font-medium mb-2">
-                          {pdfQueue.length} PDF{pdfQueue.length > 1 ? 's' : ''} queued
-                          {resumableState && (
-                            <span className="text-green-600 ml-2">
-                              ({resumableState.processedFiles.length} already processed)
-                            </span>
+                        <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+                          <p className="text-sm font-medium">
+                            {pdfQueue.length} PDF{pdfQueue.length > 1 ? 's' : ''} queued
+                            {resumableState && (
+                              <span className="text-green-600 ml-2">
+                                ({resumableState.processedFiles.length} already processed)
+                              </span>
+                            )}
+                            {dbImportedFilenames.length > 0 && !resumableState && (
+                              <span className="text-blue-600 ml-2">
+                                ({pdfQueue.filter(f => dbImportedFilenames.includes(f.name)).length} in database)
+                              </span>
+                            )}
+                          </p>
+
+                          {dbImportedFilenames.length > 0 && (
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 px-2 text-xs"
+                                onClick={async () => {
+                                  const imported = pdfQueue
+                                    .filter(f => dbImportedFilenames.includes(f.name))
+                                    .map(f => f.name)
+                                    .join("\n");
+                                  await navigator.clipboard.writeText(imported);
+                                  toast({
+                                    title: "Copied",
+                                    description: "Imported filenames copied to clipboard.",
+                                  });
+                                }}
+                              >
+                                Copy imported
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 px-2 text-xs"
+                                onClick={async () => {
+                                  const remaining = pdfQueue
+                                    .filter(f => !dbImportedFilenames.includes(f.name))
+                                    .map(f => f.name)
+                                    .join("\n");
+                                  await navigator.clipboard.writeText(remaining);
+                                  toast({
+                                    title: "Copied",
+                                    description: "Remaining filenames copied to clipboard.",
+                                  });
+                                }}
+                              >
+                                Copy remaining
+                              </Button>
+                            </div>
                           )}
-                          {dbImportedFilenames.length > 0 && !resumableState && (
-                            <span className="text-blue-600 ml-2">
-                              ({pdfQueue.filter(f => dbImportedFilenames.includes(f.name)).length} in database)
-                            </span>
-                          )}
-                        </p>
+                        </div>
                         <ul className="text-xs text-muted-foreground max-h-32 overflow-y-auto space-y-1">
                           {pdfQueue.map((file, idx) => {
                             const isAlreadyProcessed = resumableState?.processedFiles.includes(file.name);
                             const hasFailed = resumableState?.failedFiles.includes(file.name);
-                            const isInDb = dbImportedFilenames.includes(file.name);
+                            const teachingId = dbImportedTeachingIdsByFilename[file.name];
+                            const isInDb = !!teachingId;
                             return (
                               <li 
                                 key={idx} 
