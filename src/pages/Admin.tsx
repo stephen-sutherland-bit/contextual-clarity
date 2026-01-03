@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -32,6 +32,30 @@ const naturalSort = (a: File, b: File): number => {
     numeric: true, 
     sensitivity: 'base' 
   });
+};
+
+// LocalStorage key for batch import state
+const BATCH_IMPORT_STATE_KEY = 'bulk_import_state';
+
+interface BatchImportState {
+  processedFiles: string[];
+  failedFiles: string[];
+  phase: string;
+  startTime: number;
+  nextReadingOrder: number;
+}
+
+const saveBatchState = (state: BatchImportState) => {
+  localStorage.setItem(BATCH_IMPORT_STATE_KEY, JSON.stringify(state));
+};
+
+const loadBatchState = (): BatchImportState | null => {
+  const saved = localStorage.getItem(BATCH_IMPORT_STATE_KEY);
+  return saved ? JSON.parse(saved) : null;
+};
+
+const clearBatchState = () => {
+  localStorage.removeItem(BATCH_IMPORT_STATE_KEY);
 };
 
 const Admin = () => {
@@ -79,6 +103,19 @@ const Admin = () => {
   // Duplicate detection state
   const [duplicates, setDuplicates] = useState<{ file: File; existingTitle: string }[]>([]);
   const [skippedDuplicates, setSkippedDuplicates] = useState<string[]>([]);
+  
+  // Resume state for interrupted imports
+  const [resumableState, setResumableState] = useState<BatchImportState | null>(null);
+  const [processedInSession, setProcessedInSession] = useState<string[]>([]);
+  const [failedInSession, setFailedInSession] = useState<string[]>([]);
+
+  // Check for resumable state on mount
+  useEffect(() => {
+    const savedState = loadBatchState();
+    if (savedState && savedState.processedFiles.length > 0) {
+      setResumableState(savedState);
+    }
+  }, []);
 
   // Convert file to base64
   const fileToBase64 = (file: File): Promise<string> => {
@@ -422,12 +459,20 @@ const Admin = () => {
     setDuplicates([]);
   };
 
-  // Process the PDF queue in batch
-  const processPdfBatch = async () => {
-    if (pdfQueue.length === 0) return;
+  // Clear resume state and start fresh
+  const clearResumeState = () => {
+    clearBatchState();
+    setResumableState(null);
+    setProcessedInSession([]);
+    setFailedInSession([]);
+  };
 
-    // Check for duplicates first (if not already checked)
-    if (duplicates.length === 0) {
+  // Process the PDF queue in batch (with resume support)
+  const processPdfBatch = async (isResume = false) => {
+    if (pdfQueue.length === 0 && !isResume) return;
+
+    // Check for duplicates first (if not already checked and not resuming)
+    if (!isResume && duplicates.length === 0) {
       const hasDuplicates = await checkForDuplicates();
       if (hasDuplicates) {
         toast({
@@ -439,25 +484,67 @@ const Admin = () => {
     }
 
     setIsBatchImporting(true);
-    setBatchImportProgress({ current: 0, total: pdfQueue.length, currentFile: "", stage: "" });
-
-    // Get the current max reading_order to assign sequential values
-    const { data: maxOrderData } = await supabase
-      .from("teachings")
-      .select("reading_order")
-      .order("reading_order", { ascending: false, nullsFirst: false })
-      .limit(1)
-      .single();
     
-    let nextReadingOrder = (maxOrderData?.reading_order || 0) + 1;
+    // Determine which files to process
+    let filesToProcess = pdfQueue;
+    let alreadyProcessed: string[] = [];
+    let alreadyFailed: string[] = [];
+    let nextReadingOrder: number;
 
-    let successCount = 0;
-    let failCount = 0;
+    if (isResume && resumableState) {
+      // Filter out already processed files
+      alreadyProcessed = resumableState.processedFiles;
+      alreadyFailed = resumableState.failedFiles;
+      filesToProcess = pdfQueue.filter(f => 
+        !alreadyProcessed.includes(f.name) && !alreadyFailed.includes(f.name)
+      );
+      nextReadingOrder = resumableState.nextReadingOrder;
+      setProcessedInSession(alreadyProcessed);
+      setFailedInSession(alreadyFailed);
+      
+      toast({
+        title: "Resuming import",
+        description: `Skipping ${alreadyProcessed.length} already processed files`,
+      });
+    } else {
+      // Get the current max reading_order to assign sequential values
+      const { data: maxOrderData } = await supabase
+        .from("teachings")
+        .select("reading_order")
+        .order("reading_order", { ascending: false, nullsFirst: false })
+        .limit(1)
+        .single();
+      
+      nextReadingOrder = (maxOrderData?.reading_order || 0) + 1;
+      
+      // Initialize batch state
+      saveBatchState({
+        processedFiles: [],
+        failedFiles: [],
+        phase: bulkPhase,
+        startTime: Date.now(),
+        nextReadingOrder,
+      });
+    }
 
-    for (let i = 0; i < pdfQueue.length; i++) {
-      const file = pdfQueue[i];
+    setBatchImportProgress({ 
+      current: alreadyProcessed.length, 
+      total: pdfQueue.length, 
+      currentFile: "", 
+      stage: "" 
+    });
+
+    let successCount = alreadyProcessed.length;
+    let failCount = alreadyFailed.length;
+    const processedFiles = [...alreadyProcessed];
+    const failedFiles = [...alreadyFailed];
+
+    for (let i = 0; i < filesToProcess.length; i++) {
+      const file = filesToProcess[i];
+      const overallIndex = alreadyProcessed.length + alreadyFailed.length + i + 1;
+      
       setBatchImportProgress({ 
-        current: i + 1, 
+        current: overallIndex, 
         total: pdfQueue.length, 
         currentFile: file.name, 
         stage: "Parsing PDF" 
@@ -568,13 +655,35 @@ const Admin = () => {
 
         nextReadingOrder++;
         successCount++;
+        processedFiles.push(file.name);
+        setProcessedInSession([...processedFiles]);
+        
+        // Save state after each successful file
+        saveBatchState({
+          processedFiles,
+          failedFiles,
+          phase: bulkPhase,
+          startTime: resumableState?.startTime || Date.now(),
+          nextReadingOrder,
+        });
       } catch (err) {
         console.error(`Failed to process ${file.name}:`, err);
         failCount++;
+        failedFiles.push(file.name);
+        setFailedInSession([...failedFiles]);
+        
+        // Save state after each failed file too
+        saveBatchState({
+          processedFiles,
+          failedFiles,
+          phase: bulkPhase,
+          startTime: resumableState?.startTime || Date.now(),
+          nextReadingOrder,
+        });
       }
 
       // Small delay between processing to avoid rate limiting
-      if (i < pdfQueue.length - 1) {
+      if (i < filesToProcess.length - 1) {
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
@@ -584,7 +693,12 @@ const Admin = () => {
       description: `${successCount} teachings saved${failCount > 0 ? `, ${failCount} failed` : ""}`,
     });
 
+    // Clear state on completion
+    clearBatchState();
+    setResumableState(null);
     setPdfQueue([]);
+    setProcessedInSession([]);
+    setFailedInSession([]);
     setIsBatchImporting(false);
     setBatchImportProgress({ current: 0, total: 0, currentFile: "", stage: "" });
   };
@@ -992,6 +1106,51 @@ const Admin = () => {
           <div className="grid gap-8 lg:grid-cols-2">
             {/* Input Section */}
             <div className="space-y-6">
+              {/* Resume Import Card (shown only if there's resumable state) */}
+              {resumableState && !isBatchImporting && (
+                <Card className="border-amber-500/50 bg-amber-500/5">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-amber-600">
+                      <FileUp className="h-5 w-5" />
+                      Resume Interrupted Import
+                    </CardTitle>
+                    <CardDescription>
+                      A previous import was interrupted. {resumableState.processedFiles.length} files were successfully processed.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="text-sm text-muted-foreground">
+                      <p>Phase: <span className="font-medium capitalize">{resumableState.phase.replace('-', ' ')}</span></p>
+                      <p>Processed: <span className="font-medium">{resumableState.processedFiles.length}</span> files</p>
+                      {resumableState.failedFiles.length > 0 && (
+                        <p>Failed: <span className="font-medium text-destructive">{resumableState.failedFiles.length}</span> files</p>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button 
+                        onClick={() => {
+                          setBulkPhase(resumableState.phase);
+                          processPdfBatch(true);
+                        }} 
+                        className="flex-1"
+                        disabled={pdfQueue.length === 0}
+                      >
+                        <FileText className="h-4 w-4 mr-2" />
+                        Resume Import
+                      </Button>
+                      <Button variant="outline" onClick={clearResumeState}>
+                        Clear & Start Fresh
+                      </Button>
+                    </div>
+                    {pdfQueue.length === 0 && (
+                      <p className="text-xs text-amber-600">
+                        Re-upload your PDF files to resume from where you left off
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Bulk PDF Import Card */}
               <Card>
                 <CardHeader>
@@ -1006,11 +1165,21 @@ const Admin = () => {
                 <CardContent className="space-y-4">
                   {isBatchImporting ? (
                     <div className="space-y-4">
-                      <div className="flex items-center gap-2">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span className="text-sm text-muted-foreground">
-                          Processing {batchImportProgress.current} of {batchImportProgress.total}
-                        </span>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span className="text-sm text-muted-foreground">
+                            Processing {batchImportProgress.current} of {batchImportProgress.total}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs">
+                          {processedInSession.length > 0 && (
+                            <span className="text-green-600">✓ {processedInSession.length}</span>
+                          )}
+                          {failedInSession.length > 0 && (
+                            <span className="text-destructive">✗ {failedInSession.length}</span>
+                          )}
+                        </div>
                       </div>
                       <Progress 
                         value={(batchImportProgress.current / batchImportProgress.total) * 100} 
@@ -1022,17 +1191,39 @@ const Admin = () => {
                       <p className="text-xs text-primary font-medium">
                         {batchImportProgress.stage}...
                       </p>
+                      <p className="text-xs text-muted-foreground">
+                        Progress is saved automatically. You can safely close this page and resume later.
+                      </p>
                     </div>
                   ) : pdfQueue.length > 0 ? (
                     <div className="space-y-4">
                       <div className="bg-muted rounded-lg p-4">
                         <p className="text-sm font-medium mb-2">
                           {pdfQueue.length} PDF{pdfQueue.length > 1 ? 's' : ''} queued
+                          {resumableState && (
+                            <span className="text-green-600 ml-2">
+                              ({resumableState.processedFiles.length} already processed)
+                            </span>
+                          )}
                         </p>
                         <ul className="text-xs text-muted-foreground max-h-32 overflow-y-auto space-y-1">
-                          {pdfQueue.map((file, idx) => (
-                            <li key={idx} className="truncate">• {file.name}</li>
-                          ))}
+                          {pdfQueue.map((file, idx) => {
+                            const isAlreadyProcessed = resumableState?.processedFiles.includes(file.name);
+                            const hasFailed = resumableState?.failedFiles.includes(file.name);
+                            return (
+                              <li 
+                                key={idx} 
+                                className={`truncate flex items-center gap-1 ${
+                                  isAlreadyProcessed ? 'text-green-600' : hasFailed ? 'text-destructive' : ''
+                                }`}
+                              >
+                                {isAlreadyProcessed ? '✓' : hasFailed ? '✗' : '•'} 
+                                <span className="flex-1 truncate">{file.name}</span>
+                                {isAlreadyProcessed && <span className="text-xs">(done)</span>}
+                                {hasFailed && <span className="text-xs">(failed)</span>}
+                              </li>
+                            );
+                          })}
                         </ul>
                       </div>
 
@@ -1108,7 +1299,7 @@ const Admin = () => {
                       </div>
 
                       <div className="flex gap-2">
-                        <Button onClick={processPdfBatch} className="flex-1" disabled={duplicates.length > 0}>
+                        <Button onClick={() => processPdfBatch(false)} className="flex-1" disabled={duplicates.length > 0}>
                           <FileText className="h-4 w-4 mr-2" />
                           {duplicates.length > 0 ? 'Resolve duplicates first' : 'Start Processing'}
                         </Button>
