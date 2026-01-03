@@ -19,6 +19,7 @@ import { Loader2, FileText, Database, Check, Copy, Upload, Mic, BookOpen, FileUp
 import BookPreview from "@/components/BookPreview";
 import { Progress } from "@/components/ui/progress";
 import ApiUsageCard from "@/components/ApiUsageCard";
+import ImportHistoryPanel from "@/components/ImportHistoryPanel";
 
 const MAX_CHUNK_SIZE = 20 * 1024 * 1024; // 20MB to stay under Whisper's 25MB limit
 
@@ -1274,8 +1275,9 @@ const Admin = () => {
             Teaching Processor
           </h1>
 
-          <div className="grid gap-6 md:grid-cols-2 mb-8">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
             <ApiUsageCard />
+            <ImportHistoryPanel limit={10} />
             
             {/* Batch Cover Generation Card */}
             <Card>
