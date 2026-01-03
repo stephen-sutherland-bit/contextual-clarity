@@ -50,6 +50,8 @@ export type Database = {
           document_id: string
           full_content: string
           id: string
+          import_batch_id: string | null
+          imported_via: string | null
           keywords: string[] | null
           phase: string
           primary_theme: string
@@ -58,6 +60,7 @@ export type Database = {
           reading_order: number | null
           scriptures: string[] | null
           secondary_themes: string[] | null
+          source_filename: string | null
           title: string
           updated_at: string
         }
@@ -69,6 +72,8 @@ export type Database = {
           document_id: string
           full_content: string
           id?: string
+          import_batch_id?: string | null
+          imported_via?: string | null
           keywords?: string[] | null
           phase?: string
           primary_theme: string
@@ -77,6 +82,7 @@ export type Database = {
           reading_order?: number | null
           scriptures?: string[] | null
           secondary_themes?: string[] | null
+          source_filename?: string | null
           title: string
           updated_at?: string
         }
@@ -88,6 +94,8 @@ export type Database = {
           document_id?: string
           full_content?: string
           id?: string
+          import_batch_id?: string | null
+          imported_via?: string | null
           keywords?: string[] | null
           phase?: string
           primary_theme?: string
@@ -96,6 +104,7 @@ export type Database = {
           reading_order?: number | null
           scriptures?: string[] | null
           secondary_themes?: string[] | null
+          source_filename?: string | null
           title?: string
           updated_at?: string
         }

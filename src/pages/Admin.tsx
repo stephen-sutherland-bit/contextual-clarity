@@ -43,6 +43,7 @@ interface BatchImportState {
   phase: string;
   startTime: number;
   nextReadingOrder: number;
+  batchId?: string;
 }
 
 const saveBatchState = (state: BatchImportState) => {
@@ -115,6 +116,11 @@ const Admin = () => {
   const [resumableState, setResumableState] = useState<BatchImportState | null>(null);
   const [processedInSession, setProcessedInSession] = useState<string[]>([]);
   const [failedInSession, setFailedInSession] = useState<string[]>([]);
+  
+  // Database-based resume state (more reliable than localStorage)
+  const [dbImportedFilenames, setDbImportedFilenames] = useState<string[]>([]);
+  const [isCheckingDbResume, setIsCheckingDbResume] = useState(false);
+  const [dbResumeAvailable, setDbResumeAvailable] = useState(false);
 
   // Check for resumable state on mount
   useEffect(() => {
@@ -123,6 +129,48 @@ const Admin = () => {
       setResumableState(savedState);
     }
   }, []);
+
+  // Check DB for already imported files when PDF queue changes
+  const checkDbForImportedFiles = useCallback(async (filenames: string[]) => {
+    if (filenames.length === 0) return;
+    
+    setIsCheckingDbResume(true);
+    try {
+      const { data } = await supabase
+        .from("teachings")
+        .select("source_filename")
+        .not("source_filename", "is", null);
+      
+      const importedFilenames = (data || [])
+        .map(t => t.source_filename)
+        .filter((f): f is string => !!f);
+      
+      setDbImportedFilenames(importedFilenames);
+      
+      // Check if any queued files are already imported
+      const alreadyImported = filenames.filter(f => importedFilenames.includes(f));
+      if (alreadyImported.length > 0) {
+        setDbResumeAvailable(true);
+      } else {
+        setDbResumeAvailable(false);
+      }
+    } catch (err) {
+      console.error("Error checking DB for imported files:", err);
+    } finally {
+      setIsCheckingDbResume(false);
+    }
+  }, []);
+
+  // When PDF queue changes, check which are already in DB
+  useEffect(() => {
+    if (pdfQueue.length > 0) {
+      const filenames = pdfQueue.map(f => f.name);
+      checkDbForImportedFiles(filenames);
+    } else {
+      setDbImportedFilenames([]);
+      setDbResumeAvailable(false);
+    }
+  }, [pdfQueue, checkDbForImportedFiles]);
 
   // Convert file to base64
   const fileToBase64 = (file: File): Promise<string> => {
@@ -475,11 +523,11 @@ const Admin = () => {
   };
 
   // Process the PDF queue in batch (with resume support)
-  const processPdfBatch = async (isResume = false) => {
+  const processPdfBatch = async (isResume = false, useDbResume = false) => {
     if (pdfQueue.length === 0 && !isResume) return;
 
     // Check for duplicates first (if not already checked and not resuming)
-    if (!isResume && duplicates.length === 0) {
+    if (!isResume && !useDbResume && duplicates.length === 0) {
       const hasDuplicates = await checkForDuplicates();
       if (hasDuplicates) {
         toast({
@@ -492,14 +540,28 @@ const Admin = () => {
 
     setIsBatchImporting(true);
     
+    // Generate a batch ID for this import run
+    const batchId = crypto.randomUUID();
+    
     // Determine which files to process
     let filesToProcess = pdfQueue;
     let alreadyProcessed: string[] = [];
     let alreadyFailed: string[] = [];
     let nextReadingOrder: number;
 
-    if (isResume && resumableState) {
-      // Filter out already processed files
+    // DB-based resume: skip files already in database by source_filename
+    if (useDbResume && dbImportedFilenames.length > 0) {
+      alreadyProcessed = pdfQueue
+        .filter(f => dbImportedFilenames.includes(f.name))
+        .map(f => f.name);
+      filesToProcess = pdfQueue.filter(f => !dbImportedFilenames.includes(f.name));
+      
+      toast({
+        title: "Resuming from database",
+        description: `Skipping ${alreadyProcessed.length} already imported files`,
+      });
+    } else if (isResume && resumableState) {
+      // localStorage-based resume (legacy)
       alreadyProcessed = resumableState.processedFiles;
       alreadyFailed = resumableState.failedFiles;
       filesToProcess = pdfQueue.filter(f => 
@@ -513,26 +575,27 @@ const Admin = () => {
         title: "Resuming import",
         description: `Skipping ${alreadyProcessed.length} already processed files`,
       });
-    } else {
-      // Get the current max reading_order to assign sequential values
-      const { data: maxOrderData } = await supabase
-        .from("teachings")
-        .select("reading_order")
-        .order("reading_order", { ascending: false, nullsFirst: false })
-        .limit(1)
-        .single();
-      
-      nextReadingOrder = (maxOrderData?.reading_order || 0) + 1;
-      
-      // Initialize batch state
-      saveBatchState({
-        processedFiles: [],
-        failedFiles: [],
-        phase: bulkPhase,
-        startTime: Date.now(),
-        nextReadingOrder,
-      });
     }
+    
+    // Get the current max reading_order to assign sequential values
+    const { data: maxOrderData } = await supabase
+      .from("teachings")
+      .select("reading_order")
+      .order("reading_order", { ascending: false, nullsFirst: false })
+      .limit(1)
+      .maybeSingle();
+    
+    nextReadingOrder = (maxOrderData?.reading_order || 0) + 1;
+    
+    // Initialize batch state
+    saveBatchState({
+      processedFiles: alreadyProcessed,
+      failedFiles: alreadyFailed,
+      phase: bulkPhase,
+      startTime: Date.now(),
+      nextReadingOrder,
+      batchId,
+    });
 
     setBatchImportProgress({ 
       current: alreadyProcessed.length, 
@@ -656,6 +719,9 @@ const Admin = () => {
           phase: bulkPhase,
           cover_image: coverImageUrl || null,
           reading_order: nextReadingOrder,
+          source_filename: file.name,
+          import_batch_id: batchId,
+          imported_via: 'bulk_pdf',
         });
 
         if (insertError) throw insertError;
@@ -672,6 +738,7 @@ const Admin = () => {
           phase: bulkPhase,
           startTime: resumableState?.startTime || Date.now(),
           nextReadingOrder,
+          batchId,
         });
       } catch (err) {
         console.error(`Failed to process ${file.name}:`, err);
@@ -686,6 +753,7 @@ const Admin = () => {
           phase: bulkPhase,
           startTime: resumableState?.startTime || Date.now(),
           nextReadingOrder,
+          batchId,
         });
       }
 
@@ -1409,6 +1477,43 @@ const Admin = () => {
                     </div>
                   ) : pdfQueue.length > 0 ? (
                     <div className="space-y-4">
+                      {/* DB-based resume banner */}
+                      {dbResumeAvailable && !isCheckingDbResume && (
+                        <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 space-y-2">
+                          <p className="text-sm font-medium text-blue-700 dark:text-blue-400">
+                            Some files already imported
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {pdfQueue.filter(f => dbImportedFilenames.includes(f.name)).length} of {pdfQueue.length} files 
+                            are already in the database. Would you like to continue with just the remaining files?
+                          </p>
+                          <div className="flex gap-2">
+                            <Button 
+                              size="sm" 
+                              onClick={() => processPdfBatch(false, true)}
+                              className="text-xs"
+                            >
+                              Continue ({pdfQueue.length - pdfQueue.filter(f => dbImportedFilenames.includes(f.name)).length} remaining)
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              onClick={() => setDbResumeAvailable(false)}
+                              className="text-xs"
+                            >
+                              Import All Anyway
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {isCheckingDbResume && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Checking for already imported files...
+                        </div>
+                      )}
+                      
                       <div className="bg-muted rounded-lg p-4">
                         <p className="text-sm font-medium mb-2">
                           {pdfQueue.length} PDF{pdfQueue.length > 1 ? 's' : ''} queued
@@ -1417,21 +1522,28 @@ const Admin = () => {
                               ({resumableState.processedFiles.length} already processed)
                             </span>
                           )}
+                          {dbImportedFilenames.length > 0 && !resumableState && (
+                            <span className="text-blue-600 ml-2">
+                              ({pdfQueue.filter(f => dbImportedFilenames.includes(f.name)).length} in database)
+                            </span>
+                          )}
                         </p>
                         <ul className="text-xs text-muted-foreground max-h-32 overflow-y-auto space-y-1">
                           {pdfQueue.map((file, idx) => {
                             const isAlreadyProcessed = resumableState?.processedFiles.includes(file.name);
                             const hasFailed = resumableState?.failedFiles.includes(file.name);
+                            const isInDb = dbImportedFilenames.includes(file.name);
                             return (
                               <li 
                                 key={idx} 
                                 className={`truncate flex items-center gap-1 ${
-                                  isAlreadyProcessed ? 'text-green-600' : hasFailed ? 'text-destructive' : ''
+                                  isAlreadyProcessed || isInDb ? 'text-green-600' : hasFailed ? 'text-destructive' : ''
                                 }`}
                               >
-                                {isAlreadyProcessed ? '✓' : hasFailed ? '✗' : '•'} 
+                                {isAlreadyProcessed || isInDb ? '✓' : hasFailed ? '✗' : '•'} 
                                 <span className="flex-1 truncate">{file.name}</span>
                                 {isAlreadyProcessed && <span className="text-xs">(done)</span>}
+                                {isInDb && !isAlreadyProcessed && <span className="text-xs">(in db)</span>}
                                 {hasFailed && <span className="text-xs">(failed)</span>}
                               </li>
                             );
@@ -1511,7 +1623,11 @@ const Admin = () => {
                       </div>
 
                       <div className="flex gap-2">
-                        <Button onClick={() => processPdfBatch(false)} className="flex-1" disabled={duplicates.length > 0}>
+                        <Button 
+                          onClick={() => processPdfBatch(false)} 
+                          className="flex-1" 
+                          disabled={duplicates.length > 0 || isCheckingDbResume || dbResumeAvailable}
+                        >
                           <FileText className="h-4 w-4 mr-2" />
                           {duplicates.length > 0 ? 'Resolve duplicates first' : 'Start Processing'}
                         </Button>
