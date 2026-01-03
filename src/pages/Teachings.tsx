@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import Header from "@/components/Header";
@@ -7,10 +7,12 @@ import TeachingCard from "@/components/TeachingCard";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, Filter, X, Loader2 } from "lucide-react";
+import { Search, Filter, X, Loader2, RefreshCw, AlertCircle } from "lucide-react";
 import { phases, themes, type Teaching, type Phase } from "@/data/teachings";
 import { supabase } from "@/integrations/supabase/client";
 import { Helmet } from "react-helmet-async";
+
+const PAGE_SIZE = 24;
 
 const Teachings = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -21,54 +23,98 @@ const Teachings = () => {
   );
   const [teachings, setTeachings] = useState<Teaching[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [totalCount, setTotalCount] = useState<number | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [page, setPage] = useState(0);
 
-  useEffect(() => {
-    const fetchTeachings = async () => {
+  const fetchTeachings = useCallback(async (pageNum: number, append = false) => {
+    if (pageNum === 0) {
       setIsLoading(true);
-      const { data, error } = await supabase
+    }
+    setError(null);
+
+    try {
+      // First get count to confirm data exists
+      if (pageNum === 0) {
+        const { count, error: countError } = await supabase
+          .from("teachings")
+          .select("*", { count: "exact", head: true });
+        
+        if (!countError && count !== null) {
+          setTotalCount(count);
+        }
+      }
+
+      // Fetch minimal columns needed for list view
+      const from = pageNum * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+
+      const { data, error: fetchError } = await supabase
         .from("teachings")
         .select(`
           id,
           title,
           date,
           primary_theme,
-          secondary_themes,
           scriptures,
-          doctrines,
-          keywords,
-          questions_answered,
           quick_answer,
           reading_order,
-          phase,
-          cover_image
+          phase
         `)
-        .order("reading_order", { ascending: true });
+        .order("reading_order", { ascending: true, nullsFirst: false })
+        .order("created_at", { ascending: false })
+        .range(from, to);
 
-      if (error) {
-        console.error("Error fetching teachings:", error);
+      if (fetchError) {
+        console.error("Error fetching teachings:", fetchError);
+        setError(fetchError.message || "Failed to load teachings. Please try again.");
       } else if (data) {
         const mapped: Teaching[] = data.map((t) => ({
           id: t.id,
           title: t.title,
           date: t.date,
           primaryTheme: t.primary_theme,
-          secondaryThemes: t.secondary_themes || [],
+          secondaryThemes: [],
           scriptures: t.scriptures || [],
-          doctrines: t.doctrines || [],
-          keywords: t.keywords || [],
-          questionsAnswered: t.questions_answered || [],
+          doctrines: [],
+          keywords: [],
+          questionsAnswered: [],
           quickAnswer: t.quick_answer || "",
-          fullContent: "", // Not fetched for list view - loaded on detail page
+          fullContent: "",
           readingOrder: t.reading_order || undefined,
           phase: (t.phase as Phase) || "foundations",
         }));
-        setTeachings(mapped);
-      }
-      setIsLoading(false);
-    };
 
-    fetchTeachings();
+        if (append) {
+          setTeachings(prev => [...prev, ...mapped]);
+        } else {
+          setTeachings(mapped);
+        }
+        setHasMore(data.length === PAGE_SIZE);
+      }
+    } catch (err) {
+      console.error("Error fetching teachings:", err);
+      setError("An unexpected error occurred. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchTeachings(0);
+  }, [fetchTeachings]);
+
+  const handleLoadMore = () => {
+    const nextPage = page + 1;
+    setPage(nextPage);
+    fetchTeachings(nextPage, true);
+  };
+
+  const handleRetry = () => {
+    setPage(0);
+    fetchTeachings(0);
+  };
 
   useEffect(() => {
     const phaseParam = searchParams.get("phase") as Phase | null;
@@ -222,27 +268,52 @@ const Teachings = () => {
           {/* Results */}
           <section className="py-8 md:py-12">
             <div className="container px-4">
-              {isLoading ? (
+              {error ? (
+                <div className="text-center py-12">
+                  <div className="flex items-center justify-center gap-2 text-destructive mb-4">
+                    <AlertCircle className="h-5 w-5" />
+                    <p>{error}</p>
+                  </div>
+                  {totalCount !== null && totalCount > 0 && (
+                    <p className="text-sm text-muted-foreground mb-4">
+                      {totalCount} teachings exist in the database but couldn't be loaded.
+                    </p>
+                  )}
+                  <Button variant="warm" onClick={handleRetry}>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Try Again
+                  </Button>
+                </div>
+              ) : isLoading ? (
                 <div className="flex justify-center py-12">
                   <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
               ) : (
                 <>
                   <div className="mb-6 text-sm text-muted-foreground">
-                    Showing {filteredTeachings.length} of {teachings.length}{" "}
+                    Showing {filteredTeachings.length} of {totalCount ?? teachings.length}{" "}
                     teachings
                   </div>
 
                   {filteredTeachings.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {filteredTeachings.map((teaching, index) => (
-                        <TeachingCard
-                          key={teaching.id}
-                          teaching={teaching}
-                          index={index}
-                        />
-                      ))}
-                    </div>
+                    <>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {filteredTeachings.map((teaching, index) => (
+                          <TeachingCard
+                            key={teaching.id}
+                            teaching={teaching}
+                            index={index}
+                          />
+                        ))}
+                      </div>
+                      {hasMore && !searchQuery && !selectedTheme && !selectedPhase && (
+                        <div className="flex justify-center mt-8">
+                          <Button variant="outline" onClick={handleLoadMore}>
+                            Load More
+                          </Button>
+                        </div>
+                      )}
+                    </>
                   ) : (
                     <div className="text-center py-12">
                       <p className="text-muted-foreground mb-4">
