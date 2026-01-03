@@ -22,6 +22,18 @@ import ApiUsageCard from "@/components/ApiUsageCard";
 
 const MAX_CHUNK_SIZE = 20 * 1024 * 1024; // 20MB to stay under Whisper's 25MB limit
 
+// Natural alphanumeric sort to handle multi-part teachings correctly
+// e.g., "Part 2" before "Part 10", keeps related teachings together
+const naturalSort = (a: File, b: File): number => {
+  const nameA = a.name.replace('.pdf', '').toLowerCase();
+  const nameB = b.name.replace('.pdf', '').toLowerCase();
+  
+  return nameA.localeCompare(nameB, undefined, { 
+    numeric: true, 
+    sensitivity: 'base' 
+  });
+};
+
 const Admin = () => {
   const { toast } = useToast();
   const [transcript, setTranscript] = useState("");
@@ -301,8 +313,8 @@ const Admin = () => {
       // Single file - use original flow
       parsePdf(pdfFiles[0]);
     } else {
-      // Multiple files - add to queue
-      setPdfQueue(prev => [...prev, ...pdfFiles]);
+      // Multiple files - add to queue and sort naturally
+      setPdfQueue(prev => [...prev, ...pdfFiles].sort(naturalSort));
       toast({
         title: "PDFs added to queue",
         description: `${pdfFiles.length} files added. Select phase and start processing.`,
@@ -328,7 +340,7 @@ const Admin = () => {
       if (pdfFiles.length === 1) {
         parsePdf(pdfFiles[0]);
       } else {
-        setPdfQueue(prev => [...prev, ...pdfFiles]);
+        setPdfQueue(prev => [...prev, ...pdfFiles].sort(naturalSort));
         toast({
           title: "PDFs added to queue",
           description: `${pdfFiles.length} files added. Select phase and start processing.`,
@@ -428,6 +440,16 @@ const Admin = () => {
 
     setIsBatchImporting(true);
     setBatchImportProgress({ current: 0, total: pdfQueue.length, currentFile: "", stage: "" });
+
+    // Get the current max reading_order to assign sequential values
+    const { data: maxOrderData } = await supabase
+      .from("teachings")
+      .select("reading_order")
+      .order("reading_order", { ascending: false, nullsFirst: false })
+      .limit(1)
+      .single();
+    
+    let nextReadingOrder = (maxOrderData?.reading_order || 0) + 1;
 
     let successCount = 0;
     let failCount = 0;
@@ -539,10 +561,12 @@ const Admin = () => {
           full_content: content,
           phase: bulkPhase,
           cover_image: coverImageUrl || null,
+          reading_order: nextReadingOrder,
         });
 
         if (insertError) throw insertError;
 
+        nextReadingOrder++;
         successCount++;
       } catch (err) {
         console.error(`Failed to process ${file.name}:`, err);
