@@ -8,6 +8,35 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 3): Promise<Response> {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, options);
+      
+      // Retry on 5xx errors (server errors)
+      if (response.status >= 500 && attempt < maxRetries - 1) {
+        const waitTime = Math.pow(2, attempt) * 1000; // 1s, 2s, 4s
+        console.log(`OpenAI returned ${response.status}, retrying in ${waitTime}ms (attempt ${attempt + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        continue;
+      }
+      
+      return response;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      if (attempt < maxRetries - 1) {
+        const waitTime = Math.pow(2, attempt) * 1000;
+        console.log(`Fetch error, retrying in ${waitTime}ms (attempt ${attempt + 1}/${maxRetries}):`, error);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      }
+    }
+  }
+  
+  throw lastError || new Error("Max retries exceeded");
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -35,7 +64,7 @@ serve(async (req) => {
 
     console.log("Generating illustration with prompt:", prompt);
 
-    const response = await fetch("https://api.openai.com/v1/images/generations", {
+    const response = await fetchWithRetry("https://api.openai.com/v1/images/generations", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -58,7 +87,6 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    // gpt-image-1 returns base64 in data[0].b64_json
     const base64Image = data.data?.[0]?.b64_json;
 
     if (!base64Image) {
@@ -66,7 +94,6 @@ serve(async (req) => {
       throw new Error("No image data received from OpenAI");
     }
 
-    // Return the base64 image as a data URL
     const imageDataUrl = `data:image/png;base64,${base64Image}`;
 
     console.log("Illustration generated successfully");
