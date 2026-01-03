@@ -63,6 +63,10 @@ const Admin = () => {
     stage: "" 
   });
   const [bulkPhase, setBulkPhase] = useState<string>("foundations");
+  
+  // Duplicate detection state
+  const [duplicates, setDuplicates] = useState<{ file: File; existingTitle: string }[]>([]);
+  const [skippedDuplicates, setSkippedDuplicates] = useState<string[]>([]);
 
   // Convert file to base64
   const fileToBase64 = (file: File): Promise<string> => {
@@ -336,15 +340,91 @@ const Admin = () => {
   // Clear the PDF queue
   const clearPdfQueue = () => {
     setPdfQueue([]);
+    setDuplicates([]);
+    setSkippedDuplicates([]);
     toast({
       title: "Queue cleared",
       description: "All PDFs removed from the queue",
     });
   };
 
+  // Check for duplicates before batch processing
+  const checkForDuplicates = async (): Promise<boolean> => {
+    setBatchImportProgress({ current: 0, total: pdfQueue.length, currentFile: "", stage: "Checking for duplicates" });
+    
+    const foundDuplicates: { file: File; existingTitle: string }[] = [];
+    
+    // Fetch all existing teaching titles
+    const { data: existingTeachings } = await supabase
+      .from("teachings")
+      .select("title");
+    
+    const existingTitles = (existingTeachings || []).map(t => t.title?.toLowerCase().trim());
+    
+    for (const file of pdfQueue) {
+      // Check by filename (without extension) as a rough match
+      const fileTitle = file.name.replace('.pdf', '').toLowerCase().trim();
+      
+      const matchingTitle = existingTitles.find(title => 
+        title === fileTitle || 
+        title?.includes(fileTitle) || 
+        fileTitle.includes(title || '')
+      );
+      
+      if (matchingTitle) {
+        const original = existingTeachings?.find(t => t.title?.toLowerCase().trim() === matchingTitle);
+        foundDuplicates.push({ file, existingTitle: original?.title || matchingTitle });
+      }
+    }
+    
+    if (foundDuplicates.length > 0) {
+      setDuplicates(foundDuplicates);
+      return true;
+    }
+    
+    return false;
+  };
+
+  // Allow a duplicate to be imported anyway
+  const allowDuplicate = (file: File) => {
+    setDuplicates(prev => prev.filter(d => d.file !== file));
+  };
+
+  // Skip a duplicate (remove from queue)
+  const skipDuplicate = (file: File) => {
+    setSkippedDuplicates(prev => [...prev, file.name]);
+    setPdfQueue(prev => prev.filter(f => f !== file));
+    setDuplicates(prev => prev.filter(d => d.file !== file));
+  };
+
+  // Allow all duplicates
+  const allowAllDuplicates = () => {
+    setDuplicates([]);
+  };
+
+  // Skip all duplicates
+  const skipAllDuplicates = () => {
+    const dupFiles = duplicates.map(d => d.file);
+    setSkippedDuplicates(prev => [...prev, ...dupFiles.map(f => f.name)]);
+    setPdfQueue(prev => prev.filter(f => !dupFiles.includes(f)));
+    setDuplicates([]);
+  };
+
   // Process the PDF queue in batch
   const processPdfBatch = async () => {
     if (pdfQueue.length === 0) return;
+
+    // Check for duplicates first (if not already checked)
+    if (duplicates.length === 0) {
+      const hasDuplicates = await checkForDuplicates();
+      if (hasDuplicates) {
+        toast({
+          title: "Duplicates detected",
+          description: "Review the potential duplicates below before continuing.",
+        });
+        return;
+      }
+    }
 
     setIsBatchImporting(true);
     setBatchImportProgress({ current: 0, total: pdfQueue.length, currentFile: "", stage: "" });
@@ -931,6 +1011,61 @@ const Admin = () => {
                           ))}
                         </ul>
                       </div>
+
+                      {/* Duplicate detection warnings */}
+                      {duplicates.length > 0 && (
+                        <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
+                              {duplicates.length} potential duplicate{duplicates.length > 1 ? 's' : ''} found
+                            </p>
+                            <div className="flex gap-2">
+                              <Button size="sm" variant="ghost" onClick={allowAllDuplicates} className="text-xs h-7">
+                                Allow All
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={skipAllDuplicates} className="text-xs h-7">
+                                Skip All
+                              </Button>
+                            </div>
+                          </div>
+                          <ul className="space-y-2 max-h-40 overflow-y-auto">
+                            {duplicates.map((dup, idx) => (
+                              <li key={idx} className="bg-background/50 rounded p-2 flex items-center justify-between gap-2">
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-medium truncate">{dup.file.name}</p>
+                                  <p className="text-xs text-muted-foreground truncate">
+                                    Matches: "{dup.existingTitle}"
+                                  </p>
+                                </div>
+                                <div className="flex gap-1 shrink-0">
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline" 
+                                    onClick={() => allowDuplicate(dup.file)}
+                                    className="text-xs h-7 px-2"
+                                  >
+                                    Allow
+                                  </Button>
+                                  <Button 
+                                    size="sm" 
+                                    variant="ghost" 
+                                    onClick={() => skipDuplicate(dup.file)}
+                                    className="text-xs h-7 px-2"
+                                  >
+                                    Skip
+                                  </Button>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {skippedDuplicates.length > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          {skippedDuplicates.length} file{skippedDuplicates.length > 1 ? 's' : ''} skipped as duplicates
+                        </p>
+                      )}
                       
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Phase for all teachings:</label>
@@ -949,9 +1084,9 @@ const Admin = () => {
                       </div>
 
                       <div className="flex gap-2">
-                        <Button onClick={processPdfBatch} className="flex-1">
+                        <Button onClick={processPdfBatch} className="flex-1" disabled={duplicates.length > 0}>
                           <FileText className="h-4 w-4 mr-2" />
-                          Start Processing
+                          {duplicates.length > 0 ? 'Resolve duplicates first' : 'Start Processing'}
                         </Button>
                         <Button variant="outline" onClick={clearPdfQueue}>
                           Clear
