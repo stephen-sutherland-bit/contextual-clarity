@@ -41,6 +41,81 @@ export type Database = {
         }
         Relationships: []
       }
+      import_run_files: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          filename: string
+          finished_at: string | null
+          id: string
+          run_id: string
+          stage: string | null
+          started_at: string | null
+          status: string
+          teaching_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          filename: string
+          finished_at?: string | null
+          id?: string
+          run_id: string
+          stage?: string | null
+          started_at?: string | null
+          status?: string
+          teaching_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          filename?: string
+          finished_at?: string | null
+          id?: string
+          run_id?: string
+          stage?: string | null
+          started_at?: string | null
+          status?: string
+          teaching_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_run_files_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "import_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_run_files_teaching_id_fkey"
+            columns: ["teaching_id"]
+            isOneToOne: false
+            referencedRelation: "teachings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      import_runs: {
+        Row: {
+          created_at: string
+          id: string
+          status: string
+          total_files: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          status?: string
+          total_files?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          status?: string
+          total_files?: number
+        }
+        Relationships: []
+      }
       teachings: {
         Row: {
           cover_image: string | null

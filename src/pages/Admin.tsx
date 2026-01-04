@@ -15,7 +15,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, FileText, Database, Check, Copy, Upload, Mic, BookOpen, FileUp, ImagePlus, Sparkles } from "lucide-react";
+import { Loader2, FileText, Database, Check, Copy, Upload, Mic, BookOpen, FileUp, ImagePlus, Sparkles, AlertCircle, RefreshCw } from "lucide-react";
 import BookPreview from "@/components/BookPreview";
 import { Progress } from "@/components/ui/progress";
 import ApiUsageCard from "@/components/ApiUsageCard";
@@ -45,6 +45,26 @@ interface BatchImportState {
   startTime: number;
   nextReadingOrder: number;
   batchId?: string;
+}
+
+interface FailedFileInfo {
+  filename: string;
+  error: string;
+  stage: string;
+}
+
+interface LastImportRun {
+  id: string;
+  status: string;
+  total_files: number;
+  created_at: string;
+  files: {
+    filename: string;
+    status: string;
+    stage: string | null;
+    error_message: string | null;
+    teaching_id: string | null;
+  }[];
 }
 
 const saveBatchState = (state: BatchImportState) => {
@@ -116,13 +136,59 @@ const Admin = () => {
   // Resume state for interrupted imports
   const [resumableState, setResumableState] = useState<BatchImportState | null>(null);
   const [processedInSession, setProcessedInSession] = useState<string[]>([]);
-  const [failedInSession, setFailedInSession] = useState<string[]>([]);
+  const [failedInSession, setFailedInSession] = useState<FailedFileInfo[]>([]);
   
   // Database-based resume state (more reliable than localStorage)
   const [dbImportedFilenames, setDbImportedFilenames] = useState<string[]>([]);
   const [dbImportedTeachingIdsByFilename, setDbImportedTeachingIdsByFilename] = useState<Record<string, string>>({});
   const [isCheckingDbResume, setIsCheckingDbResume] = useState(false);
   const [dbResumeAvailable, setDbResumeAvailable] = useState(false);
+  
+  // Last import run from DB (for resume after refresh)
+  const [lastImportRun, setLastImportRun] = useState<LastImportRun | null>(null);
+  const [isLoadingLastRun, setIsLoadingLastRun] = useState(true);
+
+  // Load last import run on mount
+  useEffect(() => {
+    const loadLastImportRun = async () => {
+      setIsLoadingLastRun(true);
+      try {
+        // Fetch the most recent import run
+        const { data: runData, error: runError } = await supabase
+          .from("import_runs")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (runError) throw runError;
+        
+        if (runData) {
+          // Fetch the files for this run
+          const { data: filesData, error: filesError } = await supabase
+            .from("import_run_files")
+            .select("filename, status, stage, error_message, teaching_id")
+            .eq("run_id", runData.id);
+
+          if (filesError) throw filesError;
+
+          setLastImportRun({
+            id: runData.id,
+            status: runData.status,
+            total_files: runData.total_files,
+            created_at: runData.created_at,
+            files: filesData || [],
+          });
+        }
+      } catch (err) {
+        console.error("Error loading last import run:", err);
+      } finally {
+        setIsLoadingLastRun(false);
+      }
+    };
+
+    loadLastImportRun();
+  }, []);
 
   // Check for resumable state on mount
   useEffect(() => {
@@ -550,12 +616,13 @@ const Admin = () => {
     setFailedInSession([]);
   };
 
-  // Retry only failed PDFs from the last batch
+  // Retry only failed PDFs from the last batch (in-session)
   const retryFailedPdfs = () => {
     if (failedInSession.length === 0) return;
     
     // Filter pdfQueue to only the failed files
-    const failedFiles = pdfQueue.filter(f => failedInSession.includes(f.name));
+    const failedFilenames = failedInSession.map(f => f.filename);
+    const failedFiles = pdfQueue.filter(f => failedFilenames.includes(f.name));
     
     if (failedFiles.length === 0) {
       toast({
@@ -581,6 +648,81 @@ const Admin = () => {
     setTimeout(() => processPdfBatch(false, false), 100);
   };
 
+  // Retry failed files from the last DB-logged import run
+  const retryFromLastRun = () => {
+    if (!lastImportRun) return;
+    
+    const failedFilenames = lastImportRun.files
+      .filter(f => f.status === 'failed')
+      .map(f => f.filename);
+    
+    if (failedFilenames.length === 0) {
+      toast({
+        title: "No failed files",
+        description: "No failed files found in the last import run.",
+      });
+      return;
+    }
+    
+    // Check if we have matching files in the current queue
+    const matchingFiles = pdfQueue.filter(f => failedFilenames.includes(f.name));
+    
+    if (matchingFiles.length === 0) {
+      toast({
+        title: "Re-upload required",
+        description: `Please re-upload these ${failedFilenames.length} failed files to retry.`,
+        variant: "destructive",
+      });
+      // Copy filenames to clipboard
+      navigator.clipboard.writeText(failedFilenames.join("\n"));
+      toast({
+        title: "Copied",
+        description: "Failed filenames copied to clipboard.",
+      });
+      return;
+    }
+    
+    // Set queue to only matching failed files
+    setPdfQueue(matchingFiles);
+    setFailedInSession([]);
+    setProcessedInSession([]);
+    
+    toast({
+      title: "Retrying from last run",
+      description: `${matchingFiles.length} file(s) will be reprocessed.`,
+    });
+    
+    setTimeout(() => processPdfBatch(false, false), 100);
+  };
+
+  // Dismiss last run panel
+  const dismissLastRun = async () => {
+    if (!lastImportRun) return;
+    
+    // Mark the run as acknowledged by updating status
+    await supabase
+      .from("import_runs")
+      .update({ status: "completed" })
+      .eq("id", lastImportRun.id);
+    
+    setLastImportRun(null);
+  };
+
+  // Helper to extract error message from response
+  const extractErrorMessage = async (response: Response, stage: string): Promise<string> => {
+    try {
+      const text = await response.text();
+      try {
+        const json = JSON.parse(text);
+        return json.error || json.message || `${stage} failed (HTTP ${response.status})`;
+      } catch {
+        return text.slice(0, 200) || `${stage} failed (HTTP ${response.status})`;
+      }
+    } catch {
+      return `${stage} failed (HTTP ${response.status})`;
+    }
+  };
+
   // Process the PDF queue in batch (with resume support)
   const processPdfBatch = async (isResume = false, useDbResume = false) => {
     if (pdfQueue.length === 0 && !isResume) return;
@@ -601,6 +743,32 @@ const Admin = () => {
     
     // Generate a batch ID for this import run
     const batchId = crypto.randomUUID();
+    
+    // Create an import_runs record
+    const { data: runData, error: runError } = await supabase
+      .from("import_runs")
+      .insert({
+        id: batchId,
+        total_files: pdfQueue.length,
+        status: "running",
+      })
+      .select()
+      .single();
+
+    if (runError) {
+      console.error("Failed to create import run:", runError);
+    }
+
+    // Insert all files as queued
+    if (runData) {
+      const fileRecords = pdfQueue.map(f => ({
+        run_id: batchId,
+        filename: f.name,
+        status: "queued" as const,
+      }));
+      
+      await supabase.from("import_run_files").insert(fileRecords);
+    }
     
     // Determine which files to process
     let filesToProcess = pdfQueue;
@@ -628,7 +796,7 @@ const Admin = () => {
       );
       nextReadingOrder = resumableState.nextReadingOrder;
       setProcessedInSession(alreadyProcessed);
-      setFailedInSession(alreadyFailed);
+      setFailedInSession(alreadyFailed.map(fn => ({ filename: fn, error: "Previous failure", stage: "unknown" })));
       
       toast({
         title: "Resuming import",
@@ -666,7 +834,7 @@ const Admin = () => {
     let successCount = alreadyProcessed.length;
     let failCount = alreadyFailed.length;
     const processedFiles = [...alreadyProcessed];
-    const failedFiles = [...alreadyFailed];
+    const failedFiles: FailedFileInfo[] = alreadyFailed.map(fn => ({ filename: fn, error: "Previous failure", stage: "unknown" }));
 
     for (let i = 0; i < filesToProcess.length; i++) {
       const file = filesToProcess[i];
@@ -678,6 +846,13 @@ const Admin = () => {
         currentFile: file.name, 
         stage: "Parsing PDF" 
       });
+
+      // Update file status in DB
+      await supabase
+        .from("import_run_files")
+        .update({ status: "processing", stage: "parsing", started_at: new Date().toISOString() })
+        .eq("run_id", batchId)
+        .eq("filename", file.name);
 
       try {
         // Step 1: Parse PDF
@@ -704,12 +879,20 @@ const Admin = () => {
           }
         );
 
-        if (!parseResponse.ok) throw new Error("Failed to parse PDF");
+        if (!parseResponse.ok) {
+          const errorMsg = await extractErrorMessage(parseResponse, "PDF parsing");
+          throw new Error(`Parsing: ${errorMsg}`);
+        }
         const parseResult = await parseResponse.json();
         const content = parseResult.text;
 
         // Step 2: Generate metadata
         setBatchImportProgress(prev => ({ ...prev, stage: "Generating metadata" }));
+        await supabase
+          .from("import_run_files")
+          .update({ stage: "metadata" })
+          .eq("run_id", batchId)
+          .eq("filename", file.name);
         
         const indexResponse = await fetch(
           `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-index`,
@@ -723,11 +906,19 @@ const Admin = () => {
           }
         );
 
-        if (!indexResponse.ok) throw new Error("Failed to generate metadata");
+        if (!indexResponse.ok) {
+          const errorMsg = await extractErrorMessage(indexResponse, "Metadata generation");
+          throw new Error(`Metadata: ${errorMsg}`);
+        }
         const metadata = await indexResponse.json();
 
         // Step 3: Generate cover
         setBatchImportProgress(prev => ({ ...prev, stage: "Generating cover" }));
+        await supabase
+          .from("import_run_files")
+          .update({ stage: "cover" })
+          .eq("run_id", batchId)
+          .eq("filename", file.name);
         
         let coverImageUrl = "";
         try {
@@ -753,10 +944,16 @@ const Admin = () => {
           }
         } catch (coverErr) {
           console.error("Cover generation failed for", file.name, coverErr);
+          // Cover failure is non-fatal, continue
         }
 
         // Step 4: Save to database
         setBatchImportProgress(prev => ({ ...prev, stage: "Saving" }));
+        await supabase
+          .from("import_run_files")
+          .update({ stage: "saving" })
+          .eq("run_id", batchId)
+          .eq("filename", file.name);
 
         const { count } = await supabase
           .from("teachings")
@@ -764,7 +961,7 @@ const Admin = () => {
         
         const documentId = `D-${String((count || 0) + 1).padStart(3, "0")}`;
 
-        const { error: insertError } = await supabase.from("teachings").insert({
+        const { data: insertedTeaching, error: insertError } = await supabase.from("teachings").insert({
           document_id: documentId,
           title: metadata.suggested_title || file.name.replace('.pdf', ''),
           primary_theme: metadata.primary_theme || "Uncategorized",
@@ -781,9 +978,20 @@ const Admin = () => {
           source_filename: file.name,
           import_batch_id: batchId,
           imported_via: 'bulk_pdf',
-        });
+        }).select("id").single();
 
-        if (insertError) throw insertError;
+        if (insertError) throw new Error(`Saving: ${insertError.message}`);
+
+        // Update file status to success
+        await supabase
+          .from("import_run_files")
+          .update({ 
+            status: "success", 
+            finished_at: new Date().toISOString(),
+            teaching_id: insertedTeaching?.id 
+          })
+          .eq("run_id", batchId)
+          .eq("filename", file.name);
 
         nextReadingOrder++;
         successCount++;
@@ -793,22 +1001,36 @@ const Admin = () => {
         // Save state after each successful file
         saveBatchState({
           processedFiles,
-          failedFiles,
+          failedFiles: failedFiles.map(f => f.filename),
           phase: bulkPhase,
           startTime: resumableState?.startTime || Date.now(),
           nextReadingOrder,
           batchId,
         });
       } catch (err) {
-        console.error(`Failed to process ${file.name}:`, err);
+        const errorMessage = err instanceof Error ? err.message : "Unknown error";
+        const stage = errorMessage.split(":")[0] || "unknown";
+        console.error(`Failed to process ${file.name}:`, errorMessage);
+        
+        // Update file status to failed in DB
+        await supabase
+          .from("import_run_files")
+          .update({ 
+            status: "failed", 
+            error_message: errorMessage,
+            finished_at: new Date().toISOString()
+          })
+          .eq("run_id", batchId)
+          .eq("filename", file.name);
+        
         failCount++;
-        failedFiles.push(file.name);
+        failedFiles.push({ filename: file.name, error: errorMessage, stage });
         setFailedInSession([...failedFiles]);
         
         // Save state after each failed file too
         saveBatchState({
           processedFiles,
-          failedFiles,
+          failedFiles: failedFiles.map(f => f.filename),
           phase: bulkPhase,
           startTime: resumableState?.startTime || Date.now(),
           nextReadingOrder,
@@ -822,19 +1044,44 @@ const Admin = () => {
       }
     }
 
+    // Update import run status
+    const finalStatus = failCount > 0 ? "completed_with_errors" : "completed";
+    await supabase
+      .from("import_runs")
+      .update({ status: finalStatus })
+      .eq("id", batchId);
+
     toast({
       title: "Batch import complete",
       description: `${successCount} teachings saved${failCount > 0 ? `, ${failCount} failed` : ""}`,
     });
 
-    // Clear state on completion
-    clearBatchState();
-    setResumableState(null);
-    setPdfQueue([]);
-    setProcessedInSession([]);
-    setFailedInSession([]);
+    // Only clear state if NO failures occurred
+    if (failCount === 0) {
+      clearBatchState();
+      setResumableState(null);
+      setPdfQueue([]);
+      setProcessedInSession([]);
+      setFailedInSession([]);
+    } else {
+      // Keep state so user can see retry panel
+      // Don't clear pdfQueue, failedInSession, processedInSession
+    }
+    
     setIsBatchImporting(false);
     setBatchImportProgress({ current: 0, total: 0, currentFile: "", stage: "" });
+    
+    // Refresh last import run display
+    setLastImportRun({
+      id: batchId,
+      status: finalStatus,
+      total_files: pdfQueue.length,
+      created_at: new Date().toISOString(),
+      files: [
+        ...processedFiles.map(fn => ({ filename: fn, status: "success", stage: null, error_message: null, teaching_id: null })),
+        ...failedFiles.map(f => ({ filename: f.filename, status: "failed", stage: f.stage, error_message: f.error, teaching_id: null })),
+      ],
+    });
   };
 
   const processTranscript = async () => {
@@ -1291,6 +1538,11 @@ const Admin = () => {
     }
   };
 
+  // Computed values for last run display
+  const lastRunSuccessCount = lastImportRun?.files.filter(f => f.status === "success").length || 0;
+  const lastRunFailedCount = lastImportRun?.files.filter(f => f.status === "failed").length || 0;
+  const lastRunFailedFiles = lastImportRun?.files.filter(f => f.status === "failed") || [];
+
   return (
     <>
       <Helmet>
@@ -1309,6 +1561,61 @@ const Admin = () => {
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
             <ApiUsageCard />
             <ImportHistoryPanel limit={10} />
+            
+            {/* Last Import Run Summary - shown if last run had failures */}
+            {!isLoadingLastRun && lastImportRun && lastRunFailedCount > 0 && (
+              <Card className="border-destructive/50 bg-destructive/5">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-destructive">
+                    <AlertCircle className="h-5 w-5" />
+                    Last Import: {lastRunFailedCount} Failed
+                  </CardTitle>
+                  <CardDescription>
+                    {lastRunSuccessCount} succeeded, {lastRunFailedCount} failed on {new Date(lastImportRun.created_at).toLocaleDateString()}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="max-h-40 overflow-y-auto space-y-2">
+                    {lastRunFailedFiles.map((file, idx) => (
+                      <div key={idx} className="bg-background/50 rounded p-2 text-xs">
+                        <p className="font-medium text-destructive truncate">{file.filename}</p>
+                        <p className="text-muted-foreground truncate">{file.error_message}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        navigator.clipboard.writeText(lastRunFailedFiles.map(f => f.filename).join("\n"));
+                        toast({ title: "Copied", description: "Failed filenames copied to clipboard" });
+                      }}
+                    >
+                      <Copy className="h-4 w-4 mr-1" />
+                      Copy Names
+                    </Button>
+                    {pdfQueue.length > 0 && pdfQueue.some(f => lastRunFailedFiles.some(lf => lf.filename === f.name)) && (
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={retryFromLastRun}
+                      >
+                        <RefreshCw className="h-4 w-4 mr-1" />
+                        Retry
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={dismissLastRun}
+                    >
+                      Dismiss
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
             
             {/* Batch Cover Generation Card */}
             <Card>
@@ -1467,69 +1774,43 @@ const Admin = () => {
                       )}
                     </div>
                     <div className="flex gap-2">
-                      <Button 
-                        onClick={() => {
-                          setBulkPhase(resumableState.phase);
-                          processPdfBatch(true);
-                        }} 
-                        className="flex-1"
-                        disabled={pdfQueue.length === 0}
-                      >
-                        <FileText className="h-4 w-4 mr-2" />
+                      <Button onClick={() => processPdfBatch(true)} className="flex-1">
                         Resume Import
                       </Button>
                       <Button variant="outline" onClick={clearResumeState}>
-                        Clear & Start Fresh
+                        Start Fresh
                       </Button>
                     </div>
-                    {pdfQueue.length === 0 && (
-                      <p className="text-xs text-amber-600">
-                        Re-upload your PDF files to resume from where you left off
-                      </p>
-                    )}
                   </CardContent>
                 </Card>
               )}
 
-              {/* Bulk PDF Import Card */}
+              {/* PDF Upload Card */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <FileUp className="h-5 w-5" />
-                    Bulk PDF Import
+                    Import PDFs
                   </CardTitle>
                   <CardDescription>
-                    Upload multiple PDFs at once — they'll be processed one at a time automatically
+                    Upload PDF transcripts for single or bulk import
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent>
                   {isBatchImporting ? (
                     <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          <span className="text-sm text-muted-foreground">
-                            Processing {batchImportProgress.current} of {batchImportProgress.total}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 text-xs">
-                          {processedInSession.length > 0 && (
-                            <span className="text-green-600">✓ {processedInSession.length}</span>
-                          )}
-                          {failedInSession.length > 0 && (
-                            <span className="text-destructive">✗ {failedInSession.length}</span>
-                          )}
-                        </div>
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span className="text-sm text-muted-foreground">
+                          Processing {batchImportProgress.current} of {batchImportProgress.total}
+                        </span>
                       </div>
                       <Progress 
                         value={(batchImportProgress.current / batchImportProgress.total) * 100} 
                         className="w-full" 
                       />
                       <p className="text-xs text-muted-foreground truncate">
-                        {batchImportProgress.currentFile}
-                      </p>
-                      <p className="text-xs text-primary font-medium">
-                        {batchImportProgress.stage}...
+                        {batchImportProgress.stage}: {batchImportProgress.currentFile}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         Progress is saved automatically. You can safely close this page and resume later.
@@ -1547,10 +1828,11 @@ const Admin = () => {
                             {processedInSession.length} succeeded
                           </p>
                         </div>
-                        <ul className="text-xs text-muted-foreground max-h-32 overflow-y-auto space-y-1">
-                          {failedInSession.map((filename, idx) => (
-                            <li key={idx} className="truncate text-destructive">
-                              ✗ {filename}
+                        <ul className="text-xs max-h-40 overflow-y-auto space-y-2">
+                          {failedInSession.map((item, idx) => (
+                            <li key={idx} className="bg-background/50 rounded p-2">
+                              <p className="font-medium text-destructive truncate">{item.filename}</p>
+                              <p className="text-muted-foreground truncate">{item.error}</p>
                             </li>
                           ))}
                         </ul>
@@ -1560,7 +1842,7 @@ const Admin = () => {
                             variant="destructive"
                             className="flex-1"
                           >
-                            <Loader2 className="h-4 w-4 mr-2" />
+                            <RefreshCw className="h-4 w-4 mr-2" />
                             Retry Failed ({failedInSession.length})
                           </Button>
                           <Button 
@@ -1568,6 +1850,7 @@ const Admin = () => {
                             onClick={() => {
                               setFailedInSession([]);
                               setProcessedInSession([]);
+                              setPdfQueue([]);
                             }}
                           >
                             Dismiss
@@ -1578,22 +1861,21 @@ const Admin = () => {
                   ) : pdfQueue.length > 0 ? (
                     <div className="space-y-4">
                       {/* DB-based resume banner */}
-                      {dbResumeAvailable && !isCheckingDbResume && (
-                        <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 space-y-2">
+                      {dbResumeAvailable && (
+                        <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 space-y-3">
                           <p className="text-sm font-medium text-blue-700 dark:text-blue-400">
-                            Some files already imported
+                            {pdfQueue.filter(f => dbImportedFilenames.includes(f.name)).length} of {pdfQueue.length} files already in database
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {pdfQueue.filter(f => dbImportedFilenames.includes(f.name)).length} of {pdfQueue.length} files 
-                            are already in the database. Would you like to continue with just the remaining files?
+                            Would you like to skip already-imported files and continue with the remaining?
                           </p>
                           <div className="flex gap-2">
                             <Button 
                               size="sm" 
                               onClick={() => processPdfBatch(false, true)}
-                              className="text-xs"
+                              className="flex-1"
                             >
-                              Continue ({pdfQueue.length - pdfQueue.filter(f => dbImportedFilenames.includes(f.name)).length} remaining)
+                              Import Remaining Only
                             </Button>
                             <Button 
                               size="sm" 
@@ -1949,219 +2231,214 @@ const Admin = () => {
                     )}
                   </CardTitle>
                   <CardDescription>
-                    {contentSource === 'pdf' 
-                      ? "Review the imported PDF content and generate metadata"
-                      : "Review the AI-processed content and make any corrections"
-                    }
+                    The AI-processed teaching content
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <Textarea
                     placeholder="Processed content will appear here..."
                     value={processedContent}
-                    onChange={(e) => setProcessedContent(e.target.value)}
-                    className="min-h-[300px] font-mono text-sm"
+                    onChange={(e) => {
+                      setProcessedContent(e.target.value);
+                      if (!contentSource) setContentSource('manual');
+                    }}
+                    className="min-h-[250px] font-mono text-sm"
                   />
-                  <div className="flex gap-3">
-                    <Button
-                      onClick={generateIndex}
-                      disabled={isIndexing || !processedContent.trim()}
-                      variant="secondary"
-                      className="flex-1"
-                    >
-                      {isIndexing ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Generating Index...
-                        </>
-                      ) : (
-                        <>
-                          <Database className="mr-2 h-4 w-4" />
-                          Generate Index
-                        </>
-                      )}
-                    </Button>
-                    <Button
-                      onClick={() => setShowBookPreview(true)}
-                      disabled={!processedContent.trim()}
-                      variant="outline"
-                    >
-                      <BookOpen className="mr-2 h-4 w-4" />
-                      Preview as Book
-                    </Button>
-                  </div>
+                  <Button
+                    onClick={generateIndex}
+                    disabled={isIndexing || !processedContent.trim()}
+                    className="w-full"
+                    variant="outline"
+                  >
+                    {isIndexing ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Generating Index...
+                      </>
+                    ) : (
+                      <>
+                        <Database className="mr-2 h-4 w-4" />
+                        Generate Index
+                      </>
+                    )}
+                  </Button>
                 </CardContent>
               </Card>
-            </div>
-          </div>
 
-          {/* Metadata Section */}
-          {(title || primaryTheme || questionsAnswered.length > 0) && (
-            <Card className="mt-8">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Database className="h-5 w-5" />
-                  Step 3: Review Metadata & Save
-                </CardTitle>
-                <CardDescription>
-                  Review the extracted metadata and save to the database
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Title</label>
+              {/* Metadata Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Database className="h-5 w-5" />
+                    Step 3: Review Metadata
+                    {suggestedPhase && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                        AI suggested: {suggestedPhase.replace('-', ' ')}
+                      </span>
+                    )}
+                  </CardTitle>
+                  <CardDescription>
+                    Review and adjust the extracted metadata
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Title</label>
                     <Input
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
                       placeholder="Teaching title"
                     />
                   </div>
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Primary Theme</label>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Primary Theme</label>
                     <Input
                       value={primaryTheme}
                       onChange={(e) => setPrimaryTheme(e.target.value)}
                       placeholder="Main theme"
                     />
                   </div>
-                </div>
 
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Quick Answer</label>
-                  <Textarea
-                    value={quickAnswer}
-                    onChange={(e) => setQuickAnswer(e.target.value)}
-                    placeholder="2-3 sentence summary..."
-                    className="min-h-[80px]"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium mb-2 block">
-                    Questions Answered ({questionsAnswered.length})
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {questionsAnswered.map((q, i) => (
-                      <span key={i} className="bg-accent/10 text-accent-foreground px-3 py-1 rounded-full text-sm">
-                        {q}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium mb-2 block">
-                    Secondary Themes ({secondaryThemes.length})
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {secondaryThemes.map((t, i) => (
-                      <span key={i} className="bg-secondary text-secondary-foreground px-3 py-1 rounded-full text-sm">
-                        {t}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium mb-2 block">
-                    Scriptures ({scriptures.length})
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {scriptures.map((s, i) => (
-                      <span key={i} className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm">
-                        {s}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium mb-2 block">
-                    Keywords ({keywords.length})
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {keywords.map((k, i) => (
-                      <span key={i} className="bg-muted text-muted-foreground px-3 py-1 rounded-full text-sm">
-                        {k}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Phase Selection */}
-                <div>
-                  <label className="text-sm font-medium mb-2 block flex items-center gap-2">
-                    Learning Phase
-                    {suggestedPhase && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary flex items-center gap-1">
-                        <Sparkles className="h-3 w-3" />
-                        AI Suggested
-                      </span>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Phase</label>
+                    <Select value={phase} onValueChange={setPhase}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="foundations">Foundations</SelectItem>
+                        <SelectItem value="essentials">Essentials</SelectItem>
+                        <SelectItem value="building-blocks">Building Blocks</SelectItem>
+                        <SelectItem value="moving-on">Moving On</SelectItem>
+                        <SelectItem value="advanced">Advanced</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {phaseReasoning && (
+                      <p className="text-xs text-muted-foreground italic">
+                        AI reasoning: {phaseReasoning}
+                      </p>
                     )}
-                  </label>
-                  <Select value={phase} onValueChange={setPhase}>
-                    <SelectTrigger className="w-full md:w-[300px]">
-                      <SelectValue placeholder="Select a phase" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="foundations">1. Foundations – Basics of Biblical Interpretation</SelectItem>
-                      <SelectItem value="essentials">2. Essentials – Covenant Basics</SelectItem>
-                      <SelectItem value="building-blocks">3. Building Blocks – Mosaic to New Covenant</SelectItem>
-                      <SelectItem value="moving-on">4. Moving On – Life in the New Covenant</SelectItem>
-                      <SelectItem value="advanced">5. Advanced – Doctrinal Deep Dives</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {phaseReasoning ? (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      <span className="font-medium">AI reasoning:</span> {phaseReasoning}
-                    </p>
-                  ) : (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Choose the thematic phase for this teaching based on its content
-                    </p>
-                  )}
-                </div>
+                  </div>
 
-                <Button
-                  onClick={saveTeaching}
-                  disabled={isSaving || !title || !primaryTheme}
-                  className="w-full"
-                  size="lg"
-                >
-                  {isSaving ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Check className="mr-2 h-4 w-4" />
-                      Save Teaching to Database
-                    </>
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
-          )}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Secondary Themes</label>
+                    <Input
+                      value={secondaryThemes.join(", ")}
+                      onChange={(e) => setSecondaryThemes(e.target.value.split(",").map(s => s.trim()).filter(Boolean))}
+                      placeholder="Comma-separated themes"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Scriptures</label>
+                    <Input
+                      value={scriptures.join(", ")}
+                      onChange={(e) => setScriptures(e.target.value.split(",").map(s => s.trim()).filter(Boolean))}
+                      placeholder="Comma-separated references"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Doctrines</label>
+                    <Input
+                      value={doctrines.join(", ")}
+                      onChange={(e) => setDoctrines(e.target.value.split(",").map(s => s.trim()).filter(Boolean))}
+                      placeholder="Comma-separated doctrines"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Keywords</label>
+                    <Input
+                      value={keywords.join(", ")}
+                      onChange={(e) => setKeywords(e.target.value.split(",").map(s => s.trim()).filter(Boolean))}
+                      placeholder="Comma-separated keywords"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Questions Answered</label>
+                    <Textarea
+                      value={questionsAnswered.join("\n")}
+                      onChange={(e) => setQuestionsAnswered(e.target.value.split("\n").filter(Boolean))}
+                      placeholder="One question per line"
+                      className="min-h-[100px]"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Quick Answer</label>
+                    <Textarea
+                      value={quickAnswer}
+                      onChange={(e) => setQuickAnswer(e.target.value)}
+                      placeholder="Brief summary of the teaching"
+                      className="min-h-[100px]"
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => setShowBookPreview(true)}
+                      variant="outline"
+                      className="flex-1"
+                      disabled={!title || !primaryTheme}
+                    >
+                      <BookOpen className="mr-2 h-4 w-4" />
+                      Preview Book
+                    </Button>
+                  </div>
+
+                  <Button
+                    onClick={saveTeaching}
+                    disabled={isSaving || !title || !primaryTheme || !processedContent}
+                    className="w-full"
+                  >
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Check className="mr-2 h-4 w-4" />
+                        Save Teaching
+                      </>
+                    )}
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </main>
-
+        
         <Footer />
       </div>
 
       {/* Book Preview Modal */}
       {showBookPreview && (
-        <BookPreview
-          title={title || "Untitled Teaching"}
-          primaryTheme={primaryTheme || "Biblical Studies"}
-          content={processedContent}
-          scriptures={scriptures}
-          questionsAnswered={questionsAnswered}
-          quickAnswer={quickAnswer || "This teaching explores key biblical concepts through contextual study."}
-          onClose={() => setShowBookPreview(false)}
-          coverImage={coverImage}
-          onGenerateCover={generateCoverIllustration}
-        />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="relative w-full max-w-4xl mx-4">
+            <Button
+              variant="outline"
+              size="sm"
+              className="absolute -top-12 right-0"
+              onClick={() => setShowBookPreview(false)}
+            >
+              Close Preview
+            </Button>
+            <BookPreview
+              title={title}
+              primaryTheme={primaryTheme}
+              content={processedContent}
+              scriptures={scriptures}
+              questionsAnswered={questionsAnswered}
+              quickAnswer={quickAnswer}
+              coverImage={coverImage}
+              onClose={() => setShowBookPreview(false)}
+            />
+          </div>
+        </div>
       )}
     </>
   );
