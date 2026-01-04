@@ -1,13 +1,20 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Helmet } from "react-helmet-async";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, FileUp, Check, AlertCircle, RefreshCw, Download, Copy, X } from "lucide-react";
+import { 
+  Loader2, FileUp, Check, AlertCircle, RefreshCw, Download, Copy, X, 
+  Mic, FileText, Image, Play, Square
+} from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import ApiUsageCard from "@/components/ApiUsageCard";
+import ImportHistoryPanel from "@/components/ImportHistoryPanel";
 
 // Natural alphanumeric sort for multi-part teachings (Part 2 before Part 10)
 const naturalSort = (a: File, b: File): number => {
@@ -32,25 +39,34 @@ interface ImportResult {
 const Admin = () => {
   const { toast } = useToast();
   
-  // Core wizard state
-  const [step, setStep] = useState<"upload" | "importing" | "results">("upload");
-  
-  // PDF queue
+  // ============== PDF IMPORT STATE ==============
+  const [pdfStep, setPdfStep] = useState<"upload" | "importing" | "results">("upload");
   const [pdfQueue, setPdfQueue] = useState<File[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
-  
-  // Import progress
   const [isImporting, setIsImporting] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0, currentFile: "", stage: "" });
-  
-  // Results
   const [results, setResults] = useState<ImportResult[]>([]);
   const [batchId, setBatchId] = useState<string>("");
-  
-  // Already imported files (for auto-skip)
   const [alreadyImported, setAlreadyImported] = useState<Set<string>>(new Set());
   const [isCheckingDb, setIsCheckingDb] = useState(false);
 
+  // ============== AUDIO IMPORT STATE ==============
+  const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [transcriptText, setTranscriptText] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processedText, setProcessedText] = useState("");
+  const [isSavingAudio, setIsSavingAudio] = useState(false);
+  const [audioSaveStage, setAudioSaveStage] = useState("");
+
+  // ============== BATCH COVER STATE ==============
+  const [teachingsWithoutCovers, setTeachingsWithoutCovers] = useState<Array<{ id: string; title: string }>>([]);
+  const [isScanningCovers, setIsScanningCovers] = useState(false);
+  const [isGeneratingCovers, setIsGeneratingCovers] = useState(false);
+  const [coverProgress, setCoverProgress] = useState({ current: 0, total: 0 });
+
+  // ============== PDF IMPORT LOGIC ==============
+  
   // Check which files are already in the database
   const checkAlreadyImported = useCallback(async (filenames: string[]) => {
     if (filenames.length === 0) return;
@@ -71,7 +87,6 @@ const Admin = () => {
     }
   }, []);
 
-  // When PDF queue changes, check which are already imported
   useEffect(() => {
     if (pdfQueue.length > 0) {
       checkAlreadyImported(pdfQueue.map(f => f.name));
@@ -80,7 +95,6 @@ const Admin = () => {
     }
   }, [pdfQueue, checkAlreadyImported]);
 
-  // Handle file drop
   const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragOver(false);
@@ -118,10 +132,9 @@ const Admin = () => {
   const clearQueue = () => {
     setPdfQueue([]);
     setResults([]);
-    setStep("upload");
+    setPdfStep("upload");
   };
 
-  // Helper to extract error message
   const extractErrorMessage = async (response: Response, stage: string): Promise<string> => {
     try {
       const text = await response.text();
@@ -136,30 +149,26 @@ const Admin = () => {
     }
   };
 
-  // Start the import process
   const startImport = async (skipAlreadyImported = true) => {
     if (pdfQueue.length === 0) return;
     
-    setStep("importing");
+    setPdfStep("importing");
     setIsImporting(true);
     setResults([]);
     
     const newBatchId = crypto.randomUUID();
     setBatchId(newBatchId);
     
-    // Create import run record
     await supabase.from("import_runs").insert({
       id: newBatchId,
       total_files: pdfQueue.length,
       status: "running",
     });
     
-    // Insert all files as queued
     await supabase.from("import_run_files").insert(
       pdfQueue.map(f => ({ run_id: newBatchId, filename: f.name, status: "queued" }))
     );
     
-    // Get current max reading_order
     const { data: maxOrderData } = await supabase
       .from("teachings")
       .select("reading_order")
@@ -174,7 +183,6 @@ const Admin = () => {
     for (let i = 0; i < pdfQueue.length; i++) {
       const file = pdfQueue[i];
       
-      // Skip if already imported
       if (skipAlreadyImported && alreadyImported.has(file.name)) {
         importResults.push({ filename: file.name, status: "skipped" });
         setResults([...importResults]);
@@ -183,14 +191,12 @@ const Admin = () => {
       
       setProgress({ current: i + 1, total: pdfQueue.length, currentFile: file.name, stage: "Parsing" });
       
-      // Update file status
       await supabase.from("import_run_files")
         .update({ status: "processing", stage: "parsing", started_at: new Date().toISOString() })
         .eq("run_id", newBatchId)
         .eq("filename", file.name);
       
       try {
-        // Step 1: Convert to base64 and parse PDF
         const base64 = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
           reader.readAsDataURL(file);
@@ -215,7 +221,6 @@ const Admin = () => {
         }
         const { text: content } = await parseResponse.json();
         
-        // Step 2: Generate metadata
         setProgress(prev => ({ ...prev, stage: "Generating metadata" }));
         await supabase.from("import_run_files")
           .update({ stage: "metadata" })
@@ -239,7 +244,6 @@ const Admin = () => {
         }
         const metadata = await indexResponse.json();
         
-        // Step 3: Generate cover (non-fatal if fails)
         setProgress(prev => ({ ...prev, stage: "Generating cover" }));
         await supabase.from("import_run_files")
           .update({ stage: "cover" })
@@ -271,7 +275,6 @@ const Admin = () => {
           // Cover failure is non-fatal
         }
         
-        // Step 4: Save to database
         setProgress(prev => ({ ...prev, stage: "Saving" }));
         await supabase.from("import_run_files")
           .update({ stage: "saving" })
@@ -305,7 +308,6 @@ const Admin = () => {
         
         if (insertError) throw new Error(`Saving: ${insertError.message}`);
         
-        // Success
         await supabase.from("import_run_files")
           .update({ status: "success", finished_at: new Date().toISOString(), teaching_id: insertedTeaching?.id })
           .eq("run_id", newBatchId)
@@ -328,20 +330,18 @@ const Admin = () => {
       
       setResults([...importResults]);
       
-      // Small delay between files
       if (i < pdfQueue.length - 1) {
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
     
-    // Update import run status
     const failCount = importResults.filter(r => r.status === "failed").length;
     await supabase.from("import_runs")
       .update({ status: failCount > 0 ? "completed_with_errors" : "completed" })
       .eq("id", newBatchId);
     
     setIsImporting(false);
-    setStep("results");
+    setPdfStep("results");
     
     const successCount = importResults.filter(r => r.status === "success").length;
     const skippedCount = importResults.filter(r => r.status === "skipped").length;
@@ -352,7 +352,6 @@ const Admin = () => {
     });
   };
 
-  // Retry only failed files
   const retryFailed = () => {
     const failedFilenames = results.filter(r => r.status === "failed").map(r => r.filename);
     const failedFiles = pdfQueue.filter(f => failedFilenames.includes(f.name));
@@ -364,12 +363,11 @@ const Admin = () => {
     
     setPdfQueue(failedFiles);
     setResults([]);
-    setStep("upload");
+    setPdfStep("upload");
     
     toast({ title: "Ready to retry", description: `${failedFiles.length} failed file(s) ready to reimport` });
   };
 
-  // Download results as JSON
   const downloadResults = () => {
     const data = {
       batchId,
@@ -385,14 +383,337 @@ const Admin = () => {
     URL.revokeObjectURL(url);
   };
 
-  // Copy failed filenames
   const copyFailedFilenames = () => {
     const failed = results.filter(r => r.status === "failed").map(r => r.filename);
     navigator.clipboard.writeText(failed.join("\n"));
     toast({ title: "Copied", description: `${failed.length} failed filename(s) copied` });
   };
 
-  // Computed values
+  // ============== AUDIO IMPORT LOGIC ==============
+
+  const handleAudioFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setAudioFile(file);
+      setTranscriptText("");
+      setProcessedText("");
+    }
+  };
+
+  const transcribeAudio = async () => {
+    if (!audioFile) return;
+    
+    setIsTranscribing(true);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(audioFile);
+        reader.onload = () => resolve((reader.result as string).split(',')[1]);
+        reader.onerror = reject;
+      });
+      
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/transcribe-audio`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ audio: base64, mimeType: audioFile.type }),
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error(await extractErrorMessage(response, "Transcription"));
+      }
+      
+      const { transcript } = await response.json();
+      setTranscriptText(transcript);
+      toast({ title: "Transcription complete" });
+    } catch (err) {
+      console.error("Transcription error:", err);
+      toast({ 
+        title: "Transcription failed", 
+        description: err instanceof Error ? err.message : "Unknown error",
+        variant: "destructive" 
+      });
+    } finally {
+      setIsTranscribing(false);
+    }
+  };
+
+  const processTranscript = async () => {
+    if (!transcriptText) return;
+    
+    setIsProcessing(true);
+    setProcessedText("");
+    
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-transcript`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ transcript: transcriptText }),
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error(await extractErrorMessage(response, "Processing"));
+      }
+      
+      // Stream the response
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error("No response body");
+      
+      const decoder = new TextDecoder();
+      let fullText = "";
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+            try {
+              const json = JSON.parse(line.slice(6));
+              const content = json.choices?.[0]?.delta?.content;
+              if (content) {
+                fullText += content;
+                setProcessedText(fullText);
+              }
+            } catch {
+              // Skip invalid JSON
+            }
+          }
+        }
+      }
+      
+      toast({ title: "Processing complete" });
+    } catch (err) {
+      console.error("Processing error:", err);
+      toast({ 
+        title: "Processing failed", 
+        description: err instanceof Error ? err.message : "Unknown error",
+        variant: "destructive" 
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const saveAudioTeaching = async () => {
+    if (!processedText || !audioFile) return;
+    
+    setIsSavingAudio(true);
+    
+    try {
+      // Step 1: Generate metadata
+      setAudioSaveStage("Generating metadata...");
+      const indexResponse = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-index`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ content: processedText, title: "" }),
+        }
+      );
+      
+      if (!indexResponse.ok) {
+        throw new Error(await extractErrorMessage(indexResponse, "Metadata"));
+      }
+      const metadata = await indexResponse.json();
+      
+      // Step 2: Generate cover
+      setAudioSaveStage("Generating cover...");
+      let coverImageUrl = "";
+      try {
+        const coverResponse = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-illustration`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            },
+            body: JSON.stringify({
+              title: metadata.suggested_title || audioFile.name,
+              theme: metadata.primary_theme || "Biblical Studies",
+              scriptures: metadata.scriptures || [],
+            }),
+          }
+        );
+        if (coverResponse.ok) {
+          const coverData = await coverResponse.json();
+          coverImageUrl = coverData.imageUrl;
+        }
+      } catch {
+        // Cover failure is non-fatal
+      }
+      
+      // Step 3: Save to database
+      setAudioSaveStage("Saving...");
+      
+      const { data: maxOrderData } = await supabase
+        .from("teachings")
+        .select("reading_order")
+        .order("reading_order", { ascending: false, nullsFirst: false })
+        .limit(1)
+        .maybeSingle();
+      
+      const nextReadingOrder = (maxOrderData?.reading_order || 0) + 1;
+      
+      const { count } = await supabase
+        .from("teachings")
+        .select("*", { count: "exact", head: true });
+      
+      const documentId = `D-${String((count || 0) + 1).padStart(3, "0")}`;
+      
+      const { error: insertError } = await supabase.from("teachings").insert({
+        document_id: documentId,
+        title: metadata.suggested_title || audioFile.name.replace(/\.[^/.]+$/, ''),
+        primary_theme: metadata.primary_theme || "Uncategorized",
+        secondary_themes: metadata.secondary_themes || [],
+        scriptures: metadata.scriptures || [],
+        doctrines: metadata.doctrines || [],
+        keywords: metadata.keywords || [],
+        questions_answered: metadata.questions_answered || [],
+        quick_answer: metadata.quick_answer || "",
+        full_content: processedText,
+        phase: metadata.suggested_phase || "foundations",
+        cover_image: coverImageUrl || null,
+        reading_order: nextReadingOrder,
+        source_filename: audioFile.name,
+        imported_via: 'audio',
+      });
+      
+      if (insertError) throw new Error(`Saving: ${insertError.message}`);
+      
+      toast({ title: "Teaching saved successfully!" });
+      
+      // Reset state
+      setAudioFile(null);
+      setTranscriptText("");
+      setProcessedText("");
+      
+    } catch (err) {
+      console.error("Save error:", err);
+      toast({ 
+        title: "Save failed", 
+        description: err instanceof Error ? err.message : "Unknown error",
+        variant: "destructive" 
+      });
+    } finally {
+      setIsSavingAudio(false);
+      setAudioSaveStage("");
+    }
+  };
+
+  // ============== BATCH COVER LOGIC ==============
+
+  const scanForMissingCovers = async () => {
+    setIsScanningCovers(true);
+    try {
+      const { data, error } = await supabase
+        .from("teachings")
+        .select("id, title")
+        .is("cover_image", null)
+        .order("title");
+      
+      if (error) throw error;
+      setTeachingsWithoutCovers(data || []);
+      
+      if ((data?.length || 0) === 0) {
+        toast({ title: "All teachings have covers!" });
+      }
+    } catch (err) {
+      console.error("Scan error:", err);
+      toast({ title: "Scan failed", variant: "destructive" });
+    } finally {
+      setIsScanningCovers(false);
+    }
+  };
+
+  const generateAllCovers = async () => {
+    if (teachingsWithoutCovers.length === 0) return;
+    
+    setIsGeneratingCovers(true);
+    setCoverProgress({ current: 0, total: teachingsWithoutCovers.length });
+    
+    let successCount = 0;
+    let failCount = 0;
+    
+    for (let i = 0; i < teachingsWithoutCovers.length; i++) {
+      const teaching = teachingsWithoutCovers[i];
+      setCoverProgress({ current: i + 1, total: teachingsWithoutCovers.length });
+      
+      try {
+        // Get teaching details for better cover generation
+        const { data: fullTeaching } = await supabase
+          .from("teachings")
+          .select("primary_theme, scriptures")
+          .eq("id", teaching.id)
+          .single();
+        
+        const coverResponse = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-illustration`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            },
+            body: JSON.stringify({
+              title: teaching.title,
+              theme: fullTeaching?.primary_theme || "Biblical Studies",
+              scriptures: fullTeaching?.scriptures || [],
+            }),
+          }
+        );
+        
+        if (coverResponse.ok) {
+          const coverData = await coverResponse.json();
+          
+          await supabase
+            .from("teachings")
+            .update({ cover_image: coverData.imageUrl })
+            .eq("id", teaching.id);
+          
+          successCount++;
+        } else {
+          failCount++;
+        }
+      } catch (err) {
+        console.error(`Cover failed for ${teaching.title}:`, err);
+        failCount++;
+      }
+      
+      // Delay between requests
+      if (i < teachingsWithoutCovers.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
+    
+    setIsGeneratingCovers(false);
+    setTeachingsWithoutCovers([]);
+    
+    toast({
+      title: "Cover generation complete",
+      description: `${successCount} generated, ${failCount} failed`,
+    });
+  };
+
+  // Computed values for PDF import
   const newFilesCount = pdfQueue.filter(f => !alreadyImported.has(f.name)).length;
   const alreadyImportedCount = pdfQueue.filter(f => alreadyImported.has(f.name)).length;
   const successCount = results.filter(r => r.status === "success").length;
@@ -402,242 +723,452 @@ const Admin = () => {
   return (
     <>
       <Helmet>
-        <title>Import Teachings - The Berean Press</title>
+        <title>Admin - The Berean Press</title>
         <meta name="robots" content="noindex, nofollow" />
       </Helmet>
       
       <div className="min-h-screen flex flex-col bg-background">
         <Header />
         
-        <main className="flex-1 container mx-auto px-4 py-8 max-w-2xl">
-          <h1 className="font-display text-3xl md:text-4xl font-bold text-foreground mb-2 text-center">
-            Import Teachings
+        <main className="flex-1 container mx-auto px-4 py-8 max-w-4xl">
+          <h1 className="font-display text-3xl md:text-4xl font-bold text-foreground mb-6 text-center">
+            Admin
           </h1>
-          <p className="text-muted-foreground text-center mb-8">
-            Upload PDFs → We'll do the rest
-          </p>
 
-          {/* Step 1: Upload */}
-          {step === "upload" && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileUp className="h-5 w-5" />
-                  Upload PDFs
-                </CardTitle>
-                <CardDescription>
-                  Drag and drop your teaching PDFs here
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Drop zone */}
-                <div
-                  onDrop={handleDrop}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-                    isDragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
-                  }`}
-                >
-                  <FileUp className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-muted-foreground mb-4">
-                    Drop PDF files here, or click to browse
-                  </p>
-                  <label>
-                    <input
-                      type="file"
-                      accept=".pdf,application/pdf"
-                      multiple
-                      onChange={handleFileInput}
-                      className="hidden"
-                    />
-                    <Button variant="outline" asChild>
-                      <span>Choose Files</span>
-                    </Button>
-                  </label>
-                </div>
+          {/* API Usage Card */}
+          <ApiUsageCard />
 
-                {/* Queue info */}
-                {pdfQueue.length > 0 && (
-                  <div className="space-y-4">
-                    <div className="bg-muted/50 rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-medium">{pdfQueue.length} PDF{pdfQueue.length !== 1 ? 's' : ''} selected</span>
-                        <Button variant="ghost" size="sm" onClick={clearQueue}>
-                          <X className="h-4 w-4 mr-1" />
-                          Clear
-                        </Button>
-                      </div>
-                      
-                      {isCheckingDb ? (
-                        <p className="text-sm text-muted-foreground flex items-center gap-2">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Checking for already imported...
-                        </p>
-                      ) : alreadyImportedCount > 0 ? (
-                        <div className="text-sm space-y-1">
-                          <p className="text-green-600">{alreadyImportedCount} already imported (will be skipped)</p>
-                          <p>{newFilesCount} new file{newFilesCount !== 1 ? 's' : ''} to import</p>
-                        </div>
-                      ) : (
-                        <p className="text-sm text-muted-foreground">{newFilesCount} file{newFilesCount !== 1 ? 's' : ''} ready to import</p>
-                      )}
-                      
-                      {/* File list */}
-                      <div className="mt-3 max-h-40 overflow-y-auto space-y-1">
-                        {pdfQueue.map((file, idx) => {
-                          const isImported = alreadyImported.has(file.name);
-                          return (
-                            <div 
-                              key={idx} 
-                              className={`text-xs flex items-center gap-2 ${isImported ? 'text-green-600' : 'text-muted-foreground'}`}
-                            >
-                              {isImported ? <Check className="h-3 w-3" /> : <span className="w-3">•</span>}
-                              <span className="truncate">{file.name}</span>
-                              {isImported && <span className="text-xs">(imported)</span>}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
+          {/* Main Tabs */}
+          <Tabs defaultValue="pdf" className="mb-8">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="pdf" className="flex items-center gap-2">
+                <FileUp className="h-4 w-4" />
+                PDF Import
+              </TabsTrigger>
+              <TabsTrigger value="audio" className="flex items-center gap-2">
+                <Mic className="h-4 w-4" />
+                Audio Import
+              </TabsTrigger>
+              <TabsTrigger value="covers" className="flex items-center gap-2">
+                <Image className="h-4 w-4" />
+                Cover Art
+              </TabsTrigger>
+            </TabsList>
 
-                    {/* Action buttons */}
-                    <div className="flex gap-2">
-                      <Button 
-                        onClick={() => startImport(true)} 
-                        className="flex-1"
-                        disabled={newFilesCount === 0 && alreadyImportedCount > 0}
-                      >
-                        {newFilesCount === 0 ? 'All Already Imported' : `Import ${newFilesCount} New`}
-                      </Button>
-                      {alreadyImportedCount > 0 && (
-                        <Button 
-                          variant="outline" 
-                          onClick={() => startImport(false)}
-                        >
-                          Re-import All
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Step 2: Importing */}
-          {step === "importing" && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  Importing...
-                </CardTitle>
-                <CardDescription>
-                  {progress.current} of {progress.total} • {progress.stage}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Progress value={(progress.current / progress.total) * 100} className="w-full" />
-                
-                <p className="text-sm text-muted-foreground truncate">
-                  {progress.currentFile}
-                </p>
-                
-                <p className="text-xs text-muted-foreground">
-                  Progress is saved. You can safely close this page and check results later.
-                </p>
-                
-                {/* Live results */}
-                {results.length > 0 && (
-                  <div className="max-h-40 overflow-y-auto space-y-1 pt-4 border-t">
-                    {results.map((r, idx) => (
-                      <div 
-                        key={idx} 
-                        className={`text-xs flex items-center gap-2 ${
-                          r.status === "success" ? "text-green-600" : 
-                          r.status === "failed" ? "text-destructive" : 
-                          "text-muted-foreground"
-                        }`}
-                      >
-                        {r.status === "success" ? <Check className="h-3 w-3" /> : 
-                         r.status === "failed" ? <AlertCircle className="h-3 w-3" /> : 
-                         <span className="w-3">–</span>}
-                        <span className="truncate flex-1">{r.filename}</span>
-                        {r.status === "skipped" && <span>(skipped)</span>}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Step 3: Results */}
-          {step === "results" && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  {failedCount === 0 ? (
-                    <Check className="h-5 w-5 text-green-600" />
-                  ) : (
-                    <AlertCircle className="h-5 w-5 text-destructive" />
-                  )}
-                  Import Complete
-                </CardTitle>
-                <CardDescription>
-                  {successCount} imported, {failedCount} failed{skippedCount > 0 ? `, ${skippedCount} skipped` : ""}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Results list */}
-                <div className="max-h-60 overflow-y-auto space-y-2">
-                  {results.map((r, idx) => (
-                    <div 
-                      key={idx} 
-                      className={`rounded p-2 text-sm ${
-                        r.status === "success" ? "bg-green-500/10" : 
-                        r.status === "failed" ? "bg-destructive/10" : 
-                        "bg-muted/50"
+            {/* PDF Import Tab */}
+            <TabsContent value="pdf" className="space-y-4">
+              {pdfStep === "upload" && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <FileUp className="h-5 w-5" />
+                      Upload PDFs
+                    </CardTitle>
+                    <CardDescription>
+                      Drag and drop your teaching PDFs here
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div
+                      onDrop={handleDrop}
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                        isDragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
                       }`}
                     >
-                      <div className="flex items-center gap-2">
-                        {r.status === "success" ? <Check className="h-4 w-4 text-green-600" /> : 
-                         r.status === "failed" ? <AlertCircle className="h-4 w-4 text-destructive" /> : 
-                         <span className="w-4 text-center">–</span>}
-                        <span className="truncate flex-1 font-medium">{r.filename}</span>
+                      <FileUp className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                      <p className="text-muted-foreground mb-4">
+                        Drop PDF files here, or click to browse
+                      </p>
+                      <label>
+                        <input
+                          type="file"
+                          accept=".pdf,application/pdf"
+                          multiple
+                          onChange={handleFileInput}
+                          className="hidden"
+                        />
+                        <Button variant="outline" asChild>
+                          <span>Choose Files</span>
+                        </Button>
+                      </label>
+                    </div>
+
+                    {pdfQueue.length > 0 && (
+                      <div className="space-y-4">
+                        <div className="bg-muted/50 rounded-lg p-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="font-medium">{pdfQueue.length} PDF{pdfQueue.length !== 1 ? 's' : ''} selected</span>
+                            <Button variant="ghost" size="sm" onClick={clearQueue}>
+                              <X className="h-4 w-4 mr-1" />
+                              Clear
+                            </Button>
+                          </div>
+                          
+                          {isCheckingDb ? (
+                            <p className="text-sm text-muted-foreground flex items-center gap-2">
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Checking for already imported...
+                            </p>
+                          ) : alreadyImportedCount > 0 ? (
+                            <div className="text-sm space-y-1">
+                              <p className="text-green-600">{alreadyImportedCount} already imported (will be skipped)</p>
+                              <p>{newFilesCount} new file{newFilesCount !== 1 ? 's' : ''} to import</p>
+                            </div>
+                          ) : (
+                            <p className="text-sm text-muted-foreground">{newFilesCount} file{newFilesCount !== 1 ? 's' : ''} ready to import</p>
+                          )}
+                          
+                          <ScrollArea className="mt-3 max-h-40">
+                            <div className="space-y-1">
+                              {pdfQueue.map((file, idx) => {
+                                const isImported = alreadyImported.has(file.name);
+                                return (
+                                  <div 
+                                    key={idx} 
+                                    className={`text-xs flex items-center gap-2 ${isImported ? 'text-green-600' : 'text-muted-foreground'}`}
+                                  >
+                                    {isImported ? <Check className="h-3 w-3" /> : <span className="w-3">•</span>}
+                                    <span className="truncate">{file.name}</span>
+                                    {isImported && <span className="text-xs">(imported)</span>}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </ScrollArea>
+                        </div>
+
+                        <div className="flex gap-2">
+                          <Button 
+                            onClick={() => startImport(true)} 
+                            className="flex-1"
+                            disabled={newFilesCount === 0 && alreadyImportedCount > 0}
+                          >
+                            {newFilesCount === 0 ? 'All Already Imported' : `Import ${newFilesCount} New`}
+                          </Button>
+                          {alreadyImportedCount > 0 && (
+                            <Button 
+                              variant="outline" 
+                              onClick={() => startImport(false)}
+                            >
+                              Re-import All
+                            </Button>
+                          )}
+                        </div>
                       </div>
-                      {r.error && (
-                        <p className="text-xs text-destructive mt-1 pl-6">{r.error}</p>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {pdfStep === "importing" && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      Importing...
+                    </CardTitle>
+                    <CardDescription>
+                      {progress.current} of {progress.total} • {progress.stage}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <Progress value={(progress.current / progress.total) * 100} className="w-full" />
+                    
+                    <p className="text-sm text-muted-foreground truncate">
+                      {progress.currentFile}
+                    </p>
+                    
+                    {results.length > 0 && (
+                      <ScrollArea className="max-h-40 pt-4 border-t">
+                        <div className="space-y-1">
+                          {results.map((r, idx) => (
+                            <div 
+                              key={idx} 
+                              className={`text-xs flex items-center gap-2 ${
+                                r.status === "success" ? "text-green-600" : 
+                                r.status === "failed" ? "text-destructive" : 
+                                "text-muted-foreground"
+                              }`}
+                            >
+                              {r.status === "success" ? <Check className="h-3 w-3" /> : 
+                               r.status === "failed" ? <AlertCircle className="h-3 w-3" /> : 
+                               <span className="w-3">–</span>}
+                              <span className="truncate flex-1">{r.filename}</span>
+                              {r.status === "skipped" && <span>(skipped)</span>}
+                            </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {pdfStep === "results" && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      {failedCount === 0 ? (
+                        <Check className="h-5 w-5 text-green-600" />
+                      ) : (
+                        <AlertCircle className="h-5 w-5 text-destructive" />
+                      )}
+                      Import Complete
+                    </CardTitle>
+                    <CardDescription>
+                      {successCount} imported, {failedCount} failed{skippedCount > 0 ? `, ${skippedCount} skipped` : ""}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <ScrollArea className="max-h-60">
+                      <div className="space-y-2">
+                        {results.map((r, idx) => (
+                          <div 
+                            key={idx} 
+                            className={`rounded p-2 text-sm ${
+                              r.status === "success" ? "bg-green-500/10" : 
+                              r.status === "failed" ? "bg-destructive/10" : 
+                              "bg-muted/50"
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              {r.status === "success" ? <Check className="h-4 w-4 text-green-600" /> : 
+                               r.status === "failed" ? <AlertCircle className="h-4 w-4 text-destructive" /> : 
+                               <span className="w-4 text-center">–</span>}
+                              <span className="truncate flex-1 font-medium">{r.filename}</span>
+                            </div>
+                            {r.error && (
+                              <p className="text-xs text-destructive mt-1 pl-6">{r.error}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+
+                    <div className="flex gap-2 flex-wrap">
+                      {failedCount > 0 && (
+                        <>
+                          <Button onClick={retryFailed} variant="destructive">
+                            <RefreshCw className="h-4 w-4 mr-2" />
+                            Retry {failedCount} Failed
+                          </Button>
+                          <Button onClick={copyFailedFilenames} variant="outline" size="icon">
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
+                      <Button onClick={downloadResults} variant="outline">
+                        <Download className="h-4 w-4 mr-2" />
+                        Download Summary
+                      </Button>
+                      <Button onClick={clearQueue} variant="ghost" className="ml-auto">
+                        Start New Import
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+
+            {/* Audio Import Tab */}
+            <TabsContent value="audio" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Mic className="h-5 w-5" />
+                    Audio Import
+                  </CardTitle>
+                  <CardDescription>
+                    Upload audio → Transcribe → Process → Save
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Step 1: Upload Audio */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">1. Upload Audio File</label>
+                    <div className="flex gap-2">
+                      <label className="flex-1">
+                        <input
+                          type="file"
+                          accept="audio/*"
+                          onChange={handleAudioFileChange}
+                          className="hidden"
+                        />
+                        <div className="border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:border-primary/50 transition-colors">
+                          {audioFile ? (
+                            <p className="text-sm font-medium truncate">{audioFile.name}</p>
+                          ) : (
+                            <p className="text-sm text-muted-foreground">Click to select audio file</p>
+                          )}
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Step 2: Transcribe */}
+                  {audioFile && (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">2. Transcribe</label>
+                      <Button 
+                        onClick={transcribeAudio} 
+                        disabled={isTranscribing}
+                        className="w-full"
+                      >
+                        {isTranscribing ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Transcribing...
+                          </>
+                        ) : (
+                          <>
+                            <Play className="h-4 w-4 mr-2" />
+                            Start Transcription
+                          </>
+                        )}
+                      </Button>
+                      
+                      {transcriptText && (
+                        <ScrollArea className="h-40 border rounded-lg p-3">
+                          <p className="text-sm whitespace-pre-wrap">{transcriptText}</p>
+                        </ScrollArea>
                       )}
                     </div>
-                  ))}
-                </div>
+                  )}
 
-                {/* Actions */}
-                <div className="flex gap-2 flex-wrap">
-                  {failedCount > 0 && (
+                  {/* Step 3: Process */}
+                  {transcriptText && (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">3. Process with CBS Methodology</label>
+                      <Button 
+                        onClick={processTranscript} 
+                        disabled={isProcessing}
+                        className="w-full"
+                      >
+                        {isProcessing ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Processing...
+                          </>
+                        ) : (
+                          <>
+                            <FileText className="h-4 w-4 mr-2" />
+                            Process Transcript
+                          </>
+                        )}
+                      </Button>
+                      
+                      {processedText && (
+                        <ScrollArea className="h-60 border rounded-lg p-3">
+                          <p className="text-sm whitespace-pre-wrap">{processedText}</p>
+                        </ScrollArea>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Step 4: Save */}
+                  {processedText && (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">4. Save Teaching</label>
+                      <Button 
+                        onClick={saveAudioTeaching} 
+                        disabled={isSavingAudio}
+                        className="w-full"
+                        variant="default"
+                      >
+                        {isSavingAudio ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            {audioSaveStage}
+                          </>
+                        ) : (
+                          <>
+                            <Check className="h-4 w-4 mr-2" />
+                            Save Teaching
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Batch Cover Generation Tab */}
+            <TabsContent value="covers" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Image className="h-5 w-5" />
+                    Batch Cover Generation
+                  </CardTitle>
+                  <CardDescription>
+                    Generate cover art for teachings without images
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Button 
+                    onClick={scanForMissingCovers}
+                    disabled={isScanningCovers}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    {isScanningCovers ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Scanning...
+                      </>
+                    ) : (
+                      "Scan for Missing Covers"
+                    )}
+                  </Button>
+
+                  {teachingsWithoutCovers.length > 0 && (
                     <>
-                      <Button onClick={retryFailed} variant="destructive">
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                        Retry {failedCount} Failed
+                      <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4">
+                        <p className="font-medium text-amber-700 dark:text-amber-400">
+                          {teachingsWithoutCovers.length} teachings without cover art
+                        </p>
+                      </div>
+                      
+                      <ScrollArea className="h-40 border rounded-lg">
+                        <div className="p-2 space-y-1">
+                          {teachingsWithoutCovers.map((t) => (
+                            <p key={t.id} className="text-xs text-muted-foreground truncate">
+                              {t.title}
+                            </p>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                      
+                      <Button 
+                        onClick={generateAllCovers}
+                        disabled={isGeneratingCovers}
+                        className="w-full"
+                      >
+                        {isGeneratingCovers ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Generating {coverProgress.current}/{coverProgress.total}...
+                          </>
+                        ) : (
+                          `Generate All ${teachingsWithoutCovers.length} Covers`
+                        )}
                       </Button>
-                      <Button onClick={copyFailedFilenames} variant="outline" size="icon">
-                        <Copy className="h-4 w-4" />
-                      </Button>
+                      
+                      {isGeneratingCovers && (
+                        <Progress value={(coverProgress.current / coverProgress.total) * 100} />
+                      )}
                     </>
                   )}
-                  <Button onClick={downloadResults} variant="outline">
-                    <Download className="h-4 w-4 mr-2" />
-                    Download Summary
-                  </Button>
-                  <Button onClick={clearQueue} variant="ghost" className="ml-auto">
-                    Start New Import
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+
+          {/* Import History */}
+          <ImportHistoryPanel limit={10} />
         </main>
         
         <Footer />
