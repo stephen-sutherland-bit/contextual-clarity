@@ -194,21 +194,44 @@ const Admin = () => {
   const startImport = async (skipAlreadyImported = true) => {
     if (pdfQueue.length === 0) return;
     
+    // Filter queue to only files that need importing
+    const filesToImport = skipAlreadyImported 
+      ? pdfQueue.filter(f => !alreadyImported.has(f.name))
+      : pdfQueue;
+    
+    const skippedFiles = skipAlreadyImported 
+      ? pdfQueue.filter(f => alreadyImported.has(f.name))
+      : [];
+    
+    if (filesToImport.length === 0) {
+      toast({
+        title: "Nothing to import",
+        description: "All files have already been imported.",
+      });
+      return;
+    }
+    
     setPdfStep("importing");
     setIsImporting(true);
-    setResults([]);
+    
+    // Pre-populate results with skipped files
+    const importResults: ImportResult[] = skippedFiles.map(f => ({ 
+      filename: f.name, 
+      status: "skipped" as const 
+    }));
+    setResults([...importResults]);
     
     const newBatchId = crypto.randomUUID();
     setBatchId(newBatchId);
     
     await supabase.from("import_runs").insert({
       id: newBatchId,
-      total_files: pdfQueue.length,
+      total_files: filesToImport.length, // Only count files actually being imported
       status: "running",
     });
     
     await supabase.from("import_run_files").insert(
-      pdfQueue.map(f => ({ run_id: newBatchId, filename: f.name, status: "queued" }))
+      filesToImport.map(f => ({ run_id: newBatchId, filename: f.name, status: "queued" }))
     );
     
     const { data: maxOrderData } = await supabase
@@ -220,18 +243,10 @@ const Admin = () => {
     
     let nextReadingOrder = (maxOrderData?.reading_order || 0) + 1;
     
-    const importResults: ImportResult[] = [];
-    
-    for (let i = 0; i < pdfQueue.length; i++) {
-      const file = pdfQueue[i];
+    for (let i = 0; i < filesToImport.length; i++) {
+      const file = filesToImport[i];
       
-      if (skipAlreadyImported && alreadyImported.has(file.name)) {
-        importResults.push({ filename: file.name, status: "skipped" });
-        setResults([...importResults]);
-        continue;
-      }
-      
-      setProgress({ current: i + 1, total: pdfQueue.length, currentFile: file.name, stage: "Parsing" });
+      setProgress({ current: i + 1, total: filesToImport.length, currentFile: file.name, stage: "Parsing" });
       
       await supabase.from("import_run_files")
         .update({ status: "processing", stage: "parsing", started_at: new Date().toISOString() })
