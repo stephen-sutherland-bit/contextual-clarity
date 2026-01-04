@@ -67,7 +67,41 @@ const Admin = () => {
 
   // ============== PDF IMPORT LOGIC ==============
   
-  // Check which files are already in the database
+  // Normalize a string for fuzzy matching (lowercase, remove punctuation, strip .pdf)
+  const normalizeForMatch = (str: string): string => {
+    return str
+      .toLowerCase()
+      .replace(/\.pdf$/i, '')
+      .replace(/[^a-z0-9\s]/g, '')
+      .trim();
+  };
+
+  // Find if a filename matches any existing teaching (by source_filename or title)
+  const findMatchingTeaching = (
+    filename: string, 
+    teachings: Array<{ source_filename: string | null; title: string }>
+  ): { match: { source_filename: string | null; title: string }; type: 'exact' | 'fuzzy' } | null => {
+    // First check exact source_filename match
+    const exactMatch = teachings.find(t => t.source_filename === filename);
+    if (exactMatch) return { match: exactMatch, type: 'exact' };
+    
+    // Then try fuzzy title match
+    const normalizedFilename = normalizeForMatch(filename);
+    const titleMatch = teachings.find(t => {
+      const normalizedTitle = normalizeForMatch(t.title);
+      // Check if filename is contained in title or title's first part (before colon) matches filename
+      const titleFirstPart = normalizeForMatch(t.title.split(':')[0]);
+      return normalizedTitle.includes(normalizedFilename) || 
+             normalizedFilename.includes(normalizedTitle) ||
+             titleFirstPart === normalizedFilename ||
+             normalizedFilename.includes(titleFirstPart);
+    });
+    if (titleMatch) return { match: titleMatch, type: 'fuzzy' };
+    
+    return null;
+  };
+
+  // Check which files are already in the database (by filename OR title match)
   const checkAlreadyImported = useCallback(async (filenames: string[]) => {
     if (filenames.length === 0) return;
     setIsCheckingDb(true);
@@ -75,11 +109,19 @@ const Admin = () => {
     try {
       const { data } = await supabase
         .from("teachings")
-        .select("source_filename")
-        .not("source_filename", "is", null);
+        .select("source_filename, title");
       
-      const imported = new Set((data || []).map(t => t.source_filename as string));
-      setAlreadyImported(imported);
+      const teachings = data || [];
+      const importedSet = new Set<string>();
+      
+      for (const filename of filenames) {
+        const match = findMatchingTeaching(filename, teachings);
+        if (match) {
+          importedSet.add(filename);
+        }
+      }
+      
+      setAlreadyImported(importedSet);
     } catch (err) {
       console.error("Error checking DB:", err);
     } finally {
