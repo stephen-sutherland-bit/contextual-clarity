@@ -101,33 +101,39 @@ const Admin = () => {
     return null;
   };
 
+  // Compute which files are already in the database (by filename OR title match)
+  const computeAlreadyImportedSet = useCallback(async (filenames: string[]) => {
+    if (filenames.length === 0) return new Set<string>();
+
+    const { data } = await supabase
+      .from("teachings")
+      .select("source_filename, title");
+
+    const teachings = data || [];
+    const importedSet = new Set<string>();
+
+    for (const filename of filenames) {
+      const match = findMatchingTeaching(filename, teachings);
+      if (match) importedSet.add(filename);
+    }
+
+    return importedSet;
+  }, []);
+
   // Check which files are already in the database (by filename OR title match)
   const checkAlreadyImported = useCallback(async (filenames: string[]) => {
     if (filenames.length === 0) return;
     setIsCheckingDb(true);
-    
+
     try {
-      const { data } = await supabase
-        .from("teachings")
-        .select("source_filename, title");
-      
-      const teachings = data || [];
-      const importedSet = new Set<string>();
-      
-      for (const filename of filenames) {
-        const match = findMatchingTeaching(filename, teachings);
-        if (match) {
-          importedSet.add(filename);
-        }
-      }
-      
+      const importedSet = await computeAlreadyImportedSet(filenames);
       setAlreadyImported(importedSet);
     } catch (err) {
       console.error("Error checking DB:", err);
     } finally {
       setIsCheckingDb(false);
     }
-  }, []);
+  }, [computeAlreadyImportedSet]);
 
   useEffect(() => {
     if (pdfQueue.length > 0) {
@@ -193,16 +199,29 @@ const Admin = () => {
 
   const startImport = async (skipAlreadyImported = true) => {
     if (pdfQueue.length === 0) return;
-    
+
+    // Ensure we have the latest duplicate scan before we decide what to import.
+    // This prevents “Retry Failed” / fast clicks from re-processing everything.
+    let importedSet = alreadyImported;
+    if (skipAlreadyImported) {
+      setIsCheckingDb(true);
+      try {
+        importedSet = await computeAlreadyImportedSet(pdfQueue.map(f => f.name));
+        setAlreadyImported(importedSet);
+      } finally {
+        setIsCheckingDb(false);
+      }
+    }
+
     // Filter queue to only files that need importing
-    const filesToImport = skipAlreadyImported 
-      ? pdfQueue.filter(f => !alreadyImported.has(f.name))
+    const filesToImport = skipAlreadyImported
+      ? pdfQueue.filter(f => !importedSet.has(f.name))
       : pdfQueue;
-    
-    const skippedFiles = skipAlreadyImported 
-      ? pdfQueue.filter(f => alreadyImported.has(f.name))
+
+    const skippedFiles = skipAlreadyImported
+      ? pdfQueue.filter(f => importedSet.has(f.name))
       : [];
-    
+
     if (filesToImport.length === 0) {
       toast({
         title: "Nothing to import",
@@ -338,11 +357,7 @@ const Admin = () => {
           .eq("run_id", newBatchId)
           .eq("filename", file.name);
         
-        const { count } = await supabase
-          .from("teachings")
-          .select("*", { count: "exact", head: true });
-        
-        const documentId = `D-${String((count || 0) + 1).padStart(3, "0")}`;
+        const documentId = `D-${newBatchId.slice(0, 8)}-${String(i + 1).padStart(3, "0")}`;
         
         const { data: insertedTeaching, error: insertError } = await supabase.from("teachings").insert({
           document_id: documentId,
@@ -387,7 +402,7 @@ const Admin = () => {
       
       setResults([...importResults]);
       
-      if (i < pdfQueue.length - 1) {
+      if (i < filesToImport.length - 1) {
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
@@ -900,14 +915,19 @@ const Admin = () => {
                           <Button 
                             onClick={() => startImport(true)} 
                             className="flex-1"
-                            disabled={newFilesCount === 0 && alreadyImportedCount > 0}
+                            disabled={isCheckingDb || (newFilesCount === 0 && alreadyImportedCount > 0)}
                           >
-                            {newFilesCount === 0 ? 'All Already Imported' : `Import ${newFilesCount} New`}
+                            {isCheckingDb
+                              ? "Checking…"
+                              : newFilesCount === 0
+                                ? "All Already Imported"
+                                : `Import ${newFilesCount} New`}
                           </Button>
                           {alreadyImportedCount > 0 && (
                             <Button 
                               variant="outline" 
                               onClick={() => startImport(false)}
+                              disabled={isCheckingDb}
                             >
                               Re-import All
                             </Button>
