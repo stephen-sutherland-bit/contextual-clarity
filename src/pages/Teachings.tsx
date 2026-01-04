@@ -28,29 +28,15 @@ const Teachings = () => {
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(0);
 
-  const fetchTeachings = useCallback(async (pageNum: number, append = false) => {
+  const fetchTeachings = useCallback(async (pageNum: number, append = false, phaseFilter?: Phase | null) => {
     if (pageNum === 0) {
       setIsLoading(true);
     }
     setError(null);
 
     try {
-      // First get count to confirm data exists
-      if (pageNum === 0) {
-        const { count, error: countError } = await supabase
-          .from("teachings")
-          .select("*", { count: "exact", head: true });
-        
-        if (!countError && count !== null) {
-          setTotalCount(count);
-        }
-      }
-
-      // Fetch minimal columns needed for list view
-      const from = pageNum * PAGE_SIZE;
-      const to = from + PAGE_SIZE - 1;
-
-      const { data, error: fetchError } = await supabase
+      // Build base query
+      let query = supabase
         .from("teachings")
         .select(`
           id,
@@ -61,10 +47,37 @@ const Teachings = () => {
           quick_answer,
           reading_order,
           phase
-        `)
+        `);
+
+      // Apply phase filter if specified
+      if (phaseFilter) {
+        query = query.eq('phase', phaseFilter);
+      }
+
+      // Add ordering
+      query = query
         .order("reading_order", { ascending: true, nullsFirst: false })
-        .order("created_at", { ascending: false })
-        .range(from, to);
+        .order("created_at", { ascending: false });
+
+      // Only paginate when viewing "All Phases" (no phase filter)
+      if (!phaseFilter) {
+        const from = pageNum * PAGE_SIZE;
+        const to = from + PAGE_SIZE - 1;
+        query = query.range(from, to);
+
+        // Get total count only for "All Phases" view on first page
+        if (pageNum === 0) {
+          const { count, error: countError } = await supabase
+            .from("teachings")
+            .select("*", { count: "exact", head: true });
+          
+          if (!countError && count !== null) {
+            setTotalCount(count);
+          }
+        }
+      }
+
+      const { data, error: fetchError } = await query;
 
       if (fetchError) {
         console.error("Error fetching teachings:", fetchError);
@@ -91,7 +104,8 @@ const Teachings = () => {
         } else {
           setTeachings(mapped);
         }
-        setHasMore(data.length === PAGE_SIZE);
+        // Only show "Load More" for All Phases view
+        setHasMore(!phaseFilter && data.length === PAGE_SIZE);
       }
     } catch (err) {
       console.error("Error fetching teachings:", err);
@@ -102,26 +116,21 @@ const Teachings = () => {
   }, []);
 
   useEffect(() => {
-    fetchTeachings(0);
-  }, [fetchTeachings]);
+    const phaseParam = searchParams.get("phase") as Phase | null;
+    setSelectedPhase(phaseParam);
+    fetchTeachings(0, false, phaseParam);
+  }, []);
 
   const handleLoadMore = () => {
     const nextPage = page + 1;
     setPage(nextPage);
-    fetchTeachings(nextPage, true);
+    fetchTeachings(nextPage, true, null);
   };
 
   const handleRetry = () => {
     setPage(0);
-    fetchTeachings(0);
+    fetchTeachings(0, false, selectedPhase);
   };
-
-  useEffect(() => {
-    const phaseParam = searchParams.get("phase") as Phase | null;
-    if (phaseParam) {
-      setSelectedPhase(phaseParam);
-    }
-  }, [searchParams]);
 
   const filteredTeachings = useMemo(() => {
     return teachings.filter((teaching) => {
@@ -151,10 +160,13 @@ const Teachings = () => {
 
   const handlePhaseClick = (phase: Phase | null) => {
     setSelectedPhase(phase);
+    setPage(0);
     if (phase) {
       setSearchParams({ phase });
+      fetchTeachings(0, false, phase);
     } else {
       setSearchParams({});
+      fetchTeachings(0, false, null);
     }
   };
 
@@ -291,12 +303,14 @@ const Teachings = () => {
               ) : (
                 <>
                   <div className="mb-6 text-sm text-muted-foreground">
-                    {totalCount !== null ? (
+                    {selectedPhase ? (
+                      <>Showing {teachings.length} teachings in {phases.find(p => p.slug === selectedPhase)?.name}</>
+                    ) : totalCount !== null ? (
                       <>Showing {teachings.length} of {totalCount} teachings</>
                     ) : (
                       <>Showing {teachings.length} teachings</>
                     )}
-                    {(searchQuery || selectedTheme || selectedPhase) && filteredTeachings.length !== teachings.length && (
+                    {(searchQuery || selectedTheme) && filteredTeachings.length !== teachings.length && (
                       <> ({filteredTeachings.length} match current filters)</>
                     )}
                   </div>
