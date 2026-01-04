@@ -291,8 +291,14 @@ const Teachings = () => {
               ) : (
                 <>
                   <div className="mb-6 text-sm text-muted-foreground">
-                    Showing {filteredTeachings.length} of {totalCount ?? teachings.length}{" "}
-                    teachings
+                    {totalCount !== null ? (
+                      <>Showing {teachings.length} of {totalCount} teachings</>
+                    ) : (
+                      <>Showing {teachings.length} teachings</>
+                    )}
+                    {(searchQuery || selectedTheme || selectedPhase) && filteredTeachings.length !== teachings.length && (
+                      <> ({filteredTeachings.length} match current filters)</>
+                    )}
                   </div>
 
                   {filteredTeachings.length > 0 ? (
