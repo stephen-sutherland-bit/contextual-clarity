@@ -20,6 +20,9 @@ import BookPreview from "@/components/BookPreview";
 import { Progress } from "@/components/ui/progress";
 import ApiUsageCard from "@/components/ApiUsageCard";
 import ImportHistoryPanel from "@/components/ImportHistoryPanel";
+import TeachingMatcher from "@/components/TeachingMatcher";
+import PdfImportAnalysis from "@/components/PdfImportAnalysis";
+import ImportSummaryExport from "@/components/ImportSummaryExport";
 
 const MAX_CHUNK_SIZE = 20 * 1024 * 1024; // 20MB to stay under Whisper's 25MB limit
 
@@ -147,6 +150,20 @@ const Admin = () => {
   // Last import run from DB (for resume after refresh)
   const [lastImportRun, setLastImportRun] = useState<LastImportRun | null>(null);
   const [isLoadingLastRun, setIsLoadingLastRun] = useState(true);
+  
+  // Import summary for export (shown after batch completes)
+  const [showImportSummary, setShowImportSummary] = useState(false);
+  const [importSummaryFiles, setImportSummaryFiles] = useState<Array<{
+    filename: string;
+    status: "success" | "failed" | "skipped";
+    teachingId?: string | null;
+    error?: string;
+    stage?: string;
+  }>>([]);
+  const [importSummaryBatchId, setImportSummaryBatchId] = useState<string>("");
+  
+  // Show PDF analysis panel instead of basic resume
+  const [showPdfAnalysis, setShowPdfAnalysis] = useState(false);
 
   // Load last import run on mount
   useEffect(() => {
@@ -1071,6 +1088,15 @@ const Admin = () => {
     setIsBatchImporting(false);
     setBatchImportProgress({ current: 0, total: 0, currentFile: "", stage: "" });
     
+    // Populate import summary for export
+    setImportSummaryBatchId(batchId);
+    setImportSummaryFiles([
+      ...processedFiles.map(fn => ({ filename: fn, status: "success" as const })),
+      ...failedFiles.map(f => ({ filename: f.filename, status: "failed" as const, error: f.error, stage: f.stage })),
+    ]);
+    setShowImportSummary(true);
+    setShowPdfAnalysis(false);
+    
     // Refresh last import run display
     setLastImportRun({
       id: batchId,
@@ -1748,11 +1774,52 @@ const Admin = () => {
                 )}
               </CardContent>
             </Card>
+            
+            {/* Teaching Matcher - for linking existing teachings to source filenames */}
+            <TeachingMatcher onMatchComplete={() => {
+              // Refresh DB imported filenames when matches are made
+              if (pdfQueue.length > 0) {
+                checkDbForImportedFiles(pdfQueue.map(f => f.name));
+              }
+            }} />
           </div>
 
           <div className="grid gap-8 lg:grid-cols-2">
             {/* Input Section */}
             <div className="space-y-6">
+              {/* Import Summary Export - shown after batch completes */}
+              {showImportSummary && importSummaryFiles.length > 0 && (
+                <ImportSummaryExport
+                  files={importSummaryFiles}
+                  batchId={importSummaryBatchId}
+                  onDismiss={() => {
+                    setShowImportSummary(false);
+                    setImportSummaryFiles([]);
+                  }}
+                />
+              )}
+              
+              {/* PDF Import Analysis - shown when PDFs are queued and analysis is requested */}
+              {showPdfAnalysis && pdfQueue.length > 0 && !isBatchImporting && (
+                <PdfImportAnalysis
+                  pdfQueue={pdfQueue}
+                  dbImportedFilenames={dbImportedFilenames}
+                  onProcessOnlyNew={(files) => {
+                    setPdfQueue(files);
+                    setShowPdfAnalysis(false);
+                    setTimeout(() => processPdfBatch(false, false), 100);
+                  }}
+                  onProcessAll={(files) => {
+                    setPdfQueue(files);
+                    setShowPdfAnalysis(false);
+                    setTimeout(() => processPdfBatch(false, false), 100);
+                  }}
+                  onClearQueue={() => {
+                    setPdfQueue([]);
+                    setShowPdfAnalysis(false);
+                  }}
+                />
+              )}
               {/* Resume Import Card (shown only if there's resumable state) */}
               {resumableState && !isBatchImporting && (
                 <Card className="border-amber-500/50 bg-amber-500/5">
@@ -2048,11 +2115,22 @@ const Admin = () => {
                         </Select>
                       </div>
 
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 flex-wrap">
+                        {/* Show Analysis button when there are potential duplicates/imported files */}
+                        {dbImportedFilenames.length > 0 && !showPdfAnalysis && (
+                          <Button 
+                            onClick={() => setShowPdfAnalysis(true)} 
+                            variant="outline"
+                            className="flex-1"
+                          >
+                            <AlertCircle className="h-4 w-4 mr-2" />
+                            Analyze ({pdfQueue.filter(f => dbImportedFilenames.includes(f.name)).length} may exist)
+                          </Button>
+                        )}
                         <Button 
                           onClick={() => processPdfBatch(false)} 
                           className="flex-1" 
-                          disabled={duplicates.length > 0 || isCheckingDbResume || dbResumeAvailable}
+                          disabled={duplicates.length > 0 || isCheckingDbResume || dbResumeAvailable || showPdfAnalysis}
                         >
                           <FileText className="h-4 w-4 mr-2" />
                           {duplicates.length > 0 ? 'Resolve duplicates first' : 'Start Processing'}
