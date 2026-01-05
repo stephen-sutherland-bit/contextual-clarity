@@ -54,10 +54,17 @@ const Teachings = () => {
         query = query.eq('phase', phaseFilter);
       }
 
-      // Add ordering
-      query = query
-        .order("reading_order", { ascending: true, nullsFirst: false })
-        .order("created_at", { ascending: false });
+      // Add ordering - for "All Phases" view, sort by phase first to group them
+      if (!phaseFilter) {
+        query = query
+          .order("phase", { ascending: true })
+          .order("reading_order", { ascending: true, nullsFirst: false })
+          .order("created_at", { ascending: false });
+      } else {
+        query = query
+          .order("reading_order", { ascending: true, nullsFirst: false })
+          .order("created_at", { ascending: false });
+      }
 
       // Only paginate when viewing "All Phases" (no phase filter)
       if (!phaseFilter) {
