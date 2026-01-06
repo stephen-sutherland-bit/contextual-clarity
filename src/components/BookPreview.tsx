@@ -3,6 +3,7 @@ import HTMLFlipBook from "react-pageflip";
 import { X, ChevronLeft, ChevronRight, Image, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface BookPreviewProps {
   title: string;
@@ -61,6 +62,100 @@ const splitContentIntoPages = (content: string, charsPerPage: number = 1200): st
   return pages.length > 0 ? pages : ["No content available"];
 };
 
+// Mobile Reader Component - Full screen scrollable view
+const MobileReader = ({
+  title,
+  primaryTheme,
+  content,
+  scriptures,
+  questionsAnswered,
+  quickAnswer,
+  onClose,
+  coverImage,
+}: Omit<BookPreviewProps, 'onGenerateCover'>) => {
+  return (
+    <div className="fixed inset-0 z-50 bg-background overflow-y-auto">
+      {/* Sticky header with title and close */}
+      <div className="sticky top-0 bg-background/95 backdrop-blur-sm border-b border-border z-10 px-4 py-3 flex items-center justify-between">
+        <h1 className="font-heading font-semibold text-lg truncate pr-4">{title}</h1>
+        <Button variant="ghost" size="icon" onClick={onClose}>
+          <X className="h-5 w-5" />
+        </Button>
+      </div>
+      
+      {/* Cover image (if exists) */}
+      {coverImage && (
+        <div className="relative h-48 bg-gradient-accent overflow-hidden">
+          <img 
+            src={coverImage} 
+            alt="Cover illustration"
+            className="w-full h-full object-cover opacity-60" 
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
+          <div className="absolute bottom-4 left-4 right-4">
+            <p className="text-sm text-muted-foreground italic">{primaryTheme}</p>
+          </div>
+        </div>
+      )}
+      
+      <div className="px-6 py-6 space-y-8">
+        {/* Quick Answer */}
+        <section className="bg-primary/5 rounded-lg p-5 border border-primary/10">
+          <h2 className="font-heading text-primary text-lg mb-3">In Brief</h2>
+          <p className="text-lg leading-relaxed italic text-foreground/90">"{quickAnswer}"</p>
+        </section>
+        
+        {/* Full Content */}
+        <section className="space-y-4">
+          <h2 className="font-heading text-xl text-primary border-b border-border pb-2">Full Teaching</h2>
+          <div className="prose-teaching">
+            {content.split("\n\n").filter(p => p.trim()).map((para, i) => (
+              <p key={i} className="text-lg leading-relaxed mb-5 text-foreground/90">{para}</p>
+            ))}
+          </div>
+        </section>
+        
+        {/* Scriptures */}
+        {scriptures.length > 0 && (
+          <section>
+            <h3 className="font-heading text-lg text-primary mb-4 border-b border-border pb-2">Scripture References</h3>
+            <div className="flex flex-wrap gap-2">
+              {scriptures.map((s, i) => (
+                <span 
+                  key={i} 
+                  className="bg-scripture-bg text-scripture px-3 py-1.5 rounded-md text-sm"
+                >
+                  {s}
+                </span>
+              ))}
+            </div>
+          </section>
+        )}
+        
+        {/* Questions Answered */}
+        {questionsAnswered.length > 0 && (
+          <section>
+            <h3 className="font-heading text-lg text-primary mb-4 border-b border-border pb-2">Questions Answered</h3>
+            <ul className="space-y-3">
+              {questionsAnswered.map((q, i) => (
+                <li key={i} className="text-foreground/80 text-base leading-relaxed pl-4 border-l-2 border-primary/30">
+                  {q}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+      </div>
+      
+      {/* Footer branding */}
+      <div className="text-center py-8 border-t border-border mt-8 bg-muted/30">
+        <p className="text-sm text-muted-foreground">The Berean Press</p>
+        <p className="text-xs text-muted-foreground/60 mt-1">Teachings derived from The Christian Theologist</p>
+      </div>
+    </div>
+  );
+};
+
 const Page = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
   <div className={`bg-card h-full w-full p-8 flex flex-col shadow-lg overflow-hidden ${className}`}>
     {children}
@@ -79,6 +174,7 @@ const BookPreview = ({
   onGenerateCover,
 }: BookPreviewProps) => {
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const bookRef = useRef<any>(null);
   const [currentPage, setCurrentPage] = useState(0);
   const [isGeneratingCover, setIsGeneratingCover] = useState(false);
@@ -147,6 +243,22 @@ const BookPreview = ({
   const onFlip = (e: any) => {
     setCurrentPage(e.data);
   };
+
+  // Show mobile reader on small screens
+  if (isMobile) {
+    return (
+      <MobileReader
+        title={title}
+        primaryTheme={primaryTheme}
+        content={content}
+        scriptures={scriptures}
+        questionsAnswered={questionsAnswered}
+        quickAnswer={quickAnswer}
+        onClose={onClose}
+        coverImage={coverImage}
+      />
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex items-center justify-center">
