@@ -11,6 +11,7 @@ import Questions from "./pages/Questions";
 import Methodology from "./pages/Methodology";
 import Search from "./pages/Search";
 import About from "./pages/About";
+import Auth from "./pages/Auth";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 
@@ -31,6 +32,7 @@ const App = () => (
             <Route path="/methodology" element={<Methodology />} />
             <Route path="/search" element={<Search />} />
             <Route path="/about" element={<About />} />
+            <Route path="/auth" element={<Auth />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

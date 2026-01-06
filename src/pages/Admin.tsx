@@ -1,15 +1,17 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { Helmet } from "react-helmet-async";
+import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   Loader2, FileUp, Check, AlertCircle, RefreshCw, Download, Copy, X, 
-  Mic, FileText, Image, Play, Square
+  Mic, FileText, Image, Play, Square, ShieldX
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -38,6 +40,8 @@ interface ImportResult {
 
 const Admin = () => {
   const { toast } = useToast();
+  const { user, isAdmin, isLoading: authLoading } = useAuth();
+  const navigate = useNavigate();
   
   // ============== PDF IMPORT STATE ==============
   const [pdfStep, setPdfStep] = useState<"upload" | "importing" | "results">("upload");
@@ -791,6 +795,56 @@ const Admin = () => {
   const successCount = results.filter(r => r.status === "success").length;
   const failedCount = results.filter(r => r.status === "failed").length;
   const skippedCount = results.filter(r => r.status === "skipped").length;
+
+  // Auth guards
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    navigate("/auth");
+    return null;
+  }
+
+  if (!isAdmin) {
+    return (
+      <>
+        <Helmet>
+          <title>Access Denied - The Berean Press</title>
+          <meta name="robots" content="noindex, nofollow" />
+        </Helmet>
+        <div className="min-h-screen flex flex-col bg-background">
+          <Header />
+          <main className="flex-1 container mx-auto px-4 py-16 max-w-lg">
+            <Card variant="elevated" className="text-center">
+              <CardHeader>
+                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10">
+                  <ShieldX className="h-8 w-8 text-destructive" />
+                </div>
+                <CardTitle className="font-heading text-2xl">Access Denied</CardTitle>
+                <CardDescription>
+                  You don't have permission to access the admin panel.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Admin privileges are required to manage teachings and import content.
+                </p>
+                <Button variant="outline" onClick={() => navigate("/")}>
+                  Return to Home
+                </Button>
+              </CardContent>
+            </Card>
+          </main>
+          <Footer />
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
