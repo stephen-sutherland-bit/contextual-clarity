@@ -23,7 +23,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter>
+        <BrowserRouter basename="/contextual-clarity/">
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/teachings" element={<Teachings />} />
