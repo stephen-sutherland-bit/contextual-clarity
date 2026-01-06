@@ -1,12 +1,19 @@
-import { Link } from "react-router-dom";
-import { BookOpen, Search, Menu, X, Settings } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { BookOpen, Search, Menu, X, Settings, LogIn, LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "@/hooks/useAuth";
 
 const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { user, isAdmin, signOut } = useAuth();
+  const navigate = useNavigate();
 
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/");
+  };
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
       <div className="container flex h-16 items-center justify-between px-4">
@@ -50,19 +57,34 @@ const Header = () => {
           >
             About
           </Link>
-          <Link 
-            to="/admin" 
-            className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-          >
-            <Settings className="h-4 w-4" />
-            Admin
-          </Link>
+          {isAdmin && (
+            <Link 
+              to="/admin" 
+              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+            >
+              <Settings className="h-4 w-4" />
+              Admin
+            </Link>
+          )}
           <Button variant="warm" size="sm" asChild>
             <Link to="/search" className="flex items-center gap-2">
               <Search className="h-4 w-4" />
               Search
             </Link>
           </Button>
+          {user ? (
+            <Button variant="ghost" size="sm" onClick={handleSignOut} className="flex items-center gap-2">
+              <LogOut className="h-4 w-4" />
+              Sign Out
+            </Button>
+          ) : (
+            <Button variant="ghost" size="sm" asChild>
+              <Link to="/auth" className="flex items-center gap-2">
+                <LogIn className="h-4 w-4" />
+                Login
+              </Link>
+            </Button>
+          )}
         </nav>
 
         {/* Mobile Menu Button */}
@@ -121,13 +143,34 @@ const Header = () => {
               >
                 Search
               </Link>
-              <Link 
-                to="/admin" 
-                className="block px-4 py-2 rounded-md hover:bg-secondary transition-colors"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Admin
-              </Link>
+              {isAdmin && (
+                <Link 
+                  to="/admin" 
+                  className="block px-4 py-2 rounded-md hover:bg-secondary transition-colors"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Admin
+                </Link>
+              )}
+              {user ? (
+                <button
+                  onClick={() => {
+                    handleSignOut();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="block w-full text-left px-4 py-2 rounded-md hover:bg-secondary transition-colors"
+                >
+                  Sign Out
+                </button>
+              ) : (
+                <Link 
+                  to="/auth" 
+                  className="block px-4 py-2 rounded-md hover:bg-secondary transition-colors"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Login
+                </Link>
+              )}
             </div>
           </motion.nav>
         )}
