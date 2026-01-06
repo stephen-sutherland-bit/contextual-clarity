@@ -18,8 +18,8 @@ const Teachings = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTheme, setSelectedTheme] = useState<string | null>(null);
-  const [selectedPhase, setSelectedPhase] = useState<Phase | null>(
-    (searchParams.get("phase") as Phase) || null
+  const [selectedPhase, setSelectedPhase] = useState<Phase>(
+    (searchParams.get("phase") as Phase) || "foundations"
   );
   const [teachings, setTeachings] = useState<Teaching[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -123,7 +123,7 @@ const Teachings = () => {
   }, []);
 
   useEffect(() => {
-    const phaseParam = searchParams.get("phase") as Phase | null;
+    const phaseParam = (searchParams.get("phase") as Phase) || "foundations";
     setSelectedPhase(phaseParam);
     fetchTeachings(0, false, phaseParam);
   }, []);
@@ -165,23 +165,16 @@ const Teachings = () => {
     });
   }, [searchQuery, selectedTheme, selectedPhase, teachings]);
 
-  const handlePhaseClick = (phase: Phase | null) => {
+  const handlePhaseClick = (phase: Phase) => {
     setSelectedPhase(phase);
     setPage(0);
-    if (phase) {
-      setSearchParams({ phase });
-      fetchTeachings(0, false, phase);
-    } else {
-      setSearchParams({});
-      fetchTeachings(0, false, null);
-    }
+    setSearchParams({ phase });
+    fetchTeachings(0, false, phase);
   };
 
   const clearFilters = () => {
     setSearchQuery("");
     setSelectedTheme(null);
-    setSelectedPhase(null);
-    setSearchParams({});
   };
 
   return (
@@ -218,20 +211,13 @@ const Teachings = () => {
 
           {/* Phase Filter */}
           <section className="border-b border-border/50 bg-secondary/20">
-            <div className="container px-4 py-4">
-              <div className="flex items-center gap-2 overflow-x-auto pb-2">
-                <Badge
-                  variant={selectedPhase === null ? "default" : "outline"}
-                  className="cursor-pointer flex-shrink-0 hover:bg-primary/10"
-                  onClick={() => handlePhaseClick(null)}
-                >
-                  All Phases
-                </Badge>
+            <div className="container px-4 py-5">
+              <div className="flex items-center gap-3 overflow-x-auto pb-2">
                 {phases.map((phase) => (
                   <Badge
                     key={phase.slug}
                     variant={selectedPhase === phase.slug ? "default" : "outline"}
-                    className="cursor-pointer flex-shrink-0 hover:bg-primary/10"
+                    className="cursor-pointer flex-shrink-0 hover:bg-primary/10 px-5 py-2.5 text-base font-medium"
                     onClick={() => handlePhaseClick(phase.slug)}
                   >
                     {phase.name}
@@ -310,13 +296,7 @@ const Teachings = () => {
               ) : (
                 <>
                   <div className="mb-6 text-sm text-muted-foreground">
-                    {selectedPhase ? (
-                      <>Showing {teachings.length} teachings in {phases.find(p => p.slug === selectedPhase)?.name}</>
-                    ) : totalCount !== null ? (
-                      <>Showing {teachings.length} of {totalCount} teachings</>
-                    ) : (
-                      <>Showing {teachings.length} teachings</>
-                    )}
+                    Showing {teachings.length} teachings in {phases.find(p => p.slug === selectedPhase)?.name}
                     {(searchQuery || selectedTheme) && filteredTeachings.length !== teachings.length && (
                       <> ({filteredTeachings.length} match current filters)</>
                     )}
@@ -333,13 +313,6 @@ const Teachings = () => {
                           />
                         ))}
                       </div>
-                      {hasMore && !searchQuery && !selectedTheme && !selectedPhase && (
-                        <div className="flex justify-center mt-8">
-                          <Button variant="outline" onClick={handleLoadMore}>
-                            Load More
-                          </Button>
-                        </div>
-                      )}
                     </>
                   ) : (
                     <div className="text-center py-12">

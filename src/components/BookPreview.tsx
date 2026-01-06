@@ -62,7 +62,7 @@ const splitContentIntoPages = (content: string, charsPerPage: number = 1200): st
 };
 
 const Page = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
-  <div className={`bg-card h-full w-full p-6 flex flex-col shadow-lg overflow-hidden ${className}`}>
+  <div className={`bg-card h-full w-full p-8 flex flex-col shadow-lg overflow-hidden ${className}`}>
     {children}
   </div>
 );
@@ -90,8 +90,8 @@ const BookPreview = ({
 
   useEffect(() => {
     const updateDimensions = () => {
-      const maxWidth = Math.min(window.innerWidth * 0.4, 450);
-      const maxHeight = window.innerHeight * 0.75;
+      const maxWidth = Math.min(window.innerWidth * 0.5, 600);
+      const maxHeight = window.innerHeight * 0.85;
       const aspectRatio = 0.72;
       
       let width = maxWidth;
@@ -217,10 +217,10 @@ const BookPreview = ({
           width={dimensions.width}
           height={dimensions.height}
           size="fixed"
-          minWidth={300}
-          maxWidth={500}
-          minHeight={400}
-          maxHeight={700}
+          minWidth={400}
+          maxWidth={700}
+          minHeight={500}
+          maxHeight={900}
           showCover={true}
           onFlip={onFlip}
           className="shadow-elevated"
@@ -253,14 +253,14 @@ const BookPreview = ({
                 </div>
               ) : null}
               <div className="relative z-10 space-y-6">
-                <div className="text-xs uppercase tracking-[0.3em] opacity-80">
+                <div className="text-sm uppercase tracking-[0.3em] opacity-80">
                   The Berean Press
                 </div>
-                <h1 className="font-heading text-2xl md:text-3xl font-bold leading-tight px-4">
+                <h1 className="font-heading text-3xl md:text-4xl font-bold leading-tight px-4">
                   {title}
                 </h1>
                 <div className="w-16 h-0.5 bg-primary-foreground/50 mx-auto" />
-                <p className="text-sm opacity-80 italic">{primaryTheme}</p>
+                <p className="text-base opacity-80 italic">{primaryTheme}</p>
               </div>
             </Page>
           </div>
@@ -268,14 +268,14 @@ const BookPreview = ({
           {/* Quick Answer Page */}
           <div>
             <Page>
-              <h2 className="font-heading text-xl text-primary mb-4 border-b border-border pb-2">
+              <h2 className="font-heading text-2xl text-primary mb-4 border-b border-border pb-2">
                 In Brief
               </h2>
-              <p className="text-foreground/90 leading-relaxed italic text-lg">
+              <p className="text-foreground/90 leading-relaxed italic text-xl">
                 "{quickAnswer}"
               </p>
               <div className="mt-auto pt-8">
-                <p className="text-xs text-muted-foreground text-center">
+                <p className="text-sm text-muted-foreground text-center">
                   Continue reading for the full teaching...
                 </p>
               </div>
@@ -286,15 +286,15 @@ const BookPreview = ({
           {contentPages.map((pageContent, index) => (
             <div key={`content-${index}`}>
               <Page>
-                <div className="prose-teaching text-sm leading-relaxed flex-1 overflow-y-auto">
+                <div className="prose-teaching text-base leading-relaxed flex-1 overflow-y-auto">
                   {pageContent.split("\n\n").map((para, pIndex) => (
-                    <p key={pIndex} className="mb-3 text-foreground/90 break-words">
+                    <p key={pIndex} className="mb-4 text-foreground/90 break-words">
                       {para}
                     </p>
                   ))}
                 </div>
                 <div className="mt-auto pt-2 text-center flex-shrink-0">
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-sm text-muted-foreground">
                     {index + 3} / {totalPages}
                   </span>
                 </div>
@@ -305,38 +305,38 @@ const BookPreview = ({
           {/* Scriptures Page */}
           <div>
             <Page>
-              <h2 className="font-heading text-lg text-primary mb-3 border-b border-border pb-2 flex-shrink-0">
+              <h2 className="font-heading text-xl text-primary mb-3 border-b border-border pb-2 flex-shrink-0">
                 Scripture References
               </h2>
               <div className="flex-1 overflow-y-auto min-h-0">
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap gap-2">
                   {scriptures.slice(0, 20).map((scripture, index) => (
                     <span
                       key={index}
-                      className="bg-scripture-bg text-scripture px-2 py-1 rounded text-xs"
+                      className="bg-scripture-bg text-scripture px-3 py-1.5 rounded text-sm"
                     >
                       {scripture}
                     </span>
                   ))}
                   {scriptures.length > 20 && (
-                    <span className="text-xs text-muted-foreground px-2 py-1">
+                    <span className="text-sm text-muted-foreground px-3 py-1.5">
                       +{scriptures.length - 20} more
                     </span>
                   )}
                 </div>
               </div>
               <div className="pt-4 flex-shrink-0">
-                <h3 className="font-heading text-base text-primary mb-2">
+                <h3 className="font-heading text-lg text-primary mb-2">
                   Questions Answered
                 </h3>
-                <ul className="space-y-0.5 overflow-hidden">
+                <ul className="space-y-1 overflow-hidden">
                   {questionsAnswered.slice(0, 4).map((q, index) => (
-                    <li key={index} className="text-xs text-foreground/80 line-clamp-2">
+                    <li key={index} className="text-sm text-foreground/80 line-clamp-2">
                       • {q}
                     </li>
                   ))}
                   {questionsAnswered.length > 4 && (
-                    <li className="text-xs text-muted-foreground">
+                    <li className="text-sm text-muted-foreground">
                       +{questionsAnswered.length - 4} more questions
                     </li>
                   )}
@@ -349,14 +349,14 @@ const BookPreview = ({
           <div className="bg-gradient-accent rounded-l-lg">
             <Page className="bg-gradient-to-br from-primary to-accent text-primary-foreground rounded-l-lg justify-center items-center text-center">
               <div className="space-y-6">
-                <div className="text-xs uppercase tracking-[0.3em] opacity-80">
+                <div className="text-sm uppercase tracking-[0.3em] opacity-80">
                   The Berean Press
                 </div>
                 <div className="w-16 h-0.5 bg-primary-foreground/50 mx-auto" />
-                <p className="text-sm opacity-80 italic max-w-xs">
+                <p className="text-base opacity-80 italic max-w-xs">
                   "Correcting misinterpretations through Contextual Bible Study"
                 </p>
-                <div className="text-xs opacity-60 mt-8">
+                <div className="text-sm opacity-60 mt-8">
                   Teachings derived from The Christian Theologist
                 </div>
               </div>
