@@ -24,10 +24,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { type Teaching, type Phase, phases } from "@/data/teachings";
 import { Helmet } from "react-helmet-async";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 
 const TeachingDetail = () => {
   const { id } = useParams();
   const { toast } = useToast();
+  const { isAdmin, session } = useAuth();
   const [teaching, setTeaching] = useState<Teaching | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showBookPreview, setShowBookPreview] = useState(false);
@@ -90,21 +92,34 @@ const TeachingDetail = () => {
     return text.replace(/\n{3,}/g, "\n\n").trim();
   };
 
-  // Generate cover image via edge function
+  // Generate cover image via edge function (admin only)
   const handleGenerateCover = async (): Promise<string> => {
     if (!teaching) throw new Error("No teaching loaded");
+    if (!session?.access_token) throw new Error("Not authenticated");
 
-    const response = await supabase.functions.invoke("generate-illustration", {
-      body: {
-        title: teaching.title,
-        theme: teaching.primaryTheme,
-        scriptures: teaching.scriptures.slice(0, 5),
-      },
-    });
+    const response = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-illustration`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          title: teaching.title,
+          theme: teaching.primaryTheme,
+          scriptures: teaching.scriptures.slice(0, 5),
+        }),
+      }
+    );
 
-    if (response.error) throw response.error;
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Failed with status ${response.status}`);
+    }
 
-    const imageUrl = response.data?.image;
+    const data = await response.json();
+    const imageUrl = data?.imageUrl;
     if (!imageUrl) throw new Error("No image returned");
 
     // Save to database
@@ -400,20 +415,22 @@ const TeachingDetail = () => {
                     <Share2 className="h-4 w-4" />
                     Share Teaching
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex items-center gap-2"
-                    onClick={handleRegenerateCover}
-                    disabled={isGeneratingCover}
-                  >
-                    {isGeneratingCover ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <ImagePlus className="h-4 w-4" />
-                    )}
-                    {coverImage ? "Regenerate Cover" : "Generate Cover"}
-                  </Button>
+                  {isAdmin && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-2"
+                      onClick={handleRegenerateCover}
+                      disabled={isGeneratingCover}
+                    >
+                      {isGeneratingCover ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <ImagePlus className="h-4 w-4" />
+                      )}
+                      {coverImage ? "Regenerate Cover" : "Generate Cover"}
+                    </Button>
+                  )}
                 </div>
                 <a
                   href="https://christiantheologist.substack.com"
@@ -442,7 +459,7 @@ const TeachingDetail = () => {
           quickAnswer={teaching.quickAnswer}
           coverImage={coverImage}
           onClose={() => setShowBookPreview(false)}
-          onGenerateCover={handleGenerateCover}
+          onGenerateCover={isAdmin ? handleGenerateCover : undefined}
         />
       )}
     </>

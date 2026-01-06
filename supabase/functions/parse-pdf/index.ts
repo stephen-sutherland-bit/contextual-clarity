@@ -8,6 +8,38 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Verify admin authentication
+async function verifyAdmin(req: Request): Promise<{ isAdmin: boolean; error?: string }> {
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    return { isAdmin: false, error: "Missing authorization header" };
+  }
+
+  const token = authHeader.replace("Bearer ", "");
+  
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+  );
+
+  const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+  
+  if (authError || !user) {
+    return { isAdmin: false, error: "Invalid or expired token" };
+  }
+
+  const { data: isAdmin } = await supabase.rpc("has_role", { 
+    _user_id: user.id, 
+    _role: "admin" 
+  });
+
+  if (!isAdmin) {
+    return { isAdmin: false, error: "Admin access required" };
+  }
+
+  return { isAdmin: true };
+}
+
 // Extract text from PDF using unpdf (designed for edge/serverless)
 async function extractTextFromPDF(base64Data: string): Promise<string> {
   console.log(`[parse-pdf] Received base64 data length: ${base64Data.length}`);
@@ -69,6 +101,16 @@ serve(async (req) => {
   }
 
   try {
+    // Verify admin access
+    const { isAdmin, error: authError } = await verifyAdmin(req);
+    if (!isAdmin) {
+      console.log("Auth failed:", authError);
+      return new Response(
+        JSON.stringify({ error: authError }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { pdfBase64, filename } = await req.json();
 
     if (!pdfBase64) {
