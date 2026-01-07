@@ -20,7 +20,7 @@ import {
   Pencil,
 } from "lucide-react";
 import TeachingEditor from "@/components/TeachingEditor";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { type Teaching, type Phase, phases } from "@/data/teachings";
 import { Helmet } from "react-helmet-async";
@@ -42,9 +42,15 @@ const TeachingDetail = () => {
   const showBookPreview = searchParams.get('read') === '1';
   const setShowBookPreview = (show: boolean) => {
     if (show) {
-      setSearchParams({ read: '1' }, { replace: false });
+      setSearchParams((prev) => {
+        prev.set('read', '1');
+        return prev;
+      }, { replace: false });
     } else {
-      setSearchParams({}, { replace: true });
+      setSearchParams((prev) => {
+        prev.delete('read');
+        return prev;
+      }, { replace: true });
     }
   };
 
@@ -86,8 +92,11 @@ const TeachingDetail = () => {
     fetchTeaching();
   }, [id]);
 
-  // Strip HTML for BookPreview content, preserving paragraph breaks
-  const stripHtml = (html: string) => {
+  // Memoized stripped content for BookPreview - prevents expensive re-parsing on re-renders
+  const strippedContent = useMemo(() => {
+    const html = teaching?.fullContent || "";
+    if (!html) return "";
+    
     // First add line breaks before block elements
     let text = html
       .replace(/<\/p>/gi, "\n\n")
@@ -102,7 +111,7 @@ const TeachingDetail = () => {
     
     // Clean up excessive whitespace while preserving paragraph breaks
     return text.replace(/\n{3,}/g, "\n\n").trim();
-  };
+  }, [teaching?.fullContent]);
 
   // Generate cover image via edge function (admin only)
   const handleGenerateCover = async (): Promise<string> => {
@@ -473,7 +482,7 @@ const TeachingDetail = () => {
         <BookPreview
           title={teaching.title}
           primaryTheme={teaching.primaryTheme}
-          content={stripHtml(teaching.fullContent || "")}
+          content={strippedContent}
           scriptures={teaching.scriptures}
           questionsAnswered={teaching.questionsAnswered}
           quickAnswer={teaching.quickAnswer}

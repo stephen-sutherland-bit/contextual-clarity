@@ -1,9 +1,12 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import HTMLFlipBook from "react-pageflip";
 import { X, ChevronLeft, ChevronRight, Image, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
+
+const INITIAL_PARAGRAPHS = 30; // Progressive rendering: start with first 30 paragraphs
+const PARAGRAPH_CHUNK = 20; // Load 20 more at a time
 
 interface BookPreviewProps {
   title: string;
@@ -62,7 +65,7 @@ const splitContentIntoPages = (content: string, charsPerPage: number = 1200): st
   return pages.length > 0 ? pages : ["No content available"];
 };
 
-// Mobile Reader Component - Full screen scrollable view
+// Mobile Reader Component - Full screen scrollable view with progressive rendering
 const MobileReader = ({
   title,
   primaryTheme,
@@ -73,6 +76,20 @@ const MobileReader = ({
   onClose,
   coverImage,
 }: Omit<BookPreviewProps, 'onGenerateCover'>) => {
+  // Memoize paragraph splitting to avoid repeated work on re-renders
+  const paragraphs = useMemo(
+    () => content.split("\n\n").filter(p => p.trim()),
+    [content]
+  );
+
+  // Progressive rendering: only render a subset initially
+  const [visibleCount, setVisibleCount] = useState(INITIAL_PARAGRAPHS);
+  const hasMore = visibleCount < paragraphs.length;
+
+  const loadMore = () => {
+    setVisibleCount((prev) => Math.min(prev + PARAGRAPH_CHUNK, paragraphs.length));
+  };
+
   return (
     <div 
       className="fixed inset-0 z-50 bg-background overflow-y-auto overflow-x-hidden overscroll-contain"
@@ -89,13 +106,15 @@ const MobileReader = ({
         </Button>
       </div>
       
-      {/* Cover image (if exists) */}
+      {/* Cover image (if exists) - with lazy loading for memory efficiency */}
       {coverImage && (
         <div className="relative h-48 bg-gradient-accent overflow-hidden">
           <img 
             src={coverImage} 
             alt="Cover illustration"
-            className="w-full h-full object-cover opacity-60" 
+            className="w-full h-full object-cover opacity-60"
+            loading="lazy"
+            decoding="async"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
           <div className="absolute bottom-4 left-4 right-4">
@@ -111,14 +130,23 @@ const MobileReader = ({
           <p className="text-lg leading-relaxed italic text-foreground/90">"{quickAnswer}"</p>
         </section>
         
-        {/* Full Content */}
+        {/* Full Content - Progressive rendering */}
         <section className="space-y-4">
           <h2 className="font-heading text-xl text-primary border-b border-border pb-2">Full Teaching</h2>
           <div className="prose-teaching">
-            {content.split("\n\n").filter(p => p.trim()).map((para, i) => (
+            {paragraphs.slice(0, visibleCount).map((para, i) => (
               <p key={i} className="text-lg leading-relaxed mb-5 text-foreground/90">{para}</p>
             ))}
           </div>
+          {hasMore && (
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={loadMore}
+            >
+              Continue Reading ({paragraphs.length - visibleCount} paragraphs remaining)
+            </Button>
+          )}
         </section>
         
         {/* Scriptures */}
