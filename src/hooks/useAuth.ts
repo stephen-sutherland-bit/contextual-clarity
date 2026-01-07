@@ -103,7 +103,8 @@ export const useAuth = () => {
   };
 
   const signUp = async (email: string, password: string) => {
-    const redirectUrl = `${window.location.origin}/`;
+    // Use correct base path for GitHub Pages deployment
+    const redirectUrl = `${window.location.origin}${import.meta.env.BASE_URL}`;
     
     const { error } = await supabase.auth.signUp({
       email,

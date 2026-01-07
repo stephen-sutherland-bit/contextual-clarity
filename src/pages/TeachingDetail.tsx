@@ -1,4 +1,4 @@
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -29,14 +29,24 @@ import { useAuth } from "@/hooks/useAuth";
 
 const TeachingDetail = () => {
   const { id } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const { isAdmin, session } = useAuth();
   const [teaching, setTeaching] = useState<Teaching | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [showBookPreview, setShowBookPreview] = useState(false);
   const [coverImage, setCoverImage] = useState<string | undefined>();
   const [isGeneratingCover, setIsGeneratingCover] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
+
+  // Reader state is managed via URL for back-button support on mobile
+  const showBookPreview = searchParams.get('read') === '1';
+  const setShowBookPreview = (show: boolean) => {
+    if (show) {
+      setSearchParams({ read: '1' }, { replace: false });
+    } else {
+      setSearchParams({}, { replace: true });
+    }
+  };
 
   useEffect(() => {
     const fetchTeaching = async () => {
@@ -386,7 +396,8 @@ const TeachingDetail = () => {
                     size="sm"
                     className="flex items-center gap-2"
                     onClick={async () => {
-                      const url = window.location.href;
+                      // Use canonical URL with correct base path for GitHub Pages
+                      const url = `${window.location.origin}${import.meta.env.BASE_URL}teaching/${id}`;
                       const shareData = {
                         title: teaching.title,
                         text: teaching.quickAnswer || `Read "${teaching.title}" on The Berean Press`,

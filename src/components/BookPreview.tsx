@@ -75,7 +75,7 @@ const MobileReader = ({
 }: Omit<BookPreviewProps, 'onGenerateCover'>) => {
   return (
     <div 
-      className="fixed inset-0 z-50 bg-background overflow-y-auto overscroll-contain"
+      className="fixed inset-0 z-50 bg-background overflow-y-auto overflow-x-hidden overscroll-contain"
       style={{ 
         WebkitOverflowScrolling: 'touch',
         touchAction: 'pan-y'
@@ -104,7 +104,7 @@ const MobileReader = ({
         </div>
       )}
       
-      <div className="px-6 py-6 space-y-8" style={{ paddingLeft: 'max(1.5rem, env(safe-area-inset-left))', paddingRight: 'max(1.5rem, env(safe-area-inset-right))' }}>
+      <div className="px-6 py-6 space-y-8" style={{ paddingLeft: 'max(2rem, env(safe-area-inset-left, 0px) + 1rem)', paddingRight: 'max(2rem, env(safe-area-inset-right, 0px) + 1rem)' }}>
         {/* Quick Answer */}
         <section className="bg-primary/5 rounded-lg p-5 border border-primary/10">
           <h2 className="font-heading text-primary text-lg mb-3">Summary</h2>
