@@ -18,7 +18,9 @@ import {
   Share2,
   Loader2,
   ImagePlus,
+  Pencil,
 } from "lucide-react";
+import TeachingEditor from "@/components/TeachingEditor";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { type Teaching, type Phase, phases } from "@/data/teachings";
@@ -35,6 +37,7 @@ const TeachingDetail = () => {
   const [showBookPreview, setShowBookPreview] = useState(false);
   const [coverImage, setCoverImage] = useState<string | undefined>();
   const [isGeneratingCover, setIsGeneratingCover] = useState(false);
+  const [showEditor, setShowEditor] = useState(false);
 
   useEffect(() => {
     const fetchTeaching = async () => {
@@ -416,20 +419,31 @@ const TeachingDetail = () => {
                     Share Teaching
                   </Button>
                   {isAdmin && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex items-center gap-2"
-                      onClick={handleRegenerateCover}
-                      disabled={isGeneratingCover}
-                    >
-                      {isGeneratingCover ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <ImagePlus className="h-4 w-4" />
-                      )}
-                      {coverImage ? "Regenerate Cover" : "Generate Cover"}
-                    </Button>
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center gap-2"
+                        onClick={() => setShowEditor(true)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                        Edit Teaching
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center gap-2"
+                        onClick={handleRegenerateCover}
+                        disabled={isGeneratingCover}
+                      >
+                        {isGeneratingCover ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <ImagePlus className="h-4 w-4" />
+                        )}
+                        {coverImage ? "Regenerate Cover" : "Generate Cover"}
+                      </Button>
+                    </>
                   )}
                 </div>
                 <a
@@ -460,6 +474,19 @@ const TeachingDetail = () => {
           coverImage={coverImage}
           onClose={() => setShowBookPreview(false)}
           onGenerateCover={isAdmin ? handleGenerateCover : undefined}
+        />
+      )}
+
+      {/* Teaching Editor Modal */}
+      {teaching && (
+        <TeachingEditor
+          teaching={teaching}
+          open={showEditor}
+          onOpenChange={setShowEditor}
+          onSave={() => {
+            // Refresh the teaching data
+            window.location.reload();
+          }}
         />
       )}
     </>

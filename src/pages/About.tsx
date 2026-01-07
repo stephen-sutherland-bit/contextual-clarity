@@ -67,7 +67,7 @@ const About = () => {
                   <p className="text-lg leading-relaxed mb-6">
                     The Berean Press exists to bridge that gap. We take theological 
                     content from The Christian Theologist—often from informal Bible studies 
-                    full of the "ums" and tangents that make for rich discussion—and transform 
+                    full of tangents that make for rich discussion—and transform 
                     it into accessible, pedagogically sound teachings that work for complete 
                     newcomers and seasoned scholars alike.
                   </p>
@@ -146,14 +146,15 @@ const About = () => {
                   <p className="text-lg text-muted-foreground leading-relaxed mb-6">
                     These teachings emerge from weekly informal Bible studies led by 
                     Jim of The Christian Theologist—whānau (family) discussions where 
-                    questions are explored, tangents become insights, and the seemingly 
-                    "useless talk" often contains the most valuable pedagogical gems.
+                    questions are explored, tangents become insights, and the unthought-of 
+                    ideas which most people would see as being of no value, often contain 
+                    the most valuable pedagogical gems.
                   </p>
 
                   <p className="text-lg text-muted-foreground leading-relaxed">
                     We use New Zealand English (judgement, fulfilment, honour) and 
-                    occasionally integrate te reo Māori where it enriches understanding. 
-                    Our heart is for the Aotearoa context while serving readers worldwide.
+                    occasionally integrate te reo Māori (Māori Language) where it enriches understanding. 
+                    Our heart is for the Aotearoa (NZ) context while serving readers worldwide.
                   </p>
                 </motion.div>
 
