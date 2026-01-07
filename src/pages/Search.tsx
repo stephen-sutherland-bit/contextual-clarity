@@ -5,7 +5,7 @@ import Footer from "@/components/Footer";
 import TeachingCard from "@/components/TeachingCard";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search as SearchIcon, BookOpen, HelpCircle, Tag, Loader2 } from "lucide-react";
+import { Search as SearchIcon, BookOpen, HelpCircle, Tag, Loader2, BookMarked } from "lucide-react";
 import { themes, type Teaching, type Phase } from "@/data/teachings";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
@@ -52,7 +52,7 @@ const Search = () => {
 
   const results = useMemo(() => {
     if (searchQuery.length < 2)
-      return { teachings: [], questions: [], themes: [] };
+      return { teachings: [], questions: [], themes: [], scriptures: [] };
 
     const query = searchQuery.toLowerCase();
 
@@ -74,19 +74,31 @@ const Search = () => {
       });
     });
 
+    // Collect matching scripture references with their teaching IDs
+    const scriptureMap = new Map<string, string>();
+    teachings.forEach((t) => {
+      t.scriptures.forEach((s) => {
+        if (s.toLowerCase().includes(query)) {
+          scriptureMap.set(s, t.id);
+        }
+      });
+    });
+
     const matchedThemes = themes.filter((t) => t.toLowerCase().includes(query));
 
     return {
       teachings: matchedTeachings,
       questions: Array.from(matchedQuestions),
       themes: matchedThemes,
+      scriptures: Array.from(scriptureMap.entries()),
     };
   }, [searchQuery, teachings]);
 
   const hasResults =
     results.teachings.length > 0 ||
     results.questions.length > 0 ||
-    results.themes.length > 0;
+    results.themes.length > 0 ||
+    results.scriptures.length > 0;
 
   return (
     <>
@@ -183,6 +195,37 @@ const Search = () => {
                             </Link>
                           );
                         })}
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* Scripture References */}
+                  {results.scriptures.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.4, delay: 0.05 }}
+                    >
+                      <div className="flex items-center gap-2 mb-4">
+                        <BookMarked className="h-5 w-5 text-primary" />
+                        <h2 className="font-heading font-semibold text-lg">
+                          Scripture References ({results.scriptures.length})
+                        </h2>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {results.scriptures.map(([scripture, teachingId]) => (
+                          <Link
+                            key={scripture}
+                            to={`/teaching/${teachingId}`}
+                          >
+                            <Badge
+                              variant="outline"
+                              className="cursor-pointer bg-scripture-bg text-scripture hover:bg-scripture/10 border-scripture/30"
+                            >
+                              {scripture}
+                            </Badge>
+                          </Link>
+                        ))}
                       </div>
                     </motion.div>
                   )}

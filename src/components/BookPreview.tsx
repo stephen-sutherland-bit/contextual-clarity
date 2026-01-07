@@ -101,7 +101,7 @@ const MobileReader = ({
       <div className="px-6 py-6 space-y-8">
         {/* Quick Answer */}
         <section className="bg-primary/5 rounded-lg p-5 border border-primary/10">
-          <h2 className="font-heading text-primary text-lg mb-3">In Brief</h2>
+          <h2 className="font-heading text-primary text-lg mb-3">Summary</h2>
           <p className="text-lg leading-relaxed italic text-foreground/90">"{quickAnswer}"</p>
         </section>
         

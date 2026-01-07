@@ -226,7 +226,7 @@ const TeachingEditor = ({ teaching, open, onOpenChange, onSave }: TeachingEditor
 
             {/* Quick Answer */}
             <div className="space-y-2">
-              <Label htmlFor="quickAnswer">Quick Answer</Label>
+              <Label htmlFor="quickAnswer">Summary</Label>
               <Textarea
                 id="quickAnswer"
                 value={quickAnswer}

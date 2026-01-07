@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, BookOpen, Calendar } from "lucide-react";
+import { ArrowRight, BookOpen } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Teaching } from "@/data/teachings";
 
@@ -29,10 +29,6 @@ const TeachingCard = ({ teaching, index, showReadingOrder = false }: TeachingCar
               </span>
             </div>
           )}
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-            <Calendar className="h-3.5 w-3.5" />
-            {teaching.date}
-          </div>
           <CardTitle className="group-hover:text-primary transition-colors">
             {teaching.title}
           </CardTitle>
