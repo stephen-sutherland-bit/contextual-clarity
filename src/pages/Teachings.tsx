@@ -18,8 +18,8 @@ const Teachings = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTheme, setSelectedTheme] = useState<string | null>(null);
-  const [selectedPhase, setSelectedPhase] = useState<Phase>(
-    (searchParams.get("phase") as Phase) || "foundations"
+  const [selectedPhase, setSelectedPhase] = useState<Phase | null>(
+    searchParams.get("phase") ? (searchParams.get("phase") as Phase) : "foundations"
   );
   const [teachings, setTeachings] = useState<Teaching[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -123,9 +123,10 @@ const Teachings = () => {
   }, []);
 
   useEffect(() => {
-    const phaseParam = (searchParams.get("phase") as Phase) || "foundations";
-    setSelectedPhase(phaseParam);
-    fetchTeachings(0, false, phaseParam);
+    const phaseParam = searchParams.get("phase") as Phase | null;
+    const initialPhase = phaseParam || "foundations";
+    setSelectedPhase(initialPhase);
+    fetchTeachings(0, false, initialPhase);
   }, []);
 
   const handleLoadMore = () => {
@@ -165,10 +166,14 @@ const Teachings = () => {
     });
   }, [searchQuery, selectedTheme, selectedPhase, teachings]);
 
-  const handlePhaseClick = (phase: Phase) => {
-    setSelectedPhase(phase);
+  const handlePhaseClick = (phase: Phase | null) => {
+    setSelectedPhase(phase as Phase);
     setPage(0);
-    setSearchParams({ phase });
+    if (phase) {
+      setSearchParams({ phase });
+    } else {
+      setSearchParams({});
+    }
     fetchTeachings(0, false, phase);
   };
 
@@ -223,9 +228,36 @@ const Teachings = () => {
                     {phase.name}
                   </Badge>
                 ))}
+                {/* All Teachings tab at the end */}
+                <Badge
+                  variant={selectedPhase === null ? "default" : "outline"}
+                  className="cursor-pointer flex-shrink-0 hover:bg-primary/10 px-5 py-2.5 text-base font-medium"
+                  onClick={() => handlePhaseClick(null as unknown as Phase)}
+                >
+                  All Teachings
+                </Badge>
               </div>
             </div>
           </section>
+
+          {/* Foundations Banner - show when viewing non-Foundations phases */}
+          {selectedPhase && selectedPhase !== "foundations" && (
+            <div className="bg-primary/5 border-b border-primary/10">
+              <div className="container px-4 py-3">
+                <p className="text-sm text-muted-foreground text-center">
+                  <span className="font-medium text-primary">New to Contextual Bible Study?</span>{" "}
+                  We recommend starting with{" "}
+                  <button 
+                    onClick={() => handlePhaseClick("foundations")}
+                    className="text-primary font-medium underline underline-offset-2 hover:text-primary/80"
+                  >
+                    Foundations
+                  </button>{" "}
+                  to understand the methodology before exploring other phases.
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Search & Theme Filters */}
           <section className="border-b border-border/50 bg-background sticky top-16 z-40">
@@ -296,9 +328,11 @@ const Teachings = () => {
               ) : (
                 <>
                   <div className="mb-6 text-sm text-muted-foreground">
-                    Showing {teachings.length} teachings in {phases.find(p => p.slug === selectedPhase)?.name}
+                    Showing {filteredTeachings.length} of {totalCount || teachings.length} teachings
+                    {selectedPhase && <> in {phases.find(p => p.slug === selectedPhase)?.name}</>}
+                    {!selectedPhase && <> across all phases</>}
                     {(searchQuery || selectedTheme) && filteredTeachings.length !== teachings.length && (
-                      <> ({filteredTeachings.length} match current filters)</>
+                      <> (filtered)</>
                     )}
                   </div>
 

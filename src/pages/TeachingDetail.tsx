@@ -9,7 +9,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
   ArrowLeft,
-  Calendar,
   BookOpen,
   Tag,
   HelpCircle,
@@ -245,10 +244,6 @@ const TeachingDetail = () => {
                   {phaseInfo && (
                     <Badge variant="outline">{phaseInfo.name}</Badge>
                   )}
-                  <span className="text-sm text-muted-foreground flex items-center gap-1.5">
-                    <Calendar className="h-3.5 w-3.5" />
-                    {teaching.date}
-                  </span>
                 </div>
                 <h1 className="text-3xl md:text-4xl font-heading font-bold mb-4">
                   {teaching.title}
@@ -272,7 +267,7 @@ const TeachingDetail = () => {
                   <CardContent className="p-6">
                     <div className="flex items-center gap-2 mb-4 text-primary">
                       <HelpCircle className="h-5 w-5" />
-                      <h2 className="font-heading font-semibold">Quick Answer</h2>
+                      <h2 className="font-heading font-semibold">Summary</h2>
                     </div>
                     <p className="text-foreground leading-relaxed text-lg">
                       {teaching.quickAnswer}
