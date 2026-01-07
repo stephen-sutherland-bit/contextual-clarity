@@ -74,7 +74,13 @@ const MobileReader = ({
   coverImage,
 }: Omit<BookPreviewProps, 'onGenerateCover'>) => {
   return (
-    <div className="fixed inset-0 z-50 bg-background overflow-y-auto">
+    <div 
+      className="fixed inset-0 z-50 bg-background overflow-y-auto overscroll-contain"
+      style={{ 
+        WebkitOverflowScrolling: 'touch',
+        touchAction: 'pan-y'
+      }}
+    >
       {/* Sticky header with title and close */}
       <div className="sticky top-0 bg-background/95 backdrop-blur-sm border-b border-border z-10 px-4 py-3 flex items-center justify-between">
         <h1 className="font-heading font-semibold text-lg truncate pr-4">{title}</h1>
@@ -98,7 +104,7 @@ const MobileReader = ({
         </div>
       )}
       
-      <div className="px-6 py-6 space-y-8">
+      <div className="px-6 py-6 space-y-8" style={{ paddingLeft: 'max(1.5rem, env(safe-area-inset-left))', paddingRight: 'max(1.5rem, env(safe-area-inset-right))' }}>
         {/* Quick Answer */}
         <section className="bg-primary/5 rounded-lg p-5 border border-primary/10">
           <h2 className="font-heading text-primary text-lg mb-3">Summary</h2>
