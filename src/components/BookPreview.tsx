@@ -90,38 +90,59 @@ const MobileReader = ({
     setVisibleCount((prev) => Math.min(prev + PARAGRAPH_CHUNK, paragraphs.length));
   };
 
-  // Block iOS edge-swipe gesture by preventing touch events near screen edges
-  const handleTouchStart = (e: React.TouchEvent) => {
-    const touch = e.touches[0];
-    const edgeThreshold = 25; // pixels from edge
-    if (touch.clientX < edgeThreshold || touch.clientX > window.innerWidth - edgeThreshold) {
-      e.preventDefault();
-    }
-  };
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+
+  // Block iOS edge-swipe gesture reliably by using NON-passive native listeners.
+  // (React's synthetic touch handlers may not prevent default on iOS.)
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const edgeThreshold = 24; // px
+
+    const onTouchStart = (e: TouchEvent) => {
+      const t = e.touches[0];
+      if (!t) return;
+      touchStartRef.current = { x: t.clientX, y: t.clientY };
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      const start = touchStartRef.current;
+      const t = e.touches[0];
+      if (!start || !t) return;
+
+      const startedNearEdge = start.x < edgeThreshold || start.x > window.innerWidth - edgeThreshold;
+      if (!startedNearEdge) return;
+
+      const dx = t.clientX - start.x;
+      const dy = t.clientY - start.y;
+
+      // Only block predominantly-horizontal gestures from the edge.
+      if (Math.abs(dx) > Math.abs(dy)) {
+        e.preventDefault();
+      }
+    };
+
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+    };
+  }, []);
 
   return (
     <div 
+      ref={containerRef}
       className="fixed inset-0 z-50 bg-background overflow-y-auto overflow-x-hidden"
       style={{ 
         WebkitOverflowScrolling: 'touch',
         touchAction: 'pan-y pinch-zoom',
         overscrollBehavior: 'contain',
       }}
-      onTouchStart={handleTouchStart}
     >
-      {/* Invisible edge blockers to capture iOS swipe gestures */}
-      <div 
-        className="fixed inset-y-0 left-0 w-6 z-[60]" 
-        style={{ touchAction: 'none' }}
-        onTouchStart={(e) => e.preventDefault()}
-        onTouchMove={(e) => e.preventDefault()}
-      />
-      <div 
-        className="fixed inset-y-0 right-0 w-6 z-[60]" 
-        style={{ touchAction: 'none' }}
-        onTouchStart={(e) => e.preventDefault()}
-        onTouchMove={(e) => e.preventDefault()}
-      />
       {/* Sticky header with title and close */}
       <div className="sticky top-0 bg-background/95 backdrop-blur-sm border-b border-border z-10 px-4 py-3 flex items-center justify-between">
         <h1 className="font-heading font-semibold text-lg truncate pr-4">{title}</h1>
