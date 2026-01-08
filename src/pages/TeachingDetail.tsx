@@ -54,6 +54,29 @@ const TeachingDetail = () => {
     }
   };
 
+  // Safety listener: intercept popstate events when reader is open
+  // This prevents accidental back navigation from going to a 404
+  useEffect(() => {
+    if (!showBookPreview) return;
+    
+    const handlePopstate = () => {
+      // If the reader was open and browser navigated back,
+      // we end up here after URL already changed.
+      // If we're still on the teaching page, that's fine (reader just closed).
+      // If navigation would leave the page, push back to safety.
+      const currentPath = window.location.pathname;
+      const expectedPath = `${import.meta.env.BASE_URL}teaching/${id}`;
+      
+      if (!currentPath.includes(`teaching/${id}`)) {
+        // User accidentally navigated away - push them back
+        window.history.pushState(null, '', expectedPath);
+      }
+    };
+    
+    window.addEventListener('popstate', handlePopstate);
+    return () => window.removeEventListener('popstate', handlePopstate);
+  }, [showBookPreview, id]);
+
   useEffect(() => {
     const fetchTeaching = async () => {
       if (!id) return;
