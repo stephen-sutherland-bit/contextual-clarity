@@ -90,14 +90,38 @@ const MobileReader = ({
     setVisibleCount((prev) => Math.min(prev + PARAGRAPH_CHUNK, paragraphs.length));
   };
 
+  // Block iOS edge-swipe gesture by preventing touch events near screen edges
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    const edgeThreshold = 25; // pixels from edge
+    if (touch.clientX < edgeThreshold || touch.clientX > window.innerWidth - edgeThreshold) {
+      e.preventDefault();
+    }
+  };
+
   return (
     <div 
-      className="fixed inset-0 z-50 bg-background overflow-y-auto overflow-x-hidden overscroll-contain"
+      className="fixed inset-0 z-50 bg-background overflow-y-auto overflow-x-hidden"
       style={{ 
         WebkitOverflowScrolling: 'touch',
-        touchAction: 'pan-y'
+        touchAction: 'pan-y pinch-zoom',
+        overscrollBehavior: 'contain',
       }}
+      onTouchStart={handleTouchStart}
     >
+      {/* Invisible edge blockers to capture iOS swipe gestures */}
+      <div 
+        className="fixed inset-y-0 left-0 w-6 z-[60]" 
+        style={{ touchAction: 'none' }}
+        onTouchStart={(e) => e.preventDefault()}
+        onTouchMove={(e) => e.preventDefault()}
+      />
+      <div 
+        className="fixed inset-y-0 right-0 w-6 z-[60]" 
+        style={{ touchAction: 'none' }}
+        onTouchStart={(e) => e.preventDefault()}
+        onTouchMove={(e) => e.preventDefault()}
+      />
       {/* Sticky header with title and close */}
       <div className="sticky top-0 bg-background/95 backdrop-blur-sm border-b border-border z-10 px-4 py-3 flex items-center justify-between">
         <h1 className="font-heading font-semibold text-lg truncate pr-4">{title}</h1>
