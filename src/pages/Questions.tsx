@@ -11,6 +11,7 @@ import { Helmet } from "react-helmet-async";
 interface QuestionWithTeaching {
   question: string;
   teachingId: string;
+  teachingTitle: string;
   quickAnswer: string;
 }
 
@@ -24,7 +25,7 @@ const Questions = () => {
       setIsLoading(true);
       const { data, error } = await supabase
         .from("teachings")
-        .select("id, quick_answer, questions_answered");
+        .select("id, title, quick_answer, questions_answered");
 
       if (error) {
         console.error("Error fetching questions:", error);
@@ -35,6 +36,7 @@ const Questions = () => {
             questionsWithTeaching.push({
               question: q,
               teachingId: teaching.id,
+              teachingTitle: teaching.title,
               quickAnswer: teaching.quick_answer || "",
             });
           });
@@ -122,6 +124,7 @@ const Questions = () => {
                           key={`${q.teachingId}-${q.question}`}
                           question={q.question}
                           teachingId={q.teachingId}
+                          teachingTitle={q.teachingTitle}
                           quickAnswer={q.quickAnswer}
                           index={index}
                         />

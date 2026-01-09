@@ -284,13 +284,19 @@ const Admin = () => {
           reader.onerror = reject;
         });
         
+        // Get current session for auth token
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) {
+          throw new Error("Not authenticated - please log in again");
+        }
+        
         const parseResponse = await fetch(
           `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/parse-pdf`,
           {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+              Authorization: `Bearer ${session.access_token}`,
             },
             body: JSON.stringify({ pdfBase64: base64, filename: file.name }),
           }
@@ -313,7 +319,7 @@ const Admin = () => {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+              Authorization: `Bearer ${session.access_token}`,
             },
             body: JSON.stringify({ content, title: "" }),
           }
@@ -338,7 +344,7 @@ const Admin = () => {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
-                Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+                Authorization: `Bearer ${session.access_token}`,
               },
               body: JSON.stringify({
                 title: metadata.suggested_title || file.name,
@@ -488,13 +494,19 @@ const Admin = () => {
         reader.onerror = reject;
       });
       
+      // Get current session for auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error("Not authenticated - please log in again");
+      }
+      
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/transcribe-audio`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            Authorization: `Bearer ${session.access_token}`,
           },
           body: JSON.stringify({ audio: base64, mimeType: audioFile.type }),
         }
@@ -526,13 +538,19 @@ const Admin = () => {
     setProcessedText("");
     
     try {
+      // Get current session for auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error("Not authenticated - please log in again");
+      }
+      
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-transcript`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            Authorization: `Bearer ${session.access_token}`,
           },
           body: JSON.stringify({ transcript: transcriptText }),
         }
@@ -591,6 +609,12 @@ const Admin = () => {
     setIsSavingAudio(true);
     
     try {
+      // Get current session for auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error("Not authenticated - please log in again");
+      }
+      
       // Step 1: Generate metadata
       setAudioSaveStage("Generating metadata...");
       const indexResponse = await fetch(
@@ -599,7 +623,7 @@ const Admin = () => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            Authorization: `Bearer ${session.access_token}`,
           },
           body: JSON.stringify({ content: processedText, title: "" }),
         }
@@ -620,7 +644,7 @@ const Admin = () => {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+              Authorization: `Bearer ${session.access_token}`,
             },
             body: JSON.stringify({
               title: metadata.suggested_title || audioFile.name,

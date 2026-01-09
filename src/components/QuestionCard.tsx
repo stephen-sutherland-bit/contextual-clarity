@@ -6,11 +6,12 @@ import { Link } from "react-router-dom";
 interface QuestionCardProps {
   question: string;
   teachingId: string;
+  teachingTitle: string;
   quickAnswer: string;
   index: number;
 }
 
-const QuestionCard = ({ question, teachingId, quickAnswer, index }: QuestionCardProps) => {
+const QuestionCard = ({ question, teachingId, teachingTitle, quickAnswer, index }: QuestionCardProps) => {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -29,8 +30,8 @@ const QuestionCard = ({ question, teachingId, quickAnswer, index }: QuestionCard
                 <p className="font-medium text-foreground group-hover:text-primary transition-colors leading-snug">
                   {question}
                 </p>
-                <p className="mt-2 text-sm text-muted-foreground line-clamp-2">
-                  {quickAnswer ? `${quickAnswer.substring(0, 120)}...` : "Click to learn more"}
+                <p className="mt-2 text-xs text-muted-foreground line-clamp-1">
+                  From: <span className="text-foreground/70">{teachingTitle}</span>
                 </p>
               </div>
               <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all flex-shrink-0 mt-1" />
