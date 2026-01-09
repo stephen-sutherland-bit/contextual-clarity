@@ -9,12 +9,17 @@ const handleGitHubPagesRedirect = () => {
   const redirectPath = params.get('redirect');
   
   if (redirectPath) {
-    // Remove the redirect param from URL and navigate to the intended path
-    const cleanUrl = window.location.origin + window.location.pathname.replace(/\/$/, '') + redirectPath;
+    // Only handle redirect in production (GitHub Pages)
+    // In development/preview, the redirect param shouldn't be present
+    const basePath = import.meta.env.PROD ? '/contextual-clarity' : '';
+    const cleanUrl = window.location.origin + basePath + redirectPath;
     window.history.replaceState(null, '', cleanUrl);
   }
 };
 
-handleGitHubPagesRedirect();
+// Only run redirect handler if there's a redirect param
+if (window.location.search.includes('redirect=')) {
+  handleGitHubPagesRedirect();
+}
 
 createRoot(document.getElementById("root")!).render(<App />);
