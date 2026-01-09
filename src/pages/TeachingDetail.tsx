@@ -97,20 +97,37 @@ const TeachingDetail = () => {
     const html = teaching?.fullContent || "";
     if (!html) return "";
     
-    // First add line breaks before block elements
+    // Normalize line endings and preserve paragraph structure
     let text = html
+      // Add double line breaks after block elements
       .replace(/<\/p>/gi, "\n\n")
       .replace(/<\/div>/gi, "\n\n")
       .replace(/<\/h[1-6]>/gi, "\n\n")
+      .replace(/<\/li>/gi, "\n")
+      .replace(/<\/ul>/gi, "\n")
+      .replace(/<\/ol>/gi, "\n")
+      .replace(/<\/blockquote>/gi, "\n\n")
+      // Handle br tags
       .replace(/<br\s*\/?>/gi, "\n")
-      .replace(/<li>/gi, "\n• ");
+      // Add bullet for list items
+      .replace(/<li[^>]*>/gi, "• ")
+      // Remove all remaining HTML tags
+      .replace(/<[^>]+>/g, "");
     
-    // Now strip remaining HTML tags
+    // Decode HTML entities
     const doc = new DOMParser().parseFromString(text, "text/html");
     text = doc.body.textContent || "";
     
     // Clean up excessive whitespace while preserving paragraph breaks
-    return text.replace(/\n{3,}/g, "\n\n").trim();
+    // Collapse 3+ newlines to exactly 2 (paragraph break)
+    text = text
+      .replace(/[ \t]+/g, " ")           // Collapse horizontal whitespace
+      .replace(/\n[ \t]+/g, "\n")        // Remove leading spaces on lines
+      .replace(/[ \t]+\n/g, "\n")        // Remove trailing spaces on lines
+      .replace(/\n{3,}/g, "\n\n")        // Max 2 newlines (1 blank line)
+      .trim();
+    
+    return text;
   }, [teaching?.fullContent]);
 
   // Generate cover image via edge function (admin only)

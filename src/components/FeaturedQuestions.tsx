@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 interface QuestionWithTeaching {
   question: string;
   teachingId: string;
+  teachingTitle: string;
   quickAnswer: string;
 }
 
@@ -21,7 +22,7 @@ const FeaturedQuestions = () => {
       setIsLoading(true);
       const { data, error } = await supabase
         .from("teachings")
-        .select("id, quick_answer, questions_answered")
+        .select("id, title, quick_answer, questions_answered")
         .limit(10);
 
       if (error) {
@@ -34,6 +35,7 @@ const FeaturedQuestions = () => {
               questions.push({
                 question: q,
                 teachingId: t.id,
+                teachingTitle: t.title,
                 quickAnswer: t.quick_answer || "",
               });
             }
@@ -86,6 +88,7 @@ const FeaturedQuestions = () => {
               key={`${q.teachingId}-${q.question}`}
               question={q.question}
               teachingId={q.teachingId}
+              teachingTitle={q.teachingTitle}
               quickAnswer={q.quickAnswer}
               index={index}
             />

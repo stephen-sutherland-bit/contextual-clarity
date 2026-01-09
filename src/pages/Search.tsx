@@ -62,16 +62,34 @@ const Search = () => {
         t.quickAnswer.toLowerCase().includes(query) ||
         t.keywords.some((k) => k.toLowerCase().includes(query)) ||
         t.scriptures.some((s) => s.toLowerCase().includes(query)) ||
-        t.doctrines.some((d) => d.toLowerCase().includes(query))
+        t.doctrines.some((d) => d.toLowerCase().includes(query)) ||
+        t.fullContent.toLowerCase().includes(query)
     );
 
-    const matchedQuestions = new Set<string>();
+    // Find questions that match the search query
+    const matchedQuestions: Array<{ question: string; teachingId: string }> = [];
     teachings.forEach((t) => {
       t.questionsAnswered.forEach((q) => {
         if (q.toLowerCase().includes(query)) {
-          matchedQuestions.add(q);
+          matchedQuestions.push({ question: q, teachingId: t.id });
         }
       });
+    });
+    
+    // Also search for questions within fullContent
+    teachings.forEach((t) => {
+      if (t.fullContent.toLowerCase().includes(query)) {
+        // If the content matches, add any questions from this teaching that aren't already added
+        t.questionsAnswered.forEach((q) => {
+          if (!matchedQuestions.some(mq => mq.question === q)) {
+            // Only add if the question itself relates to the query
+            if (q.toLowerCase().includes(query) || 
+                t.quickAnswer.toLowerCase().includes(query)) {
+              matchedQuestions.push({ question: q, teachingId: t.id });
+            }
+          }
+        });
+      }
     });
 
     // Collect matching scripture references with their teaching IDs
@@ -88,7 +106,7 @@ const Search = () => {
 
     return {
       teachings: matchedTeachings,
-      questions: Array.from(matchedQuestions),
+      questions: matchedQuestions,
       themes: matchedThemes,
       scriptures: Array.from(scriptureMap.entries()),
     };
@@ -181,20 +199,15 @@ const Search = () => {
                         </h2>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {results.questions.map((question) => {
-                          const teaching = teachings.find((t) =>
-                            t.questionsAnswered.includes(question)
-                          );
-                          return (
+                        {results.questions.map(({ question, teachingId }) => (
                             <Link
-                              key={question}
-                              to={`/teaching/${teaching?.id}`}
+                              key={`${teachingId}-${question}`}
+                              to={`/teaching/${teachingId}`}
                               className="p-4 bg-card border border-border/50 rounded-lg hover:border-primary/30 hover:bg-highlight-soft/30 transition-all"
                             >
                               <p className="text-sm font-medium">{question}</p>
                             </Link>
-                          );
-                        })}
+                        ))}
                       </div>
                     </motion.div>
                   )}

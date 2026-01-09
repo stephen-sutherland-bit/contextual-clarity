@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Redirecting...</title>
+  <script>
+    // GitHub Pages SPA redirect script
+    // This page is served by GitHub Pages for any 404 and redirects to index.html
+    // while preserving the original path in the URL hash/query for the SPA to handle
+    (function() {
+      var pathSegments = window.location.pathname.split('/');
+      // Remove the repo name segment for GitHub Pages projects (e.g., /contextual-clarity)
+      var basePath = '/contextual-clarity';
+      var actualPath = window.location.pathname;
+      
+      // If the path starts with our base path, extract the actual route
+      if (actualPath.startsWith(basePath)) {
+        actualPath = actualPath.slice(basePath.length) || '/';
+      }
+      
+      // Redirect to home with the original path as a query parameter
+      var redirectUrl = window.location.origin + basePath + '/?redirect=' + encodeURIComponent(actualPath + window.location.search);
+      window.location.replace(redirectUrl);
+    })();
+  </script>
+</head>
+<body>
+  <p>Redirecting...</p>
+</body>
+</html>
