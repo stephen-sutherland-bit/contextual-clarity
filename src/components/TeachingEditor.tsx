@@ -9,7 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, X, Plus, Trash2 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Loader2, X, Plus, Trash2, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { phases, type Phase } from "@/data/teachings";
@@ -38,6 +39,8 @@ const TeachingEditor = ({ teaching, open, onOpenChange, onSave }: TeachingEditor
   const navigate = useNavigate();
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isReprocessing, setIsReprocessing] = useState(false);
+  const [reprocessProgress, setReprocessProgress] = useState(0);
   
   // Form state
   const [title, setTitle] = useState(teaching.title);
@@ -125,6 +128,103 @@ const TeachingEditor = ({ teaching, open, onOpenChange, onSave }: TeachingEditor
       });
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const handleReprocess = async () => {
+    setIsReprocessing(true);
+    setReprocessProgress(5);
+    
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error("You must be logged in to reprocess content");
+      }
+
+      toast({
+        title: "Reprocessing started",
+        description: "The AI is rewriting the content. This may take a minute...",
+      });
+
+      setReprocessProgress(10);
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-transcript`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ transcript: fullContent }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "AI processing failed");
+      }
+
+      setReprocessProgress(20);
+
+      // Stream the response
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error("No response stream available");
+
+      const decoder = new TextDecoder();
+      let processedContent = "";
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const jsonStr = line.slice(6).trim();
+            if (jsonStr === "[DONE]") continue;
+            
+            try {
+              const parsed = JSON.parse(jsonStr);
+              const content = parsed.choices?.[0]?.delta?.content;
+              if (content) {
+                processedContent += content;
+                // Update progress based on content length estimate
+                const progress = Math.min(90, 20 + (processedContent.length / fullContent.length) * 70);
+                setReprocessProgress(progress);
+              }
+            } catch {
+              // Ignore parse errors for partial chunks
+            }
+          }
+        }
+      }
+
+      if (processedContent.trim()) {
+        setFullContent(processedContent);
+        setReprocessProgress(100);
+        
+        toast({
+          title: "Reprocessing complete",
+          description: "Content has been rewritten. Click 'Save Changes' to keep it.",
+        });
+      } else {
+        throw new Error("No content received from AI");
+      }
+    } catch (error) {
+      console.error("Reprocess error:", error);
+      toast({
+        title: "Reprocessing failed",
+        description: error instanceof Error ? error.message : "Could not reprocess content",
+        variant: "destructive",
+      });
+    } finally {
+      setIsReprocessing(false);
+      setReprocessProgress(0);
     }
   };
 
@@ -271,13 +371,57 @@ const TeachingEditor = ({ teaching, open, onOpenChange, onSave }: TeachingEditor
 
             {/* Full Content */}
             <div className="space-y-2">
-              <Label htmlFor="fullContent">Full Content</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="fullContent">Full Content</Label>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      disabled={isReprocessing}
+                      className="gap-1.5"
+                    >
+                      {isReprocessing ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-3.5 w-3.5" />
+                      )}
+                      Reprocess with AI
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Reprocess Content with AI?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will send the current content through the CBS methodology AI to rewrite it in essay form. 
+                        The original content will be replaced. Make sure you have a backup if needed.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleReprocess}>
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Reprocess Now
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+              {isReprocessing && (
+                <div className="space-y-1">
+                  <Progress value={reprocessProgress} className="h-2" />
+                  <p className="text-xs text-muted-foreground text-center">
+                    AI is rewriting content... {Math.round(reprocessProgress)}%
+                  </p>
+                </div>
+              )}
               <Textarea
                 id="fullContent"
                 value={fullContent}
                 onChange={(e) => setFullContent(e.target.value)}
                 rows={12}
                 className="font-mono text-sm"
+                disabled={isReprocessing}
               />
             </div>
 
