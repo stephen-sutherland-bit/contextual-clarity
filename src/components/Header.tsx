@@ -34,6 +34,12 @@ const Header = () => {
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center gap-6">
           <Link 
+            to="/methodology" 
+            className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            CBS Methodology
+          </Link>
+          <Link 
             to="/teachings" 
             className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
@@ -44,12 +50,6 @@ const Header = () => {
             className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
             Questions Answered
-          </Link>
-          <Link 
-            to="/methodology" 
-            className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-          >
-            CBS Methodology
           </Link>
           <Link 
             to="/about" 
@@ -109,6 +109,13 @@ const Header = () => {
           >
             <div className="container py-4 space-y-2">
               <Link 
+                to="/methodology" 
+                className="block px-4 py-2 rounded-md hover:bg-secondary transition-colors"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                CBS Methodology
+              </Link>
+              <Link 
                 to="/teachings" 
                 className="block px-4 py-2 rounded-md hover:bg-secondary transition-colors"
                 onClick={() => setMobileMenuOpen(false)}
@@ -121,13 +128,6 @@ const Header = () => {
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Questions Answered
-              </Link>
-              <Link 
-                to="/methodology" 
-                className="block px-4 py-2 rounded-md hover:bg-secondary transition-colors"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                CBS Methodology
               </Link>
               <Link 
                 to="/about" 
