@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -7,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, X, Plus } from "lucide-react";
+import { Loader2, X, Plus, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { phases, type Phase } from "@/data/teachings";
@@ -33,7 +35,9 @@ interface TeachingEditorProps {
 
 const TeachingEditor = ({ teaching, open, onOpenChange, onSave }: TeachingEditorProps) => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   // Form state
   const [title, setTitle] = useState(teaching.title);
@@ -91,6 +95,36 @@ const TeachingEditor = ({ teaching, open, onOpenChange, onSave }: TeachingEditor
       });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    
+    try {
+      const { error } = await supabase
+        .from("teachings")
+        .delete()
+        .eq("id", teaching.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Teaching deleted",
+        description: "The teaching has been permanently removed.",
+      });
+      
+      onOpenChange(false);
+      navigate("/teachings");
+    } catch (error) {
+      console.error("Error deleting teaching:", error);
+      toast({
+        title: "Delete failed",
+        description: "Could not delete teaching. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -283,6 +317,47 @@ const TeachingEditor = ({ teaching, open, onOpenChange, onSave }: TeachingEditor
               setNewValue={setNewQuestion}
               placeholder="Add a question..."
             />
+
+            {/* Delete Section */}
+            <div className="pt-4 border-t border-destructive/20">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-medium text-destructive">Danger Zone</h4>
+                  <p className="text-xs text-muted-foreground">
+                    Permanently delete this teaching
+                  </p>
+                </div>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="sm" disabled={isDeleting}>
+                      {isDeleting ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4 mr-2" />
+                      )}
+                      Delete Teaching
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Teaching?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will permanently delete "{teaching.title}". This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleDelete}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Delete Permanently
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            </div>
           </div>
         </ScrollArea>
 
