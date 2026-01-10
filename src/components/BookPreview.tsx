@@ -20,8 +20,8 @@ interface BookPreviewProps {
   onGenerateCover?: () => Promise<string>;
 }
 
-// Split content into pages of roughly equal size
-const splitContentIntoPages = (content: string, charsPerPage: number = 1200): string[] => {
+// Split content into pages of roughly equal size - increased for better density
+const splitContentIntoPages = (content: string, charsPerPage: number = 2000): string[] => {
   const pages: string[] = [];
   
   // First try to split by paragraph breaks
@@ -236,7 +236,7 @@ const MobileReader = ({
 };
 
 const Page = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
-  <div className={`bg-card h-full w-full p-8 flex flex-col shadow-lg overflow-hidden ${className}`}>
+  <div className={`bg-card h-full w-full px-6 py-5 flex flex-col shadow-lg overflow-hidden ${className}`}>
     {children}
   </div>
 );
@@ -477,15 +477,15 @@ const BookPreview = ({
           {contentPages.map((pageContent, index) => (
             <div key={`content-${index}`}>
               <Page>
-                <div className="prose-teaching text-base leading-relaxed flex-1 overflow-y-auto">
+                <div className="prose-teaching text-[15px] leading-[1.65] flex-1 overflow-y-auto">
                   {pageContent.split("\n\n").map((para, pIndex) => (
-                    <p key={pIndex} className="mb-4 text-foreground/90 break-words">
+                    <p key={pIndex} className="mb-3 text-foreground/90 break-words">
                       {para}
                     </p>
                   ))}
                 </div>
-                <div className="mt-auto pt-2 text-center flex-shrink-0">
-                  <span className="text-sm text-muted-foreground">
+                <div className="mt-auto pt-1 text-center flex-shrink-0">
+                  <span className="text-xs text-muted-foreground">
                     {index + 3} / {totalPages}
                   </span>
                 </div>
