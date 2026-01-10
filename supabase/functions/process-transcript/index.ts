@@ -2,7 +2,7 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
@@ -48,14 +48,28 @@ async function logUsage(operationType: string, estimatedCost: number, details: R
       operation_type: operationType,
       estimated_cost: estimatedCost,
       details,
-      description: `GPT-4o processing`
+      description: `Gemini 2.5 Pro processing`
     });
   } catch (e) {
     console.error('Failed to log usage:', e);
   }
 }
 
-const CBS_SYSTEM_PROMPT = `You are The Christian Theologist at https://christiantheologist.substack.com
+const CBS_SYSTEM_PROMPT = `## CRITICAL - DO NOT SUMMARISE - LENGTH REQUIREMENT
+
+YOUR OUTPUT MUST BE AT LEAST AS LONG AS THE INPUT TRANSCRIPT.
+If the input transcript is 3000 words, your output MUST be at least 3000 words.
+If the input transcript is 5000 words, your output MUST be at least 5000 words.
+If the input transcript is 10000 words, your output MUST be at least 10000 words.
+
+You are EXPANDING and CLARIFYING content, NEVER condensing or summarising.
+Every piece of dialogue, every "um" and "ah" moment, every tangential discussion contains pedagogical gold that must be preserved and enhanced.
+
+FAILURE TO MEET LENGTH REQUIREMENT = TASK FAILURE.
+
+---
+
+You are The Christian Theologist at https://christiantheologist.substack.com
 You teach not only fellow biblical scholars, but also children and complete newbies to bible study. Your expertise in exegesis is renowned due to your faithfulness in the application of Contextual Bible Study methodology.
 
 You are asked to rewrite theological transcripts and studies covering many subjects from the Bible and related historical books.
@@ -130,7 +144,10 @@ Don't write that you are following CBS principles. That is redundancy we can do 
 - NO compressing arguments to force brevity.
 - NO mentioning "redundancy," "repetition," or pedagogical justification. (these concepts should remain invisible to readers)
 - NO prioritising stylistic elegance over accuracy.
-- NO using futurist/non-contextual theology sources.`;
+- NO using futurist/non-contextual theology sources.
+
+## FINAL REMINDER
+Your output MUST be AT LEAST as long as the input. You are expanding, clarifying, and enriching - NEVER summarising.`;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -157,22 +174,24 @@ serve(async (req) => {
       });
     }
 
-    console.log('Processing transcript, length:', transcript.length);
+    // Calculate word count for logging
+    const inputWordCount = transcript.split(/\s+/).filter((w: string) => w.length > 0).length;
+    console.log('Processing transcript, length:', transcript.length, 'words:', inputWordCount);
     
     // Estimate input tokens (~4 chars per token)
     const inputTokens = Math.ceil((CBS_SYSTEM_PROMPT.length + transcript.length) / 4);
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
+        'Authorization': `Bearer ${lovableApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: 'google/gemini-2.5-pro',
         messages: [
           { role: 'system', content: CBS_SYSTEM_PROMPT },
-          { role: 'user', content: `Please rewrite the following transcript:\n\n${transcript}` }
+          { role: 'user', content: `The following transcript is approximately ${inputWordCount} words. Your rewritten version MUST be at least ${inputWordCount} words.\n\nPlease rewrite the following transcript:\n\n${transcript}` }
         ],
         stream: true,
       }),
@@ -180,23 +199,38 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('OpenAI API error:', response.status, errorText);
+      console.error('Lovable AI Gateway error:', response.status, errorText);
+      
+      if (response.status === 429) {
+        return new Response(JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }), {
+          status: 429,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
+      if (response.status === 402) {
+        return new Response(JSON.stringify({ error: 'AI credits exhausted. Please add credits to continue.' }), {
+          status: 402,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
       return new Response(JSON.stringify({ error: 'AI processing failed' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Estimate cost: GPT-4o input ~$2.50/1M, output ~$10/1M
-    // Assume output is ~2x input for processing
+    // Estimate cost for Gemini 2.5 Pro (approximate)
     const estimatedOutputTokens = inputTokens * 2;
-    const estimatedCost = (inputTokens / 1000000 * 2.50) + (estimatedOutputTokens / 1000000 * 10);
+    const estimatedCost = (inputTokens / 1000000 * 1.25) + (estimatedOutputTokens / 1000000 * 5);
     
     await logUsage('processing', estimatedCost, {
       input_tokens_estimate: inputTokens,
       output_tokens_estimate: estimatedOutputTokens,
       transcript_length: transcript.length,
-      model: 'gpt-4o'
+      input_word_count: inputWordCount,
+      model: 'google/gemini-2.5-pro'
     });
 
     return new Response(response.body, {
