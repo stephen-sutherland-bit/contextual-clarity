@@ -58,60 +58,10 @@ async function logUsage(operationType: string, estimatedCost: number, details: R
       operation_type: operationType,
       estimated_cost: estimatedCost,
       details,
-      description: `AssemblyAI transcription (2x speed)`
+      description: `AssemblyAI transcription (normal speed)`
     });
   } catch (e) {
     console.error('Failed to log usage:', e);
-  }
-}
-
-// Speed up audio 2x using FFmpeg WASM
-async function speedUpAudio(audioData: Uint8Array, inputFormat: string): Promise<Uint8Array> {
-  console.log(`Speeding up audio 2x, input size: ${audioData.length} bytes, format: ${inputFormat}`);
-  
-  try {
-    // Dynamic import of FFmpeg WASM for Deno
-    const { FFmpeg } = await import("https://esm.sh/@ffmpeg/ffmpeg@0.12.10");
-    const { fetchFile } = await import("https://esm.sh/@ffmpeg/util@0.12.1");
-    
-    const ffmpeg = new FFmpeg();
-    
-    // Load FFmpeg core
-    await ffmpeg.load({
-      coreURL: "https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm/ffmpeg-core.js",
-      wasmURL: "https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm/ffmpeg-core.wasm",
-    });
-    
-    const inputFileName = `input.${inputFormat}`;
-    const outputFileName = 'output.mp3';
-    
-    // Write input file to FFmpeg virtual filesystem
-    await ffmpeg.writeFile(inputFileName, audioData);
-    
-    // Speed up audio 2x using atempo filter (maintains pitch)
-    // Output as MP3 for broad compatibility
-    await ffmpeg.exec([
-      '-i', inputFileName,
-      '-filter:a', 'atempo=2.0',
-      '-vn', // No video
-      '-acodec', 'libmp3lame',
-      '-b:a', '128k',
-      outputFileName
-    ]);
-    
-    // Read the output file
-    const outputData = await ffmpeg.readFile(outputFileName);
-    
-    // Clean up
-    await ffmpeg.deleteFile(inputFileName);
-    await ffmpeg.deleteFile(outputFileName);
-    
-    console.log(`Audio sped up successfully, output size: ${outputData.length} bytes`);
-    
-    return outputData as Uint8Array;
-  } catch (error) {
-    console.error('FFmpeg processing failed:', error);
-    throw new Error(`Failed to speed up audio: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -271,29 +221,10 @@ serve(async (req) => {
     // Convert base64 to binary
     const binaryAudio = base64ToUint8Array(audio);
     const originalSizeBytes = binaryAudio.length;
-    console.log(`Original audio size: ${originalSizeBytes} bytes`);
+    console.log(`Audio size: ${originalSizeBytes} bytes`);
     
-    // Determine input format for FFmpeg
-    let inputFormat = 'mp3';
-    if (mimeType?.includes('mp3') || mimeType?.includes('mpeg')) {
-      inputFormat = 'mp3';
-    } else if (mimeType?.includes('wav')) {
-      inputFormat = 'wav';
-    } else if (mimeType?.includes('m4a') || mimeType?.includes('mp4')) {
-      inputFormat = 'm4a';
-    } else if (mimeType?.includes('webm')) {
-      inputFormat = 'webm';
-    } else if (mimeType?.includes('ogg')) {
-      inputFormat = 'ogg';
-    } else if (mimeType?.includes('flac')) {
-      inputFormat = 'flac';
-    }
-
-    // Speed up audio 2x to reduce transcription cost
-    const speedUpAudioData = await speedUpAudio(binaryAudio, inputFormat);
-    
-    // Upload sped-up audio to AssemblyAI
-    const uploadUrl = await uploadToAssemblyAI(speedUpAudioData);
+    // Upload audio directly to AssemblyAI (no speed modification)
+    const uploadUrl = await uploadToAssemblyAI(binaryAudio);
     
     // Request transcription with speaker diarization
     const transcriptId = await requestTranscription(uploadUrl);
@@ -305,20 +236,15 @@ serve(async (req) => {
     const formattedText = formatTranscriptWithSpeakers(result.utterances, result.text);
     
     // Estimate cost: AssemblyAI is ~$0.37/hour
-    // Since we sped up 2x, actual audio duration is half the original
-    // Rough estimate: 1MB per minute of original audio
-    const estimatedOriginalMinutes = originalSizeBytes / (1024 * 1024);
-    const billedMinutes = estimatedOriginalMinutes / 2; // Half due to 2x speed
-    const estimatedCost = (billedMinutes / 60) * 0.37;
+    // Rough estimate: 1MB per minute of audio
+    const estimatedMinutes = originalSizeBytes / (1024 * 1024);
+    const estimatedCost = (estimatedMinutes / 60) * 0.37;
     
     await logUsage('transcription', estimatedCost, {
-      original_size_bytes: originalSizeBytes,
-      sped_up_size_bytes: speedUpAudioData.length,
-      estimated_original_minutes: estimatedOriginalMinutes,
-      billed_minutes: billedMinutes,
+      size_bytes: originalSizeBytes,
+      estimated_minutes: estimatedMinutes,
       text_length: formattedText.length,
       has_speaker_labels: !!result.utterances,
-      speed_multiplier: 2
     });
 
     console.log(`Transcription complete, cost estimate: $${estimatedCost.toFixed(4)}`);

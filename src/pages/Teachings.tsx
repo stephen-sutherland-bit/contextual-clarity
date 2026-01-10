@@ -46,7 +46,9 @@ const Teachings = () => {
           scriptures,
           quick_answer,
           reading_order,
-          phase
+          phase,
+          keywords,
+          questions_answered
         `);
 
       // Apply phase filter if specified
@@ -98,8 +100,8 @@ const Teachings = () => {
           secondaryThemes: [],
           scriptures: t.scriptures || [],
           doctrines: [],
-          keywords: [],
-          questionsAnswered: [],
+          keywords: t.keywords || [],
+          questionsAnswered: t.questions_answered || [],
           quickAnswer: t.quick_answer || "",
           fullContent: "",
           readingOrder: t.reading_order || undefined,

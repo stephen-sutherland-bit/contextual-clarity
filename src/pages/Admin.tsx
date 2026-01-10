@@ -907,6 +907,18 @@ const Admin = () => {
 
             {/* PDF Import Tab */}
             <TabsContent value="pdf" className="space-y-4">
+              {/* Info note about PDF import */}
+              <div className="flex items-start gap-3 p-4 rounded-lg bg-primary/5 border border-primary/10">
+                <FileText className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                <div className="text-sm">
+                  <p className="font-medium text-foreground">PDF Import is for pre-processed documents</p>
+                  <p className="text-muted-foreground mt-1">
+                    Use this for finished teaching PDFs that are already formatted and ready to publish.
+                    For raw audio recordings or transcripts that need cleanup, use the <strong>Audio Import</strong> tab instead.
+                  </p>
+                </div>
+              </div>
+
               {pdfStep === "upload" && (
                 <Card>
                   <CardHeader>
