@@ -87,13 +87,13 @@ const InlineTeachingContent = ({
         </div>
       </div>
 
-      {/* Cover image hero - consistent aspect ratio across all devices */}
+      {/* Cover image hero - full width, consistent across all devices */}
       {coverImage && (
-        <div className="relative aspect-[16/9] max-h-[400px] bg-gradient-accent overflow-hidden">
+        <div className="relative w-full h-64 sm:h-72 md:h-80 lg:h-96 bg-gradient-accent overflow-hidden">
           <img
             src={coverImage}
             alt="Teaching cover illustration"
-            className="w-full h-full object-cover opacity-60"
+            className="w-full h-full object-cover object-center opacity-60"
             loading="lazy"
             decoding="async"
           />
