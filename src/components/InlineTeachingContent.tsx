@@ -1,7 +1,14 @@
 import { useMemo } from "react";
 import { motion } from "framer-motion";
-import { X, BookOpen, HelpCircle, Download } from "lucide-react";
+import { X, BookOpen, HelpCircle, Download, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+export interface PonderedQuestion {
+  topic: string;
+  question: string;
+  commonAnswer: string;
+  cbsAnswer: string;
+}
 
 interface InlineTeachingContentProps {
   title: string;
@@ -11,6 +18,7 @@ interface InlineTeachingContentProps {
   questionsAnswered: string[];
   quickAnswer: string;
   coverImage?: string;
+  ponderedQuestions?: PonderedQuestion[];
   onClose: () => void;
 }
 
@@ -122,10 +130,11 @@ const InlineTeachingContent = ({
   questionsAnswered,
   quickAnswer,
   coverImage,
+  ponderedQuestions = [],
   onClose,
 }: InlineTeachingContentProps) => {
   const parsedContent = useMemo(() => parseContentWithHeadings(content), [content]);
-
+  const hasPonderedQuestions = ponderedQuestions && ponderedQuestions.length > 0;
   const handlePrint = () => {
     // Create a new window with just the teaching content for printing
     const printWindow = window.open('', '_blank');
@@ -235,6 +244,75 @@ const InlineTeachingContent = ({
               font-size: 15px;
             }
             
+            .pondered-section {
+              margin-top: 40px;
+              margin-bottom: 32px;
+            }
+            
+            .pondered-title {
+              font-family: 'Playfair Display', serif;
+              font-size: 22px;
+              font-weight: 700;
+              margin-bottom: 16px;
+            }
+            
+            .pondered-intro {
+              font-style: italic;
+              margin-bottom: 24px;
+            }
+            
+            .pondered-item {
+              margin-bottom: 28px;
+            }
+            
+            .pondered-question-title {
+              font-family: 'Playfair Display', serif;
+              font-size: 16px;
+              font-weight: 700;
+              margin-bottom: 8px;
+            }
+            
+            .pondered-common {
+              margin-bottom: 12px;
+            }
+            
+            .pondered-common strong {
+              font-weight: 600;
+            }
+            
+            .pondered-cbs {
+              margin-bottom: 12px;
+            }
+            
+            .pondered-cbs strong {
+              font-weight: 600;
+            }
+            
+            .pondered-summary {
+              background: #f9f9f9;
+              padding: 20px;
+              border-radius: 8px;
+              margin-top: 24px;
+            }
+            
+            .pondered-summary-title {
+              font-family: 'Playfair Display', serif;
+              font-weight: 700;
+              margin-bottom: 12px;
+            }
+            
+            .pondered-summary-list {
+              list-style: disc;
+              padding-left: 20px;
+              margin-bottom: 16px;
+            }
+            
+            .pondered-footer {
+              font-style: italic;
+              font-size: 14px;
+              margin-top: 16px;
+            }
+            
             .footer {
               margin-top: 48px;
               text-align: center;
@@ -254,6 +332,30 @@ const InlineTeachingContent = ({
           <h1>${title}</h1>
           
           <div class="summary">"${quickAnswer}"</div>
+          
+          ${hasPonderedQuestions ? `
+            <div class="pondered-section">
+              <h2 class="pondered-title">Have you ever pondered on these questions?</h2>
+              <p class="pondered-intro">Here are some questions that the teaching on "${title}" directly addresses:</p>
+              
+              ${ponderedQuestions.map(q => `
+                <div class="pondered-item">
+                  <p class="pondered-question-title">The Question of ${q.topic}: ${q.question}</p>
+                  <p class="pondered-common"><strong>Common Answer:</strong> "${q.commonAnswer}"</p>
+                  <p class="pondered-cbs"><strong>This Teaching's Clear Answer:</strong> ${q.cbsAnswer}</p>
+                </div>
+              `).join('')}
+              
+              <div class="pondered-summary">
+                <p class="pondered-summary-title">Summary:</p>
+                <p>This teaching provides clear, contextually-grounded answers to questions like:</p>
+                <ul class="pondered-summary-list">
+                  ${ponderedQuestions.map(q => `<li>${q.question}</li>`).join('')}
+                </ul>
+                <p class="pondered-footer">This system does not offer childish analogies or vague spiritualising. It provides answers rooted in the original languages, historical context, and the Bible's covenant framework, showing that these are not mysteries to be speculated about but truths to be understood from the text itself.</p>
+              </div>
+            </div>
+          ` : ''}
           
           <h2 class="section-title">Full Teaching</h2>
           ${parsedContent.map(item => {
@@ -355,11 +457,60 @@ const InlineTeachingContent = ({
           </p>
         </motion.section>
 
+        {/* Pondered Questions Section - Before Full Teaching */}
+        {hasPonderedQuestions && (
+          <motion.section
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.1 }}
+            className="mb-10"
+          >
+            <div className="flex items-center gap-2 mb-6 pb-3 border-b border-border">
+              <Lightbulb className="h-5 w-5 text-primary" />
+              <h3 className="font-heading font-bold text-xl text-primary">Have you ever pondered on these questions?</h3>
+            </div>
+            
+            <p className="text-base italic text-muted-foreground mb-6">
+              Here are some questions that the teaching on "{title}" directly addresses:
+            </p>
+            
+            <div className="space-y-8">
+              {ponderedQuestions.map((q, idx) => (
+                <div key={idx} className="space-y-3">
+                  <h4 className="font-heading font-bold text-lg text-foreground">
+                    The Question of {q.topic}: <span className="font-normal">{q.question}</span>
+                  </h4>
+                  <p className="text-foreground/80">
+                    <span className="font-bold">Common Answer:</span> "{q.commonAnswer}"
+                  </p>
+                  <p className="text-foreground/90">
+                    <span className="font-bold">This Teaching's Clear Answer:</span> {q.cbsAnswer}
+                  </p>
+                </div>
+              ))}
+            </div>
+            
+            {/* Summary Box */}
+            <div className="mt-8 bg-muted/50 rounded-xl p-6 border border-border">
+              <h4 className="font-heading font-bold text-lg mb-4">Summary:</h4>
+              <p className="mb-3 text-foreground/80">This teaching provides clear, contextually-grounded answers to questions like:</p>
+              <ul className="list-disc list-inside space-y-1 mb-4 text-foreground/80">
+                {ponderedQuestions.map((q, idx) => (
+                  <li key={idx}>{q.question}</li>
+                ))}
+              </ul>
+              <p className="text-sm italic text-muted-foreground">
+                This system does not offer childish analogies or vague spiritualising. It provides answers rooted in the original languages, historical context, and the Bible's covenant framework, showing that these are not mysteries to be speculated about but truths to be understood from the text itself.
+              </p>
+            </div>
+          </motion.section>
+        )}
+
         {/* Full teaching content */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.1 }}
+          transition={{ duration: 0.4, delay: hasPonderedQuestions ? 0.2 : 0.1 }}
           className="mb-10"
         >
           <div className="flex items-center gap-2 mb-6 pb-3 border-b border-border">

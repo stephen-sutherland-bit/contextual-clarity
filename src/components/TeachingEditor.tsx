@@ -15,6 +15,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { phases, type Phase } from "@/data/teachings";
 
+interface PonderedQuestion {
+  topic: string;
+  question: string;
+  commonAnswer: string;
+  cbsAnswer: string;
+}
+
 interface TeachingEditorProps {
   teaching: {
     id: string;
@@ -29,17 +36,19 @@ interface TeachingEditorProps {
     fullContent: string;
     phase: Phase;
   };
+  ponderedQuestions?: PonderedQuestion[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: () => void;
 }
 
-const TeachingEditor = ({ teaching, open, onOpenChange, onSave }: TeachingEditorProps) => {
+const TeachingEditor = ({ teaching, ponderedQuestions: initialPondered = [], open, onOpenChange, onSave }: TeachingEditorProps) => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isReprocessing, setIsReprocessing] = useState(false);
+  const [isGeneratingPondered, setIsGeneratingPondered] = useState(false);
   const [reprocessProgress, setReprocessProgress] = useState(0);
   
   // Form state
@@ -53,6 +62,7 @@ const TeachingEditor = ({ teaching, open, onOpenChange, onSave }: TeachingEditor
   const [quickAnswer, setQuickAnswer] = useState(teaching.quickAnswer);
   const [fullContent, setFullContent] = useState(teaching.fullContent);
   const [phase, setPhase] = useState<Phase>(teaching.phase);
+  const [ponderedQuestions, setPonderedQuestions] = useState<PonderedQuestion[]>(initialPondered);
   
   // New item inputs
   const [newTheme, setNewTheme] = useState("");
@@ -77,7 +87,8 @@ const TeachingEditor = ({ teaching, open, onOpenChange, onSave }: TeachingEditor
           quick_answer: quickAnswer,
           full_content: fullContent,
           phase,
-        })
+          pondered_questions: ponderedQuestions,
+        } as any)
         .eq("id", teaching.id);
 
       if (error) throw error;
@@ -225,6 +236,60 @@ const TeachingEditor = ({ teaching, open, onOpenChange, onSave }: TeachingEditor
     } finally {
       setIsReprocessing(false);
       setReprocessProgress(0);
+    }
+  };
+
+  const handleGeneratePondered = async () => {
+    setIsGeneratingPondered(true);
+    
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error("You must be logged in to generate questions");
+      }
+
+      toast({
+        title: "Generating questions",
+        description: "AI is analysing the teaching to find key questions it answers...",
+      });
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-pondered-questions`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ content: fullContent, title }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to generate questions");
+      }
+
+      const data = await response.json();
+      
+      if (data.questions && Array.isArray(data.questions)) {
+        setPonderedQuestions(data.questions);
+        toast({
+          title: "Questions generated",
+          description: `Found ${data.questions.length} key questions. Click 'Save Changes' to keep them.`,
+        });
+      } else {
+        throw new Error("No questions returned from AI");
+      }
+    } catch (error) {
+      console.error("Generate pondered questions error:", error);
+      toast({
+        title: "Generation failed",
+        description: error instanceof Error ? error.message : "Could not generate questions",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingPondered(false);
     }
   };
 
@@ -461,6 +526,88 @@ const TeachingEditor = ({ teaching, open, onOpenChange, onSave }: TeachingEditor
               setNewValue={setNewQuestion}
               placeholder="Add a question..."
             />
+
+            {/* Pondered Questions Section */}
+            <div className="pt-4 border-t space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-base">Have You Ever Pondered?</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Structured Q&A section showing common misconceptions vs CBS answers
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleGeneratePondered}
+                  disabled={isGeneratingPondered}
+                  className="gap-1.5"
+                >
+                  {isGeneratingPondered ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3.5 w-3.5" />
+                  )}
+                  {ponderedQuestions.length > 0 ? "Regenerate" : "Generate"} Questions
+                </Button>
+              </div>
+              
+              {ponderedQuestions.length > 0 && (
+                <div className="space-y-4 bg-muted/50 rounded-lg p-4">
+                  {ponderedQuestions.map((q, idx) => (
+                    <div key={idx} className="space-y-2 pb-4 border-b last:border-b-0 last:pb-0">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium text-sm">Question {idx + 1}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={() => setPonderedQuestions(prev => prev.filter((_, i) => i !== idx))}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      <Input
+                        value={q.topic}
+                        onChange={(e) => setPonderedQuestions(prev => 
+                          prev.map((item, i) => i === idx ? { ...item, topic: e.target.value } : item)
+                        )}
+                        placeholder="Topic (e.g., 'The Angel of the Lord')"
+                        className="text-sm"
+                      />
+                      <Input
+                        value={q.question}
+                        onChange={(e) => setPonderedQuestions(prev => 
+                          prev.map((item, i) => i === idx ? { ...item, question: e.target.value } : item)
+                        )}
+                        placeholder="Question"
+                        className="text-sm"
+                      />
+                      <Textarea
+                        value={q.commonAnswer}
+                        onChange={(e) => setPonderedQuestions(prev => 
+                          prev.map((item, i) => i === idx ? { ...item, commonAnswer: e.target.value } : item)
+                        )}
+                        placeholder="Common (wrong) answer..."
+                        rows={2}
+                        className="text-sm"
+                      />
+                      <Textarea
+                        value={q.cbsAnswer}
+                        onChange={(e) => setPonderedQuestions(prev => 
+                          prev.map((item, i) => i === idx ? { ...item, cbsAnswer: e.target.value } : item)
+                        )}
+                        placeholder="This Teaching's Clear Answer..."
+                        rows={3}
+                        className="text-sm"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
             {/* Delete Section */}
             <div className="pt-4 border-t border-destructive/20">

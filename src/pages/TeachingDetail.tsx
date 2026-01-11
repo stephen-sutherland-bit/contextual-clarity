@@ -35,6 +35,7 @@ const TeachingDetail = () => {
   const [teaching, setTeaching] = useState<Teaching | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [coverImage, setCoverImage] = useState<string | undefined>();
+  const [ponderedQuestions, setPonderedQuestions] = useState<any[]>([]);
   const [isGeneratingCover, setIsGeneratingCover] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
 
@@ -85,6 +86,7 @@ const TeachingDetail = () => {
           phase: (data.phase as Phase) || "foundations",
         });
         setCoverImage((data as any).cover_image || undefined);
+        setPonderedQuestions((data as any).pondered_questions || []);
       }
       setIsLoading(false);
     };
@@ -504,6 +506,7 @@ const TeachingDetail = () => {
           questionsAnswered={teaching.questionsAnswered}
           quickAnswer={teaching.quickAnswer}
           coverImage={coverImage}
+          ponderedQuestions={ponderedQuestions}
           onClose={() => setShowBookPreview(false)}
         />
       )}
@@ -512,6 +515,7 @@ const TeachingDetail = () => {
       {teaching && (
         <TeachingEditor
           teaching={teaching}
+          ponderedQuestions={ponderedQuestions}
           open={showEditor}
           onOpenChange={setShowEditor}
           onSave={() => {
