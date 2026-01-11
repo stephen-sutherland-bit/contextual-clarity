@@ -87,17 +87,17 @@ const InlineTeachingContent = ({
         </div>
       </div>
 
-      {/* Cover image hero */}
+      {/* Cover image hero - consistent aspect ratio across all devices */}
       {coverImage && (
-        <div className="relative h-64 md:h-80 bg-gradient-accent overflow-hidden">
+        <div className="relative aspect-[16/9] max-h-[400px] bg-gradient-accent overflow-hidden">
           <img
             src={coverImage}
             alt="Teaching cover illustration"
-            className="w-full h-full object-cover opacity-50"
+            className="w-full h-full object-cover opacity-60"
             loading="lazy"
             decoding="async"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
           <div className="absolute bottom-6 left-0 right-0">
             <div className="container max-w-4xl mx-auto px-6">
               <p className="text-sm text-muted-foreground mb-2 uppercase tracking-wider">
