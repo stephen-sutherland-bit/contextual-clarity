@@ -466,12 +466,58 @@ const InlineTeachingContent = ({
           </p>
         </motion.section>
 
-        {/* Pondered Questions Section - Before Full Teaching */}
+        {/* Full teaching content */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
+          className="mb-10"
+        >
+          <div className="flex items-center gap-2 mb-6 pb-3 border-b border-border">
+            <BookOpen className="h-5 w-5 text-primary" />
+            <h3 className="font-heading font-semibold text-xl text-primary">Full Teaching</h3>
+          </div>
+          
+          <div className="prose-teaching">
+            {parsedContent.map((item) => {
+              if (item.type === "heading") {
+                return (
+                  <h4
+                    key={item.key}
+                    className="font-heading text-xl font-bold text-foreground mt-8 mb-4 first:mt-0"
+                  >
+                    {item.content}
+                  </h4>
+                );
+              }
+              if (item.type === "subheading") {
+                return (
+                  <h5
+                    key={item.key}
+                    className="font-heading text-lg font-semibold text-foreground/90 mt-6 mb-3"
+                  >
+                    {item.content}
+                  </h5>
+                );
+              }
+              return (
+                <p
+                  key={item.key}
+                  className="text-base md:text-[17px] leading-[1.75] text-foreground/90 mb-5 text-justify"
+                >
+                  {item.content}
+                </p>
+              );
+            })}
+          </div>
+        </motion.section>
+
+        {/* Pondered Questions Section - After Full Teaching */}
         {hasPonderedQuestions && (
           <motion.section
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.1 }}
+            transition={{ duration: 0.4, delay: 0.2 }}
             className="mb-10"
           >
             <div className="flex items-center gap-2 mb-6 pb-3 border-b border-border">
@@ -514,52 +560,6 @@ const InlineTeachingContent = ({
             </div>
           </motion.section>
         )}
-
-        {/* Full teaching content */}
-        <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: hasPonderedQuestions ? 0.2 : 0.1 }}
-          className="mb-10"
-        >
-          <div className="flex items-center gap-2 mb-6 pb-3 border-b border-border">
-            <BookOpen className="h-5 w-5 text-primary" />
-            <h3 className="font-heading font-semibold text-xl text-primary">Full Teaching</h3>
-          </div>
-          
-          <div className="prose-teaching">
-            {parsedContent.map((item) => {
-              if (item.type === "heading") {
-                return (
-                  <h4
-                    key={item.key}
-                    className="font-heading text-xl font-bold text-foreground mt-8 mb-4 first:mt-0"
-                  >
-                    {item.content}
-                  </h4>
-                );
-              }
-              if (item.type === "subheading") {
-                return (
-                  <h5
-                    key={item.key}
-                    className="font-heading text-lg font-semibold text-foreground/90 mt-6 mb-3"
-                  >
-                    {item.content}
-                  </h5>
-                );
-              }
-              return (
-                <p
-                  key={item.key}
-                  className="text-base md:text-[17px] leading-[1.75] text-foreground/90 mb-5 text-justify"
-                >
-                  {item.content}
-                </p>
-              );
-            })}
-          </div>
-        </motion.section>
 
         {/* Scripture References */}
         {scriptures.length > 0 && (
