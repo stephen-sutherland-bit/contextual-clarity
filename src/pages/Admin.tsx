@@ -11,7 +11,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   Loader2, FileUp, Check, AlertCircle, RefreshCw, Download, Copy, X, 
-  Mic, FileText, Image, Play, Square, ShieldX
+  Mic, FileText, Image, Play, Square, ShieldX, Lightbulb
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -68,6 +68,14 @@ const Admin = () => {
   const [isScanningCovers, setIsScanningCovers] = useState(false);
   const [isGeneratingCovers, setIsGeneratingCovers] = useState(false);
   const [coverProgress, setCoverProgress] = useState({ current: 0, total: 0 });
+
+  // ============== BATCH PONDERED QUESTIONS STATE ==============
+  const [teachingsWithoutPondered, setTeachingsWithoutPondered] = useState<Array<{ id: string; title: string }>>([]);
+  const [isScanningPondered, setIsScanningPondered] = useState(false);
+  const [isGeneratingPondered, setIsGeneratingPondered] = useState(false);
+  const [ponderedProgress, setPonderedProgress] = useState({ current: 0, total: 0, currentTitle: "" });
+  const [ponderedResults, setPonderedResults] = useState<Array<{ title: string; status: "success" | "failed"; error?: string }>>([]);
+  const stopPonderedRef = useRef(false);
 
   // ============== PDF IMPORT LOGIC ==============
   
@@ -813,6 +821,154 @@ const Admin = () => {
     });
   };
 
+  // ============== BATCH PONDERED QUESTIONS LOGIC ==============
+
+  const scanForMissingPondered = async () => {
+    setIsScanningPondered(true);
+    try {
+      // Fetch all teachings and filter those without pondered_questions
+      const { data, error } = await supabase
+        .from("teachings")
+        .select("id, title, pondered_questions")
+        .order("title");
+      
+      if (error) throw error;
+      
+      // Filter teachings where pondered_questions is null, empty array, or doesn't exist
+      const missing = (data || []).filter(t => {
+        const pq = (t as any).pondered_questions;
+        return !pq || (Array.isArray(pq) && pq.length === 0);
+      });
+      
+      setTeachingsWithoutPondered(missing.map(t => ({ id: t.id, title: t.title })));
+      setPonderedResults([]);
+      
+      if (missing.length === 0) {
+        toast({ title: "All teachings have pondered questions!" });
+      } else {
+        toast({ title: `Found ${missing.length} teachings without pondered questions` });
+      }
+    } catch (err) {
+      console.error("Scan error:", err);
+      toast({ title: "Scan failed", variant: "destructive" });
+    } finally {
+      setIsScanningPondered(false);
+    }
+  };
+
+  const generateAllPondered = async () => {
+    if (teachingsWithoutPondered.length === 0) return;
+    
+    stopPonderedRef.current = false;
+    setIsGeneratingPondered(true);
+    setPonderedProgress({ current: 0, total: teachingsWithoutPondered.length, currentTitle: "" });
+    setPonderedResults([]);
+    
+    const results: Array<{ title: string; status: "success" | "failed"; error?: string }> = [];
+    
+    // Get session once at the start
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      toast({ title: "Not authenticated", variant: "destructive" });
+      setIsGeneratingPondered(false);
+      return;
+    }
+    
+    for (let i = 0; i < teachingsWithoutPondered.length; i++) {
+      // Check if user requested stop
+      if (stopPonderedRef.current) {
+        toast({ title: "Generation stopped", description: `Completed ${i} of ${teachingsWithoutPondered.length}` });
+        break;
+      }
+      
+      const teaching = teachingsWithoutPondered[i];
+      setPonderedProgress({ current: i + 1, total: teachingsWithoutPondered.length, currentTitle: teaching.title });
+      
+      try {
+        // Fetch full content for this teaching
+        const { data: fullTeaching, error: fetchError } = await supabase
+          .from("teachings")
+          .select("full_content")
+          .eq("id", teaching.id)
+          .single();
+        
+        if (fetchError || !fullTeaching?.full_content) {
+          throw new Error("Could not fetch teaching content");
+        }
+        
+        // Call the edge function
+        const response = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-pondered-questions`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({ content: fullTeaching.full_content, title: teaching.title }),
+          }
+        );
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || `HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.questions && Array.isArray(data.questions) && data.questions.length > 0) {
+          // Save to database
+          const { error: updateError } = await supabase
+            .from("teachings")
+            .update({ pondered_questions: data.questions } as any)
+            .eq("id", teaching.id);
+          
+          if (updateError) throw updateError;
+          
+          results.push({ title: teaching.title, status: "success" });
+        } else {
+          throw new Error("No questions generated");
+        }
+      } catch (err) {
+        console.error(`Failed for ${teaching.title}:`, err);
+        results.push({ 
+          title: teaching.title, 
+          status: "failed", 
+          error: err instanceof Error ? err.message : "Unknown error" 
+        });
+      }
+      
+      setPonderedResults([...results]);
+      
+      // Delay between requests to avoid rate limits
+      if (i < teachingsWithoutPondered.length - 1 && !stopPonderedRef.current) {
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      }
+    }
+    
+    setIsGeneratingPondered(false);
+    
+    const successCount = results.filter(r => r.status === "success").length;
+    const failCount = results.filter(r => r.status === "failed").length;
+    
+    toast({
+      title: "Generation complete",
+      description: `${successCount} succeeded, ${failCount} failed`,
+    });
+    
+    // Refresh the list
+    if (successCount > 0) {
+      setTeachingsWithoutPondered(prev => 
+        prev.filter(t => !results.find(r => r.title === t.title && r.status === "success"))
+      );
+    }
+  };
+
+  const stopPonderedGeneration = () => {
+    stopPonderedRef.current = true;
+    toast({ title: "Stopping...", description: "Will stop after current teaching completes" });
+  };
+
   // Computed values for PDF import
   const newFilesCount = pdfQueue.filter(f => !alreadyImported.has(f.name)).length;
   const alreadyImportedCount = pdfQueue.filter(f => alreadyImported.has(f.name)).length;
@@ -890,18 +1046,26 @@ const Admin = () => {
 
           {/* Main Tabs */}
           <Tabs defaultValue="pdf" className="mb-8">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="pdf" className="flex items-center gap-2">
                 <FileUp className="h-4 w-4" />
-                PDF Import
+                <span className="hidden sm:inline">PDF Import</span>
+                <span className="sm:hidden">PDF</span>
               </TabsTrigger>
               <TabsTrigger value="audio" className="flex items-center gap-2">
                 <Mic className="h-4 w-4" />
-                Audio Import
+                <span className="hidden sm:inline">Audio Import</span>
+                <span className="sm:hidden">Audio</span>
               </TabsTrigger>
               <TabsTrigger value="covers" className="flex items-center gap-2">
                 <Image className="h-4 w-4" />
-                Cover Art
+                <span className="hidden sm:inline">Cover Art</span>
+                <span className="sm:hidden">Covers</span>
+              </TabsTrigger>
+              <TabsTrigger value="pondered" className="flex items-center gap-2">
+                <Lightbulb className="h-4 w-4" />
+                <span className="hidden sm:inline">Pondered Q's</span>
+                <span className="sm:hidden">Q's</span>
               </TabsTrigger>
             </TabsList>
 
@@ -1328,6 +1492,133 @@ const Admin = () => {
                         <Progress value={(coverProgress.current / coverProgress.total) * 100} />
                       )}
                     </>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Batch Pondered Questions Tab */}
+            <TabsContent value="pondered" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Lightbulb className="h-5 w-5" />
+                    Batch "Have You Pondered?" Generation
+                  </CardTitle>
+                  <CardDescription>
+                    Generate structured Q&A sections for teachings showing common misconceptions vs CBS answers
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Button 
+                    onClick={scanForMissingPondered}
+                    disabled={isScanningPondered || isGeneratingPondered}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    {isScanningPondered ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Scanning...
+                      </>
+                    ) : (
+                      "Scan for Missing Pondered Questions"
+                    )}
+                  </Button>
+
+                  {teachingsWithoutPondered.length > 0 && !isGeneratingPondered && ponderedResults.length === 0 && (
+                    <>
+                      <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4">
+                        <p className="font-medium text-amber-700 dark:text-amber-400">
+                          {teachingsWithoutPondered.length} teachings without pondered questions
+                        </p>
+                      </div>
+                      
+                      <ScrollArea className="h-40 border rounded-lg">
+                        <div className="p-2 space-y-1">
+                          {teachingsWithoutPondered.map((t) => (
+                            <p key={t.id} className="text-xs text-muted-foreground truncate">
+                              {t.title}
+                            </p>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                      
+                      <Button 
+                        onClick={generateAllPondered}
+                        className="w-full"
+                      >
+                        Generate All {teachingsWithoutPondered.length} Pondered Questions
+                      </Button>
+                    </>
+                  )}
+
+                  {isGeneratingPondered && (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">
+                          Processing {ponderedProgress.current} of {ponderedProgress.total}
+                        </span>
+                        <Button 
+                          onClick={stopPonderedGeneration}
+                          variant="destructive"
+                          size="sm"
+                        >
+                          <Square className="h-4 w-4 mr-2" />
+                          Stop
+                        </Button>
+                      </div>
+                      
+                      <Progress value={(ponderedProgress.current / ponderedProgress.total) * 100} />
+                      
+                      <p className="text-sm text-muted-foreground truncate">
+                        {ponderedProgress.currentTitle}
+                      </p>
+                    </div>
+                  )}
+
+                  {ponderedResults.length > 0 && (
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-medium">Results</h4>
+                      <ScrollArea className="h-60 border rounded-lg">
+                        <div className="p-2 space-y-2">
+                          {ponderedResults.map((r, idx) => (
+                            <div 
+                              key={idx} 
+                              className={`rounded p-2 text-sm ${
+                                r.status === "success" ? "bg-green-500/10" : "bg-destructive/10"
+                              }`}
+                            >
+                              <div className="flex items-center gap-2">
+                                {r.status === "success" ? (
+                                  <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
+                                ) : (
+                                  <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0" />
+                                )}
+                                <span className="truncate flex-1 font-medium">{r.title}</span>
+                              </div>
+                              {r.error && (
+                                <p className="text-xs text-destructive mt-1 pl-6">{r.error}</p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                      
+                      {!isGeneratingPondered && (
+                        <Button 
+                          onClick={() => {
+                            setPonderedResults([]);
+                            scanForMissingPondered();
+                          }}
+                          variant="outline"
+                          className="w-full"
+                        >
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                          Scan Again
+                        </Button>
+                      )}
+                    </div>
                   )}
                 </CardContent>
               </Card>
