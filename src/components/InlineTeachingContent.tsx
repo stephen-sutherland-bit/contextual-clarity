@@ -66,7 +66,162 @@ const InlineTeachingContent = ({
   const parsedContent = useMemo(() => parseContentWithHeadings(content), [content]);
 
   const handlePrint = () => {
-    window.print();
+    // Create a new window with just the teaching content for printing
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>${title}</title>
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Source+Sans+3:wght@400;500;600&display=swap');
+            
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            
+            body {
+              font-family: 'Source Sans 3', sans-serif;
+              line-height: 1.7;
+              color: #1a1a1a;
+              padding: 40px;
+              max-width: 800px;
+              margin: 0 auto;
+            }
+            
+            h1 {
+              font-family: 'Playfair Display', serif;
+              font-size: 28px;
+              font-weight: 700;
+              margin-bottom: 8px;
+              color: #1a1a1a;
+            }
+            
+            .theme {
+              font-size: 14px;
+              text-transform: uppercase;
+              letter-spacing: 1px;
+              color: #666;
+              margin-bottom: 24px;
+            }
+            
+            .summary {
+              background: #f5f5f5;
+              padding: 20px;
+              border-radius: 8px;
+              margin-bottom: 32px;
+              font-style: italic;
+              font-size: 18px;
+            }
+            
+            .section-title {
+              font-family: 'Playfair Display', serif;
+              font-size: 20px;
+              font-weight: 600;
+              margin-top: 32px;
+              margin-bottom: 16px;
+              padding-bottom: 8px;
+              border-bottom: 1px solid #ddd;
+            }
+            
+            .heading {
+              font-family: 'Playfair Display', serif;
+              font-size: 18px;
+              font-weight: 600;
+              margin-top: 24px;
+              margin-bottom: 12px;
+            }
+            
+            p {
+              margin-bottom: 16px;
+              font-size: 16px;
+            }
+            
+            .scriptures {
+              display: flex;
+              flex-wrap: wrap;
+              gap: 8px;
+              margin-top: 16px;
+            }
+            
+            .scripture {
+              background: #e8f4e8;
+              color: #2d5a2d;
+              padding: 4px 12px;
+              border-radius: 4px;
+              font-size: 14px;
+            }
+            
+            .questions {
+              list-style: none;
+              margin-top: 16px;
+            }
+            
+            .questions li {
+              padding-left: 16px;
+              border-left: 2px solid #ddd;
+              margin-bottom: 12px;
+              font-size: 15px;
+            }
+            
+            .footer {
+              margin-top: 48px;
+              text-align: center;
+              font-size: 12px;
+              color: #888;
+              border-top: 1px solid #ddd;
+              padding-top: 24px;
+            }
+            
+            @media print {
+              body { padding: 20px; }
+            }
+          </style>
+        </head>
+        <body>
+          <p class="theme">${primaryTheme}</p>
+          <h1>${title}</h1>
+          
+          <div class="summary">"${quickAnswer}"</div>
+          
+          <h2 class="section-title">Full Teaching</h2>
+          ${parsedContent.map(item => 
+            item.type === 'heading' 
+              ? `<h3 class="heading">${item.content}</h3>`
+              : `<p>${item.content}</p>`
+          ).join('')}
+          
+          ${scriptures.length > 0 ? `
+            <h2 class="section-title">Scripture References</h2>
+            <div class="scriptures">
+              ${scriptures.map(s => `<span class="scripture">${s}</span>`).join('')}
+            </div>
+          ` : ''}
+          
+          ${questionsAnswered.length > 0 ? `
+            <h2 class="section-title">Questions This Teaching Answers</h2>
+            <ul class="questions">
+              ${questionsAnswered.map(q => `<li>${q}</li>`).join('')}
+            </ul>
+          ` : ''}
+          
+          <div class="footer">
+            <p>The Berean Press</p>
+            <p>Teachings derived from The Christian Theologist</p>
+          </div>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    printWindow.focus();
+    
+    // Wait for fonts to load before printing
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 500);
   };
 
   return (
