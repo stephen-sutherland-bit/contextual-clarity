@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Card, CardContent } from "@/components/ui/card";
@@ -214,19 +215,19 @@ const Methodology = () => {
                   to find specific topics that interest you.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <a 
-                    href="/teachings?phase=foundations"
+                  <Link 
+                    to="/teachings?phase=foundations"
                     className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-accent text-primary-foreground rounded-lg font-medium shadow-card hover:shadow-elevated transition-shadow"
                   >
                     <CheckCircle className="h-5 w-5" />
                     Start with Foundations
-                  </a>
-                  <a 
-                    href="/teachings"
+                  </Link>
+                  <Link 
+                    to="/teachings"
                     className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-secondary text-foreground rounded-lg font-medium border border-border/50 hover:bg-secondary/80 transition-colors"
                   >
                     Browse All Teachings
-                  </a>
+                  </Link>
                 </div>
               </motion.div>
             </div>
