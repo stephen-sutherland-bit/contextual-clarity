@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { motion } from "framer-motion";
 import { X, BookOpen, HelpCircle, Download, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -144,10 +144,16 @@ const InlineTeachingContent = ({
 }: InlineTeachingContentProps) => {
   const parsedContent = useMemo(() => parseContentWithHeadings(content), [content]);
   const hasPonderedQuestions = ponderedQuestions && ponderedQuestions.length > 0;
+  const contentRef = useRef<HTMLDivElement>(null);
+
   const handlePrint = () => {
-    // Create a new window with just the teaching content for printing
+    if (!contentRef.current) return;
+    
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
+
+    // Clone the rendered DOM content
+    const contentHtml = contentRef.current.innerHTML;
 
     const printContent = `
       <!DOCTYPE html>
@@ -168,42 +174,45 @@ const InlineTeachingContent = ({
               margin: 0 auto;
             }
             
-            h1 {
-              font-family: 'Playfair Display', serif;
-              font-size: 28px;
-              font-weight: 700;
-              margin-bottom: 8px;
-              color: #1a1a1a;
+            /* Hide motion wrappers but keep content */
+            [style*="opacity"], [style*="transform"] {
+              opacity: 1 !important;
+              transform: none !important;
             }
             
-            .theme {
-              font-size: 14px;
-              text-transform: uppercase;
-              letter-spacing: 1px;
-              color: #666;
-              margin-bottom: 24px;
+            /* Section styling */
+            section, .mb-10 {
+              margin-bottom: 32px;
             }
             
-            .summary {
-              background: #f5f5f5;
+            /* Summary box */
+            .bg-primary\\/5, [class*="bg-primary"] {
+              background: #f5f5f5 !important;
               padding: 20px;
               border-radius: 8px;
               margin-bottom: 32px;
-              font-style: italic;
-              font-size: 18px;
+              border: 1px solid #e0e0e0;
             }
             
-            .section-title {
+            /* Section headers */
+            .font-heading {
               font-family: 'Playfair Display', serif;
+            }
+            
+            h1, h2, h3 {
+              font-family: 'Playfair Display', serif;
+              margin-bottom: 16px;
+            }
+            
+            h3 {
               font-size: 20px;
               font-weight: 600;
-              margin-top: 32px;
-              margin-bottom: 16px;
               padding-bottom: 8px;
               border-bottom: 1px solid #ddd;
+              margin-bottom: 16px;
             }
             
-            .heading {
+            h4 {
               font-family: 'Playfair Display', serif;
               font-size: 18px;
               font-weight: 700;
@@ -211,7 +220,7 @@ const InlineTeachingContent = ({
               margin-bottom: 12px;
             }
             
-            .subheading {
+            h5 {
               font-family: 'Playfair Display', serif;
               font-size: 16px;
               font-weight: 600;
@@ -226,109 +235,92 @@ const InlineTeachingContent = ({
               line-height: 1.75;
             }
             
-            .scriptures {
+            /* Italic summary text */
+            .italic {
+              font-style: italic;
+            }
+            
+            /* Scripture references */
+            .flex-wrap {
               display: flex;
               flex-wrap: wrap;
               gap: 8px;
-              margin-top: 16px;
             }
             
-            .scripture {
-              background: #e8f4e8;
-              color: #2d5a2d;
+            .bg-scripture-bg, [class*="scripture"] {
+              background: #e8f4e8 !important;
+              color: #2d5a2d !important;
               padding: 4px 12px;
               border-radius: 4px;
               font-size: 14px;
+              display: inline-block;
+              margin: 4px;
             }
             
-            .questions {
+            /* Questions list */
+            ul {
               list-style: none;
-              margin-top: 16px;
+              padding: 0;
             }
             
-            .questions li {
+            ul.space-y-3 li, .border-l-2 {
               padding-left: 16px;
               border-left: 2px solid #ddd;
               margin-bottom: 12px;
               font-size: 15px;
             }
             
-            .pondered-section {
-              margin-top: 40px;
-              margin-bottom: 32px;
-            }
-            
-            .pondered-title {
-              font-family: 'Playfair Display', serif;
-              font-size: 22px;
-              font-weight: 700;
-              margin-bottom: 16px;
-            }
-            
-            .pondered-intro {
-              font-style: italic;
-              margin-bottom: 24px;
-            }
-            
-            .pondered-item {
+            /* Pondered questions */
+            .space-y-8 > div {
               margin-bottom: 28px;
             }
             
-            .pondered-question-title {
-              font-family: 'Playfair Display', serif;
-              font-size: 16px;
-              font-weight: 700;
-              margin-bottom: 8px;
-            }
-            
-            .pondered-common {
-              margin-bottom: 12px;
-            }
-            
-            .pondered-common strong {
-              font-weight: 600;
-            }
-            
-            .pondered-cbs {
-              margin-bottom: 12px;
-            }
-            
-            .pondered-cbs strong {
-              font-weight: 600;
-            }
-            
-            .pondered-summary {
-              background: #f9f9f9;
+            /* Summary box in pondered section */
+            .bg-muted\\/50, [class*="bg-muted"] {
+              background: #f9f9f9 !important;
               padding: 20px;
               border-radius: 8px;
               margin-top: 24px;
+              border: 1px solid #e0e0e0;
             }
             
-            .pondered-summary-title {
-              font-family: 'Playfair Display', serif;
-              font-weight: 700;
-              margin-bottom: 12px;
-            }
-            
-            .pondered-summary-list {
+            .list-disc {
               list-style: disc;
               padding-left: 20px;
-              margin-bottom: 16px;
             }
             
-            .pondered-footer {
-              font-style: italic;
-              font-size: 14px;
-              margin-top: 16px;
+            .list-disc li {
+              border-left: none;
+              padding-left: 0;
+              margin-bottom: 8px;
             }
             
-            .footer {
-              margin-top: 48px;
-              text-align: center;
-              font-size: 12px;
-              color: #888;
-              border-top: 1px solid #ddd;
-              padding-top: 24px;
+            /* Hide icons and buttons */
+            svg, button, .lucide {
+              display: none !important;
+            }
+            
+            /* Border styling */
+            .border-b, .border-border {
+              border-bottom: 1px solid #ddd;
+            }
+            
+            /* Hide flex icon containers */
+            .flex.items-center.gap-2 {
+              display: block;
+            }
+            
+            /* Text colors for print */
+            .text-foreground, .text-foreground\\/90, .text-foreground\\/80 {
+              color: #1a1a1a !important;
+            }
+            
+            .text-muted-foreground {
+              color: #666 !important;
+            }
+            
+            .text-primary {
+              color: #2d5a2d !important;
             }
             
             @media print {
@@ -337,57 +329,14 @@ const InlineTeachingContent = ({
           </style>
         </head>
         <body>
-          <p class="theme">${primaryTheme}</p>
-          <h1>${title}</h1>
+          <div style="margin-bottom: 24px;">
+            <p style="font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #666; margin-bottom: 8px;">${primaryTheme}</p>
+            <h1 style="font-size: 28px; font-weight: 700; margin-bottom: 0;">${title}</h1>
+          </div>
           
-          <div class="summary">"${quickAnswer}"</div>
+          ${contentHtml}
           
-          ${hasPonderedQuestions ? `
-            <div class="pondered-section">
-              <h2 class="pondered-title">Have you ever pondered on these questions?</h2>
-              <p class="pondered-intro">Here are some questions that the teaching on "${title}" directly addresses:</p>
-              
-              ${ponderedQuestions.map(q => `
-                <div class="pondered-item">
-                  <p class="pondered-question-title">The Question of ${q.topic}: ${q.question}</p>
-                  <p class="pondered-common"><strong>Common Answer:</strong> "${q.commonAnswer}"</p>
-                  <p class="pondered-cbs"><strong>This Teaching's Clear Answer:</strong> ${q.cbsAnswer}</p>
-                </div>
-              `).join('')}
-              
-              <div class="pondered-summary">
-                <p class="pondered-summary-title">Summary:</p>
-                <p>This teaching provides clear, contextually-grounded answers to questions like:</p>
-                <ul class="pondered-summary-list">
-                  ${ponderedQuestions.map(q => `<li>${q.question}</li>`).join('')}
-                </ul>
-                <p class="pondered-footer">This system does not offer childish analogies or vague spiritualising. It provides answers rooted in the original languages, historical context, and the Bible's covenant framework, showing that these are not mysteries to be speculated about but truths to be understood from the text itself.</p>
-              </div>
-            </div>
-          ` : ''}
-          
-          <h2 class="section-title">Full Teaching</h2>
-          ${parsedContent.map(item => {
-            if (item.type === 'heading') return `<h3 class="heading">${item.content}</h3>`;
-            if (item.type === 'subheading') return `<h4 class="subheading">${item.content}</h4>`;
-            return `<p>${item.content}</p>`;
-          }).join('')}
-          
-          ${scriptures.length > 0 ? `
-            <h2 class="section-title">Scripture References</h2>
-            <div class="scriptures">
-              ${scriptures.map(s => `<span class="scripture">${s}</span>`).join('')}
-            </div>
-          ` : ''}
-          
-          ${questionsAnswered.length > 0 ? `
-            <h2 class="section-title">Questions This Teaching Answers</h2>
-            <ul class="questions">
-              ${questionsAnswered.map(q => `<li>${q}</li>`).join('')}
-            </ul>
-          ` : ''}
-          
-          <div class="footer">
+          <div style="margin-top: 48px; text-align: center; font-size: 12px; color: #888; border-top: 1px solid #ddd; padding-top: 24px;">
             <p>The Berean Press</p>
             <p>Teachings derived from The Christian Theologist</p>
           </div>
@@ -448,8 +397,8 @@ const InlineTeachingContent = ({
         </div>
       )}
 
-      {/* Main content */}
-      <div className="container max-w-4xl mx-auto px-6 py-8 md:py-12">
+      {/* Main content - this ref is used for print/PDF */}
+      <div ref={contentRef} className="container max-w-4xl mx-auto px-6 py-8 md:py-12">
         {/* Summary box */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}
