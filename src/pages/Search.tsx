@@ -16,33 +16,50 @@ const Search = () => {
   const [teachings, setTeachings] = useState<Teaching[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
   useEffect(() => {
     const fetchTeachings = async () => {
       setIsLoading(true);
-      const { data, error } = await supabase
-        .from("teachings")
-        .select("*")
-        .order("reading_order", { ascending: true });
+      setFetchError(null);
+      
+      try {
+        const { data, error } = await supabase
+          .from("teachings")
+          .select("*")
+          .order("reading_order", { ascending: true });
 
-      if (error) {
-        console.error("Error fetching teachings:", error);
-      } else if (data) {
-        const mapped: Teaching[] = data.map((t) => ({
-          id: t.id,
-          title: t.title,
-          date: t.date,
-          primaryTheme: t.primary_theme,
-          secondaryThemes: t.secondary_themes || [],
-          scriptures: t.scriptures || [],
-          doctrines: t.doctrines || [],
-          keywords: t.keywords || [],
-          questionsAnswered: t.questions_answered || [],
-          quickAnswer: t.quick_answer || "",
-          fullContent: t.full_content,
-          readingOrder: t.reading_order || undefined,
-          phase: (t.phase as Phase) || "foundations",
-        }));
-        setTeachings(mapped);
+        if (error) {
+          console.error("Error fetching teachings:", error);
+          setFetchError(error.message);
+        } else if (data) {
+          console.log(`[Search] Loaded ${data.length} teachings`);
+          // Debug: Log a sample of scriptures to verify data shape
+          const sampleWithScriptures = data.find(t => t.scriptures && t.scriptures.length > 0);
+          if (sampleWithScriptures) {
+            console.log(`[Search] Sample scriptures:`, sampleWithScriptures.scriptures);
+          }
+          
+          const mapped: Teaching[] = data.map((t) => ({
+            id: t.id,
+            title: t.title,
+            date: t.date,
+            primaryTheme: t.primary_theme,
+            secondaryThemes: t.secondary_themes || [],
+            scriptures: t.scriptures || [],
+            doctrines: t.doctrines || [],
+            keywords: t.keywords || [],
+            questionsAnswered: t.questions_answered || [],
+            quickAnswer: t.quick_answer || "",
+            fullContent: t.full_content,
+            readingOrder: t.reading_order || undefined,
+            phase: (t.phase as Phase) || "foundations",
+          }));
+          setTeachings(mapped);
+        }
+      } catch (err) {
+        console.error("Unexpected error fetching teachings:", err);
+        setFetchError(err instanceof Error ? err.message : "Unknown error");
       }
       setIsLoading(false);
     };
@@ -155,6 +172,16 @@ const Search = () => {
                 <p className="mt-3 text-sm text-muted-foreground">
                   Try: "covenant", "Matthew 24", "trinity", "AD 70", "elect"
                 </p>
+                {!isLoading && teachings.length > 0 && (
+                  <p className="mt-2 text-xs text-muted-foreground/70">
+                    Searching across {teachings.length} teachings
+                  </p>
+                )}
+                {fetchError && (
+                  <p className="mt-2 text-xs text-destructive">
+                    Error loading teachings: {fetchError}
+                  </p>
+                )}
               </motion.div>
             </div>
           </section>
