@@ -2,7 +2,7 @@ import { useParams, Link, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import BookPreview from "@/components/BookPreview";
+import InlineTeachingContent from "@/components/InlineTeachingContent";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -494,9 +494,9 @@ const TeachingDetail = () => {
         <Footer />
       </div>
 
-      {/* Book Preview Modal */}
+      {/* Inline Teaching Reader */}
       {showBookPreview && (
-        <BookPreview
+        <InlineTeachingContent
           title={teaching.title}
           primaryTheme={teaching.primaryTheme}
           content={strippedContent}
@@ -505,7 +505,6 @@ const TeachingDetail = () => {
           quickAnswer={teaching.quickAnswer}
           coverImage={coverImage}
           onClose={() => setShowBookPreview(false)}
-          onGenerateCover={isAdmin ? handleGenerateCover : undefined}
         />
       )}
 
