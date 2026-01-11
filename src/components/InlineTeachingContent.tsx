@@ -14,20 +14,46 @@ interface InlineTeachingContentProps {
   onClose: () => void;
 }
 
-// Parse content to detect and render headings properly
+// Parse content to detect and render headings properly, preserving original doc structure
 const parseContentWithHeadings = (content: string) => {
-  const paragraphs = content.split("\n\n").filter(p => p.trim());
+  // Split by double newlines first, but also handle single newlines for tighter spacing
+  const blocks = content.split(/\n\n+/).filter(p => p.trim());
   
-  return paragraphs.map((para, index) => {
-    const trimmed = para.trim();
+  const results: Array<{type: 'heading' | 'subheading' | 'paragraph', content: string, key: number}> = [];
+  
+  blocks.forEach((block, index) => {
+    const trimmed = block.trim();
     
     // Check for markdown-style headings (## Heading)
     if (trimmed.startsWith("## ")) {
-      return {
-        type: "heading" as const,
+      results.push({
+        type: "heading",
         content: trimmed.slice(3),
-        key: index,
-      };
+        key: index * 100,
+      });
+      return;
+    }
+    
+    // Check for markdown bold headings (**Heading**)
+    const boldMatch = trimmed.match(/^\*\*(.+?)\*\*$/);
+    if (boldMatch && boldMatch[1].length < 100) {
+      results.push({
+        type: "heading",
+        content: boldMatch[1],
+        key: index * 100,
+      });
+      return;
+    }
+    
+    // Check for numbered headings like "1. Title" or "I. Title" at start of line
+    const numberedMatch = trimmed.match(/^([0-9]+\.|[IVXLC]+\.)\s+(.+)$/);
+    if (numberedMatch && trimmed.length < 120 && !trimmed.includes('\n')) {
+      results.push({
+        type: "heading",
+        content: trimmed,
+        key: index * 100,
+      });
+      return;
     }
     
     // Check for all-caps headings (likely section titles)
@@ -36,21 +62,56 @@ const parseContentWithHeadings = (content: string) => {
       trimmed.length < 100 &&
       trimmed.length > 3 &&
       trimmed === trimmed.toUpperCase() &&
-      /^[A-Z\s\-:,]+$/.test(trimmed)
+      /^[A-Z\s\-:,.'0-9]+$/.test(trimmed)
     ) {
-      return {
-        type: "heading" as const,
+      results.push({
+        type: "heading",
         content: trimmed,
-        key: index,
-      };
+        key: index * 100,
+      });
+      return;
     }
     
-    return {
-      type: "paragraph" as const,
+    // Check for short lines that look like subheadings (capitalized, no period at end, short)
+    if (
+      trimmed.length < 80 &&
+      trimmed.length > 5 &&
+      !trimmed.endsWith('.') &&
+      !trimmed.endsWith(',') &&
+      !trimmed.includes('\n') &&
+      /^[A-Z]/.test(trimmed) &&
+      !/^(The|A|An|This|That|In|On|At|For|To|And|But|Or|If|When|What|How|Why|Where)\s/i.test(trimmed)
+    ) {
+      // Could be a subheading - check if it's followed by longer content
+      results.push({
+        type: "subheading",
+        content: trimmed,
+        key: index * 100,
+      });
+      return;
+    }
+    
+    // Handle blocks that contain internal line breaks (preserve them as separate paragraphs)
+    if (trimmed.includes('\n')) {
+      const lines = trimmed.split('\n').filter(l => l.trim());
+      lines.forEach((line, lineIndex) => {
+        results.push({
+          type: "paragraph",
+          content: line.trim(),
+          key: index * 100 + lineIndex,
+        });
+      });
+      return;
+    }
+    
+    results.push({
+      type: "paragraph",
       content: trimmed,
-      key: index,
-    };
+      key: index * 100,
+    });
   });
+  
+  return results;
 };
 
 const InlineTeachingContent = ({
@@ -127,14 +188,24 @@ const InlineTeachingContent = ({
             .heading {
               font-family: 'Playfair Display', serif;
               font-size: 18px;
-              font-weight: 600;
-              margin-top: 24px;
+              font-weight: 700;
+              margin-top: 28px;
               margin-bottom: 12px;
             }
             
-            p {
-              margin-bottom: 16px;
+            .subheading {
+              font-family: 'Playfair Display', serif;
               font-size: 16px;
+              font-weight: 600;
+              margin-top: 20px;
+              margin-bottom: 10px;
+            }
+            
+            p {
+              margin-bottom: 18px;
+              font-size: 16px;
+              text-align: justify;
+              line-height: 1.75;
             }
             
             .scriptures {
@@ -185,11 +256,11 @@ const InlineTeachingContent = ({
           <div class="summary">"${quickAnswer}"</div>
           
           <h2 class="section-title">Full Teaching</h2>
-          ${parsedContent.map(item => 
-            item.type === 'heading' 
-              ? `<h3 class="heading">${item.content}</h3>`
-              : `<p>${item.content}</p>`
-          ).join('')}
+          ${parsedContent.map(item => {
+            if (item.type === 'heading') return `<h3 class="heading">${item.content}</h3>`;
+            if (item.type === 'subheading') return `<h4 class="subheading">${item.content}</h4>`;
+            return `<p>${item.content}</p>`;
+          }).join('')}
           
           ${scriptures.length > 0 ? `
             <h2 class="section-title">Scripture References</h2>
@@ -302,16 +373,26 @@ const InlineTeachingContent = ({
                 return (
                   <h4
                     key={item.key}
-                    className="font-heading text-xl font-semibold text-foreground mt-8 mb-4 first:mt-0"
+                    className="font-heading text-xl font-bold text-foreground mt-8 mb-4 first:mt-0"
                   >
                     {item.content}
                   </h4>
                 );
               }
+              if (item.type === "subheading") {
+                return (
+                  <h5
+                    key={item.key}
+                    className="font-heading text-lg font-semibold text-foreground/90 mt-6 mb-3"
+                  >
+                    {item.content}
+                  </h5>
+                );
+              }
               return (
                 <p
                   key={item.key}
-                  className="text-base md:text-lg leading-relaxed text-foreground/90 mb-4"
+                  className="text-base md:text-[17px] leading-[1.75] text-foreground/90 mb-5 text-justify"
                 >
                   {item.content}
                 </p>
