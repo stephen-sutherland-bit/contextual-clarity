@@ -129,6 +129,7 @@ export type Database = {
           imported_via: string | null
           keywords: string[] | null
           phase: string
+          pondered_questions: Json | null
           primary_theme: string
           questions_answered: string[] | null
           quick_answer: string | null
@@ -151,6 +152,7 @@ export type Database = {
           imported_via?: string | null
           keywords?: string[] | null
           phase?: string
+          pondered_questions?: Json | null
           primary_theme: string
           questions_answered?: string[] | null
           quick_answer?: string | null
@@ -173,6 +175,7 @@ export type Database = {
           imported_via?: string | null
           keywords?: string[] | null
           phase?: string
+          pondered_questions?: Json | null
           primary_theme?: string
           questions_answered?: string[] | null
           quick_answer?: string | null
