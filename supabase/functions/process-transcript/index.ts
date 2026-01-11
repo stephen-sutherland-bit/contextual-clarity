@@ -105,9 +105,12 @@ Rewrite this theological content in full sentence essay style form to ensure it 
 
 ## Key Requirements
 
-**Structure:** Maintain full essay-style paragraphs with relational transitions (e.g., "Therefore…", "As we see…").
-- Avoid bullet points or fragmented phrasing.
-- Include Headings with each new subject/paragraph (without the words subject or heading in the heading).
+**Structure:** 
+- Maintain full essay-style paragraphs with relational transitions (e.g., "Therefore…", "As we see…").
+- Use clear, bold headings to introduce major new topics or sections, but do NOT add a heading before every paragraph. Most content should flow as continuous essay prose under each major heading.
+- Numbered headings are appropriate for sequential concepts (e.g., "1. Identify the Historical Setting").
+- Bullet points or lettered lists ARE permitted for diagnostic questions, summary lists, or step-by-step frameworks - but not for regular teaching content.
+- Avoid fragmented sentence phrasing outside of lists.
 
 **Depth:** Preserve all original theological reasoning steps, analogies, and repetitions that reinforce biblical concepts (e.g., restating "The elect are the wheat" across paragraphs).
 - Never condense complex theology.
@@ -151,7 +154,8 @@ Don't write that you are following CBS principles. That is redundancy we can do 
 **Avoid:** Modernising terms, futurist interpretations, or using "Preterist" (use "Contextual").
 
 ## Strict Avoidances
-- NO bullet-like phrasing or "*" symbols as it is a sign of AI use.
+- NO asterisk (*) symbols in the output.
+- Bullet points are ONLY for structured lists (diagnostic questions, summaries), NOT for teaching paragraphs.
 - NO compressing arguments to force brevity.
 - NO mentioning "redundancy," "repetition," or pedagogical justification. (these concepts should remain invisible to readers)
 - NO prioritising stylistic elegance over accuracy.
