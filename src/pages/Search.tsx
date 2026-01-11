@@ -24,9 +24,10 @@ const Search = () => {
       setFetchError(null);
       
       try {
+        // Fetch only lightweight columns for search index (exclude full_content, pondered_questions, cover_image)
         const { data, error } = await supabase
           .from("teachings")
-          .select("*")
+          .select("id, title, date, primary_theme, secondary_themes, scriptures, doctrines, keywords, questions_answered, quick_answer, reading_order, phase")
           .order("reading_order", { ascending: true });
 
         if (error) {
@@ -34,11 +35,6 @@ const Search = () => {
           setFetchError(error.message);
         } else if (data) {
           console.log(`[Search] Loaded ${data.length} teachings`);
-          // Debug: Log a sample of scriptures to verify data shape
-          const sampleWithScriptures = data.find(t => t.scriptures && t.scriptures.length > 0);
-          if (sampleWithScriptures) {
-            console.log(`[Search] Sample scriptures:`, sampleWithScriptures.scriptures);
-          }
           
           const mapped: Teaching[] = data.map((t) => ({
             id: t.id,
@@ -51,7 +47,7 @@ const Search = () => {
             keywords: t.keywords || [],
             questionsAnswered: t.questions_answered || [],
             quickAnswer: t.quick_answer || "",
-            fullContent: t.full_content,
+            fullContent: "", // Not fetched for search index
             readingOrder: t.reading_order || undefined,
             phase: (t.phase as Phase) || "foundations",
           }));
@@ -73,6 +69,7 @@ const Search = () => {
 
     const query = searchQuery.toLowerCase();
 
+    // Search across metadata fields (fullContent not loaded for performance)
     const matchedTeachings = teachings.filter(
       (t) =>
         t.title.toLowerCase().includes(query) ||
@@ -80,7 +77,9 @@ const Search = () => {
         t.keywords.some((k) => k.toLowerCase().includes(query)) ||
         t.scriptures.some((s) => s.toLowerCase().includes(query)) ||
         t.doctrines.some((d) => d.toLowerCase().includes(query)) ||
-        t.fullContent.toLowerCase().includes(query)
+        t.questionsAnswered.some((q) => q.toLowerCase().includes(query)) ||
+        t.primaryTheme.toLowerCase().includes(query) ||
+        t.secondaryThemes.some((th) => th.toLowerCase().includes(query))
     );
 
     // Find questions that match the search query
@@ -93,21 +92,7 @@ const Search = () => {
       });
     });
     
-    // Also search for questions within fullContent
-    teachings.forEach((t) => {
-      if (t.fullContent.toLowerCase().includes(query)) {
-        // If the content matches, add any questions from this teaching that aren't already added
-        t.questionsAnswered.forEach((q) => {
-          if (!matchedQuestions.some(mq => mq.question === q)) {
-            // Only add if the question itself relates to the query
-            if (q.toLowerCase().includes(query) || 
-                t.quickAnswer.toLowerCase().includes(query)) {
-              matchedQuestions.push({ question: q, teachingId: t.id });
-            }
-          }
-        });
-      }
-    });
+    // Note: fullContent search removed for performance; metadata fields cover most use cases
 
     // Collect matching scripture references with their teaching IDs
     const scriptureMap = new Map<string, string>();
