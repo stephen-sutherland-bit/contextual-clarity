@@ -32,7 +32,16 @@ const parseContentWithHeadings = (content: string) => {
   blocks.forEach((block, index) => {
     const trimmed = block.trim();
     
-    // Check for markdown-style headings (## Heading)
+    // Check for markdown-style headings (## or ### Heading)
+    if (trimmed.startsWith("### ")) {
+      results.push({
+        type: "heading",
+        content: trimmed.slice(4),
+        key: index * 100,
+      });
+      return;
+    }
+    
     if (trimmed.startsWith("## ")) {
       results.push({
         type: "heading",
