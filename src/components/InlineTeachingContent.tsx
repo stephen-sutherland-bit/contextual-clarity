@@ -231,7 +231,7 @@ const InlineTeachingContent = ({
             p {
               margin-bottom: 18px;
               font-size: 16px;
-              text-align: justify;
+              text-align: left;
               line-height: 1.75;
             }
             
@@ -450,9 +450,9 @@ const InlineTeachingContent = ({
                 );
               }
               return (
-                <p
+              <p
                   key={item.key}
-                  className="text-base md:text-[17px] leading-[1.75] text-foreground/90 mb-5 text-justify"
+                  className="text-base md:text-[17px] leading-[1.75] text-foreground/90 mb-5 text-left"
                 >
                   {item.content}
                 </p>
