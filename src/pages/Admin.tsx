@@ -77,6 +77,14 @@ const Admin = () => {
   const [ponderedResults, setPonderedResults] = useState<Array<{ title: string; status: "success" | "failed"; error?: string }>>([]);
   const stopPonderedRef = useRef(false);
 
+  // ============== BATCH REPROCESS STATE ==============
+  const [allTeachings, setAllTeachings] = useState<Array<{ id: string; title: string }>>([]);
+  const [isLoadingTeachings, setIsLoadingTeachings] = useState(false);
+  const [isReprocessingAll, setIsReprocessingAll] = useState(false);
+  const [reprocessProgress, setReprocessProgress] = useState({ current: 0, total: 0, currentTitle: "" });
+  const [reprocessResults, setReprocessResults] = useState<Array<{ title: string; status: "success" | "failed"; error?: string }>>([]);
+  const stopReprocessRef = useRef(false);
+
   // ============== PDF IMPORT LOGIC ==============
   
   // Normalize a string for fuzzy matching (lowercase, remove punctuation, strip .pdf)
@@ -969,6 +977,181 @@ const Admin = () => {
     toast({ title: "Stopping...", description: "Will stop after current teaching completes" });
   };
 
+  // ============== BATCH REPROCESS LOGIC ==============
+
+  const loadAllTeachings = async () => {
+    setIsLoadingTeachings(true);
+    try {
+      const { data, error } = await supabase
+        .from("teachings")
+        .select("id, title")
+        .order("title");
+      
+      if (error) throw error;
+      setAllTeachings(data || []);
+      setReprocessResults([]);
+      
+      toast({ title: `Found ${data?.length || 0} teachings` });
+    } catch (err) {
+      console.error("Load error:", err);
+      toast({ title: "Failed to load teachings", variant: "destructive" });
+    } finally {
+      setIsLoadingTeachings(false);
+    }
+  };
+
+  const reprocessAllTeachings = async () => {
+    if (allTeachings.length === 0) return;
+    
+    stopReprocessRef.current = false;
+    setIsReprocessingAll(true);
+    setReprocessProgress({ current: 0, total: allTeachings.length, currentTitle: "" });
+    setReprocessResults([]);
+    
+    const results: Array<{ title: string; status: "success" | "failed"; error?: string }> = [];
+    
+    // Get session once at the start
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      toast({ title: "Not authenticated", variant: "destructive" });
+      setIsReprocessingAll(false);
+      return;
+    }
+    
+    for (let i = 0; i < allTeachings.length; i++) {
+      // Check if user requested stop
+      if (stopReprocessRef.current) {
+        toast({ title: "Reprocessing stopped", description: `Completed ${i} of ${allTeachings.length}` });
+        break;
+      }
+      
+      const teaching = allTeachings[i];
+      setReprocessProgress({ current: i + 1, total: allTeachings.length, currentTitle: teaching.title });
+      
+      try {
+        // Fetch full content for this teaching
+        const { data: fullTeaching, error: fetchError } = await supabase
+          .from("teachings")
+          .select("full_content")
+          .eq("id", teaching.id)
+          .single();
+        
+        if (fetchError || !fullTeaching?.full_content) {
+          throw new Error("Could not fetch teaching content");
+        }
+        
+        // Call the process-transcript edge function
+        const response = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-transcript`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({ transcript: fullTeaching.full_content }),
+          }
+        );
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || `HTTP ${response.status}`);
+        }
+        
+        // Stream the response and collect full content
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error("No response body");
+        
+        const decoder = new TextDecoder();
+        let processedContent = "";
+        let buffer = "";
+        
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+          
+          for (const line of lines) {
+            if (line.startsWith("data: ") && line !== "data: [DONE]") {
+              try {
+                const json = JSON.parse(line.slice(6));
+                const content = json.choices?.[0]?.delta?.content;
+                if (content) {
+                  processedContent += content;
+                }
+              } catch {
+                // Skip invalid JSON
+              }
+            }
+          }
+        }
+        
+        // Process any remaining buffer
+        if (buffer.trim()) {
+          for (const line of buffer.split("\n")) {
+            if (line.startsWith("data: ") && line !== "data: [DONE]") {
+              try {
+                const json = JSON.parse(line.slice(6));
+                const content = json.choices?.[0]?.delta?.content;
+                if (content) {
+                  processedContent += content;
+                }
+              } catch {
+                // Skip invalid JSON
+              }
+            }
+          }
+        }
+        
+        if (!processedContent || processedContent.length < 100) {
+          throw new Error("Received empty or too short response from AI");
+        }
+        
+        // Save to database
+        const { error: updateError } = await supabase
+          .from("teachings")
+          .update({ full_content: processedContent })
+          .eq("id", teaching.id);
+        
+        if (updateError) throw updateError;
+        
+        results.push({ title: teaching.title, status: "success" });
+      } catch (err) {
+        console.error(`Reprocess failed for ${teaching.title}:`, err);
+        results.push({ 
+          title: teaching.title, 
+          status: "failed", 
+          error: err instanceof Error ? err.message : "Unknown error" 
+        });
+      }
+      
+      setReprocessResults([...results]);
+      
+      // Longer delay between requests (AI processing is heavy)
+      if (i < allTeachings.length - 1 && !stopReprocessRef.current) {
+        await new Promise(resolve => setTimeout(resolve, 10000)); // 10 second delay
+      }
+    }
+    
+    setIsReprocessingAll(false);
+    
+    const successCount = results.filter(r => r.status === "success").length;
+    const failCount = results.filter(r => r.status === "failed").length;
+    
+    toast({
+      title: "Reprocessing complete",
+      description: `${successCount} succeeded, ${failCount} failed`,
+    });
+  };
+
+  const stopReprocessing = () => {
+    stopReprocessRef.current = true;
+    toast({ title: "Stopping...", description: "Will stop after current teaching completes" });
+  };
+
   // Computed values for PDF import
   const newFilesCount = pdfQueue.filter(f => !alreadyImported.has(f.name)).length;
   const alreadyImportedCount = pdfQueue.filter(f => alreadyImported.has(f.name)).length;
@@ -1046,7 +1229,7 @@ const Admin = () => {
 
           {/* Main Tabs */}
           <Tabs defaultValue="pdf" className="mb-8">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="pdf" className="flex items-center gap-2">
                 <FileUp className="h-4 w-4" />
                 <span className="hidden sm:inline">PDF Import</span>
@@ -1066,6 +1249,11 @@ const Admin = () => {
                 <Lightbulb className="h-4 w-4" />
                 <span className="hidden sm:inline">Pondered Q's</span>
                 <span className="sm:hidden">Q's</span>
+              </TabsTrigger>
+              <TabsTrigger value="reprocess" className="flex items-center gap-2">
+                <RefreshCw className="h-4 w-4" />
+                <span className="hidden sm:inline">Reprocess</span>
+                <span className="sm:hidden">AI</span>
               </TabsTrigger>
             </TabsList>
 
@@ -1616,6 +1804,150 @@ const Admin = () => {
                         >
                           <RefreshCw className="h-4 w-4 mr-2" />
                           Scan Again
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Batch Reprocess Tab */}
+            <TabsContent value="reprocess" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <RefreshCw className="h-5 w-5" />
+                    Batch AI Reprocessing
+                  </CardTitle>
+                  <CardDescription>
+                    Reprocess all teachings through the AI formatting engine to apply the current CBS prompt
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Warning notice */}
+                  <div className="flex items-start gap-3 p-4 rounded-lg bg-destructive/10 border border-destructive/30">
+                    <AlertCircle className="h-5 w-5 text-destructive mt-0.5 flex-shrink-0" />
+                    <div className="text-sm">
+                      <p className="font-medium text-destructive">Warning: This will overwrite content</p>
+                      <p className="text-muted-foreground mt-1">
+                        This tool sends each teaching through the AI formatting engine, which will <strong>replace</strong> the existing full_content.
+                        Use this when you update the CBS prompt and want consistent formatting across your library.
+                        Processing takes 1-3 minutes per teaching.
+                      </p>
+                    </div>
+                  </div>
+
+                  <Button 
+                    onClick={loadAllTeachings}
+                    disabled={isLoadingTeachings || isReprocessingAll}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    {isLoadingTeachings ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Loading...
+                      </>
+                    ) : (
+                      "Load All Teachings"
+                    )}
+                  </Button>
+
+                  {allTeachings.length > 0 && !isReprocessingAll && reprocessResults.length === 0 && (
+                    <>
+                      <div className="bg-primary/10 border border-primary/30 rounded-lg p-4">
+                        <p className="font-medium text-primary">
+                          {allTeachings.length} teachings ready to reprocess
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Estimated time: {Math.ceil(allTeachings.length * 2)} - {Math.ceil(allTeachings.length * 3)} minutes
+                        </p>
+                      </div>
+                      
+                      <ScrollArea className="h-40 border rounded-lg">
+                        <div className="p-2 space-y-1">
+                          {allTeachings.map((t) => (
+                            <p key={t.id} className="text-xs text-muted-foreground truncate">
+                              {t.title}
+                            </p>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                      
+                      <Button 
+                        onClick={reprocessAllTeachings}
+                        variant="destructive"
+                        className="w-full"
+                      >
+                        Reprocess All {allTeachings.length} Teachings
+                      </Button>
+                    </>
+                  )}
+
+                  {isReprocessingAll && (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">
+                          Processing {reprocessProgress.current} of {reprocessProgress.total}
+                        </span>
+                        <Button 
+                          onClick={stopReprocessing}
+                          variant="destructive"
+                          size="sm"
+                        >
+                          <Square className="h-4 w-4 mr-2" />
+                          Stop
+                        </Button>
+                      </div>
+                      
+                      <Progress value={(reprocessProgress.current / reprocessProgress.total) * 100} />
+                      
+                      <p className="text-sm text-muted-foreground truncate">
+                        {reprocessProgress.currentTitle}
+                      </p>
+                    </div>
+                  )}
+
+                  {reprocessResults.length > 0 && (
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-medium">Results</h4>
+                      <ScrollArea className="h-60 border rounded-lg">
+                        <div className="p-2 space-y-2">
+                          {reprocessResults.map((r, idx) => (
+                            <div 
+                              key={idx} 
+                              className={`rounded p-2 text-sm ${
+                                r.status === "success" ? "bg-green-500/10" : "bg-destructive/10"
+                              }`}
+                            >
+                              <div className="flex items-center gap-2">
+                                {r.status === "success" ? (
+                                  <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
+                                ) : (
+                                  <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0" />
+                                )}
+                                <span className="truncate flex-1 font-medium">{r.title}</span>
+                              </div>
+                              {r.error && (
+                                <p className="text-xs text-destructive mt-1 pl-6">{r.error}</p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                      
+                      {!isReprocessingAll && (
+                        <Button 
+                          onClick={() => {
+                            setReprocessResults([]);
+                            loadAllTeachings();
+                          }}
+                          variant="outline"
+                          className="w-full"
+                        >
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                          Load Again
                         </Button>
                       )}
                     </div>
