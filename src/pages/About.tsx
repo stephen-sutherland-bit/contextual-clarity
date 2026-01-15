@@ -12,7 +12,7 @@ const About = () => {
         <title>About | The Berean Press</title>
         <meta 
           name="description" 
-          content="Learn about The Berean Press and our mission to correct misinterpretations through Contextual Bible Study." 
+          content="Learn about The Berean Press and our mission to correct misinterpretations through Covenantal Contextual Methodology." 
         />
       </Helmet>
       <div className="min-h-screen flex flex-col">
@@ -31,7 +31,7 @@ const About = () => {
                   About The Berean Press
                 </h1>
                 <p className="text-lg md:text-xl text-muted-foreground leading-relaxed">
-                  Correcting misinterpretations through Contextual Bible Study—like the 
+                  Correcting misinterpretations through Covenantal Contextual Methodology—like the 
                   Bereans of Acts 17:11 who diligently searched the scriptures.
                 </p>
               </motion.div>

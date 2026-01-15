@@ -55,11 +55,11 @@ async function logUsage(operationType: string, estimatedCost: number, details: R
   }
 }
 
-const PHASE_SYSTEM_PROMPT = `You are an expert theological categoriser for The Christian Theologist, specialising in Contextual Bible Study (CBS) methodology.
+const PHASE_SYSTEM_PROMPT = `You are an expert theological categoriser for The Christian Theologist, specialising in Covenantal Contextual Methodology (CCM).
 
 Your task is to categorise teachings into one of five scaffolded learning phases based on their content, complexity, and where they fit in a learner's journey.
 
-**CBS METHODOLOGY CONTEXT:**
+**CCM METHODOLOGY CONTEXT:**
 - Interpret within original historical/cultural/covenantal setting
 - Identify governing covenant (Mosaic/New)
 - Recognise ancient metaphor (e.g., "clouds" = judgement; "world" = Israel's world)
@@ -68,12 +68,12 @@ Your task is to categorise teachings into one of five scaffolded learning phases
 
 **THE FIVE LEARNING PHASES:**
 
-1. **foundations** - The basics of biblical interpretation and CBS methodology
+1. **foundations** - The basics of biblical interpretation and CCM
    - How to read the Bible contextually
    - Introduction to hermeneutics
    - Understanding audience relevance
    - Basic principles of interpretation
-   - For complete newcomers to CBS
+   - For complete newcomers to CCM
 
 2. **essentials** - Covenant Basics
    - What is a covenant?
@@ -88,7 +88,7 @@ Your task is to categorise teachings into one of five scaffolded learning phases
    - Prophetic fulfilment in the first century
    - The transition period (30-70 AD)
    - Matthew 24, Revelation fulfilled prophecy
-   - This is CENTRAL to CBS - most teachings about prophecy, judgement, or covenant transition belong here
+   - This is CENTRAL to CCM - most teachings about prophecy, judgement, or covenant transition belong here
 
 4. **moving-on** - Life in the New Covenant
    - Practical Christian living
@@ -101,7 +101,7 @@ Your task is to categorise teachings into one of five scaffolded learning phases
    - Complex theological topics
    - Detailed exegesis of difficult passages
    - Addressing common objections
-   - Topics requiring prior CBS foundation
+   - Topics requiring prior CCM foundation
    - For those with solid understanding of phases 1-4
 
 **DECISION GUIDE:**

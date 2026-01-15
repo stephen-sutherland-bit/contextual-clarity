@@ -28,7 +28,7 @@ export const phases: PhaseInfo[] = [
   {
     slug: 'foundations',
     name: 'Foundations',
-    description: 'The basics of biblical interpretation and Contextual Bible Study'
+    description: 'The basics of biblical interpretation and Covenantal Contextual Methodology'
   },
   {
     slug: 'essentials',
@@ -59,7 +59,7 @@ export const themes = [
   "Election & Calling",
   "Nature of God",
   "Hamartiology",
-  "CBS Methodology",
+  "CCM Methodology",
   "Law and Grace",
   "Christology",
   "Eschatology"

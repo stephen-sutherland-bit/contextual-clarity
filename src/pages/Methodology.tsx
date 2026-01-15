@@ -67,10 +67,10 @@ const Methodology = () => {
   return (
     <>
       <Helmet>
-        <title>CBS Methodology | The Berean Press</title>
+        <title>CCM Methodology | The Berean Press</title>
         <meta 
           name="description" 
-          content="Learn the Contextual Bible Study (CBS) methodology. Context is king—interpret Scripture in its original historical, cultural, and covenantal setting." 
+          content="Learn the Covenantal Contextual Methodology (CCM). Context is king—interpret Scripture in its original historical, cultural, and covenantal setting." 
         />
       </Helmet>
       <div className="min-h-screen flex flex-col">
@@ -89,11 +89,11 @@ const Methodology = () => {
                   Our Approach
                 </span>
                 <h1 className="text-4xl md:text-5xl font-heading font-bold mb-6">
-                  Contextual Bible Study Methodology
+                  Covenantal Contextual Methodology
                 </h1>
                 <p className="text-lg md:text-xl text-muted-foreground leading-relaxed">
                   Most confusion in biblical interpretation comes from reading ancient texts 
-                  through modern lenses. CBS methodology places every passage in its proper 
+                  through modern lenses. CCM places every passage in its proper 
                   historical and covenantal context—the way the original audience would have 
                   understood it.
                 </p>

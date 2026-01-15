@@ -17,7 +17,7 @@ const HeroSection = () => {
             transition={{ duration: 0.6 }}
           >
             <span className="inline-block px-4 py-1.5 mb-6 text-sm font-medium text-primary bg-primary/10 rounded-full border border-primary/20">
-              Correcting Misinterpretations Through Contextual Bible Study
+              Correcting Misinterpretations Through Covenantal Contextual Methodology
             </span>
           </motion.div>
 
