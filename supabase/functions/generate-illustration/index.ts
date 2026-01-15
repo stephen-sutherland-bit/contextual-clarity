@@ -9,6 +9,28 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Log API usage to database
+async function logUsage(
+  operationType: string,
+  estimatedCost: number,
+  metadata: Record<string, unknown> = {}
+) {
+  try {
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+    
+    await supabase.from("api_usage").insert({
+      operation_type: operationType,
+      estimated_cost: estimatedCost,
+      metadata,
+    });
+  } catch (err) {
+    console.error("Failed to log usage:", err);
+  }
+}
+
 // Verify admin authentication
 async function verifyAdmin(req: Request): Promise<{ isAdmin: boolean; error?: string }> {
   const authHeader = req.headers.get("Authorization");
@@ -138,6 +160,15 @@ serve(async (req) => {
     }
 
     const imageDataUrl = `data:image/png;base64,${base64Image}`;
+
+    // Log usage - DALL-E 3 HD 1024x1792 costs ~$0.12
+    await logUsage("illustration", 0.12, {
+      title,
+      theme,
+      model: "dall-e-3",
+      size: "1024x1792",
+      quality: "hd",
+    });
 
     console.log("Illustration generated successfully");
 
