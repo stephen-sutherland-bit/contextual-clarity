@@ -42,11 +42,11 @@ const MethodologyPreview = () => {
               Our Approach
             </span>
             <h2 className="text-3xl md:text-4xl font-heading font-bold mb-4">
-              Contextual Bible Study Methodology
+              Covenantal Contextual Methodology
             </h2>
             <p className="text-lg text-muted-foreground mb-6 leading-relaxed">
               Most confusion in biblical interpretation comes from reading ancient texts through 
-              modern lenses. CBS methodology places every passage in its proper historical and 
+              modern lenses. CCM places every passage in its proper historical and 
               covenantal context—the way the original audience would have understood it.
             </p>
             <div className="space-y-3 mb-8">

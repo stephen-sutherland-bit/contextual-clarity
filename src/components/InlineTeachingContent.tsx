@@ -7,7 +7,7 @@ export interface PonderedQuestion {
   topic: string;
   question: string;
   commonAnswer: string;
-  cbsAnswer: string;
+  cbsAnswer: string;  // Kept as cbsAnswer for backwards compatibility with existing data
 }
 
 interface InlineTeachingContentProps {
@@ -461,7 +461,7 @@ const InlineTeachingContent = ({
           </div>
         </motion.section>
 
-        {/* Pondered Questions Section - After Full Teaching */}
+        {/* Clarifying Common Questions Section - After Full Teaching */}
         {hasPonderedQuestions && (
           <motion.section
             initial={{ opacity: 0, y: 20 }}
@@ -471,7 +471,7 @@ const InlineTeachingContent = ({
           >
             <div className="flex items-center gap-2 mb-6 pb-3 border-b border-border">
               <Lightbulb className="h-5 w-5 text-primary" />
-              <h3 className="font-heading font-bold text-xl text-primary">Have you ever pondered on these questions?</h3>
+              <h3 className="font-heading font-bold text-xl text-primary">Clarifying Common Questions</h3>
             </div>
             
             <p className="text-base italic text-muted-foreground mb-6">
@@ -485,10 +485,10 @@ const InlineTeachingContent = ({
                     The Question of {q.topic}: <span className="font-normal">{q.question}</span>
                   </h4>
                   <p className="text-foreground/80">
-                    <span className="font-bold">Common Answer:</span> "{q.commonAnswer}"
+                    <span className="font-bold">Common Misconception:</span> "{q.commonAnswer}"
                   </p>
                   <p className="text-foreground/90">
-                    <span className="font-bold">This Teaching's Clear Answer:</span> {q.cbsAnswer}
+                    <span className="font-bold">The Covenantal-Contextual Answer:</span> {q.cbsAnswer}
                   </p>
                 </div>
               ))}
@@ -535,30 +535,6 @@ const InlineTeachingContent = ({
           </motion.section>
         )}
 
-        {/* Questions Answered */}
-        {questionsAnswered.length > 0 && (
-          <motion.section
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.3 }}
-            className="mb-10"
-          >
-            <div className="flex items-center gap-2 mb-4 pb-3 border-b border-border">
-              <HelpCircle className="h-4 w-4 text-primary" />
-              <h3 className="font-heading font-semibold text-lg text-primary">Questions This Teaching Answers</h3>
-            </div>
-            <ul className="space-y-3">
-              {questionsAnswered.map((question, i) => (
-                <li
-                  key={i}
-                  className="text-foreground/80 text-base leading-relaxed pl-4 border-l-2 border-primary/30"
-                >
-                  {question}
-                </li>
-              ))}
-            </ul>
-          </motion.section>
-        )}
       </div>
 
       {/* Footer */}

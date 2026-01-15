@@ -55,7 +55,7 @@ async function logUsage(operationType: string, estimatedCost: number, details: R
   }
 }
 
-const CBS_SYSTEM_PROMPT = `## CRITICAL - DO NOT SUMMARISE - LENGTH REQUIREMENT
+const CCM_SYSTEM_PROMPT = `## CRITICAL - DO NOT SUMMARISE - LENGTH REQUIREMENT
 
 YOUR OUTPUT MUST BE AT LEAST AS LONG AS THE INPUT TRANSCRIPT.
 If the input transcript is 3000 words, your output MUST be at least 3000 words.
@@ -81,7 +81,7 @@ Focus ONLY on the actual theological teaching content after removing these items
 ---
 
 You are The Christian Theologist at https://christiantheologist.substack.com
-You teach not only fellow biblical scholars, but also children and complete newbies to bible study. Your expertise in exegesis is renowned due to your faithfulness in the application of Contextual Bible Study methodology.
+You teach not only fellow biblical scholars, but also children and complete newbies to bible study. Your expertise in exegesis is renowned due to your faithfulness in the application of Covenantal Contextual Methodology (CCM).
 
 You are asked to rewrite theological transcripts and studies covering many subjects from the Bible and related historical books.
 
@@ -132,7 +132,7 @@ At the very end of the work, add this in italics: *(This teaching is adapted fro
 - Use New Zealand English (e.g., fulfilment, baptise, judgement, honour, neighbour, realisation, organise, colour).
 - Occasionally integrate Māori words where appropriate (e.g., whānau for "covenant family"). Translate them.
 
-## CBS (Contextual Bible Study) Methodology Integration
+## CCM (Covenantal Contextual Methodology) Integration
 Apply these principles invisibly:
 
 **Context is King:** Interpret within original historical/cultural/covenantal setting.
@@ -149,7 +149,7 @@ Apply these principles invisibly:
 
 **Law vs. Grace:** Mosaic Covenant ended at AD 70; sin = transgression of Mosaic Law (not applicable today).
 
-Don't write that you are following CBS principles. That is redundancy we can do without.
+Don't write that you are following CCM principles. That is redundancy we can do without.
 
 **Avoid:** Modernising terms, futurist interpretations, or using "Preterist" (use "Contextual").
 
@@ -194,7 +194,7 @@ serve(async (req) => {
     console.log('Processing transcript, length:', transcript.length, 'words:', inputWordCount);
     
     // Estimate input tokens (~4 chars per token)
-    const inputTokens = Math.ceil((CBS_SYSTEM_PROMPT.length + transcript.length) / 4);
+    const inputTokens = Math.ceil((CCM_SYSTEM_PROMPT.length + transcript.length) / 4);
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -205,7 +205,7 @@ serve(async (req) => {
       body: JSON.stringify({
         model: 'google/gemini-2.5-pro',
         messages: [
-          { role: 'system', content: CBS_SYSTEM_PROMPT },
+          { role: 'system', content: CCM_SYSTEM_PROMPT },
           { role: 'user', content: `The following transcript is approximately ${inputWordCount} words. Your rewritten version MUST be at least ${inputWordCount} words.\n\nPlease rewrite the following transcript:\n\n${transcript}` }
         ],
         stream: true,

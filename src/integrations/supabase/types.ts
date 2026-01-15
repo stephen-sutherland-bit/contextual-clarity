@@ -128,6 +128,8 @@ export type Database = {
           import_batch_id: string | null
           imported_via: string | null
           keywords: string[] | null
+          module: string | null
+          module_order: number | null
           phase: string
           pondered_questions: Json | null
           primary_theme: string
@@ -151,6 +153,8 @@ export type Database = {
           import_batch_id?: string | null
           imported_via?: string | null
           keywords?: string[] | null
+          module?: string | null
+          module_order?: number | null
           phase?: string
           pondered_questions?: Json | null
           primary_theme: string
@@ -174,6 +178,8 @@ export type Database = {
           import_batch_id?: string | null
           imported_via?: string | null
           keywords?: string[] | null
+          module?: string | null
+          module_order?: number | null
           phase?: string
           pondered_questions?: Json | null
           primary_theme?: string

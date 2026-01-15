@@ -17,7 +17,7 @@ const Footer = () => {
               </span>
             </Link>
             <p className="text-muted-foreground text-sm max-w-md leading-relaxed mb-2">
-              Correcting misinterpretations through Contextual Bible Study. 
+              Correcting misinterpretations through Covenantal Contextual Methodology. 
               Exploring Scripture with context as king, making ancient wisdom accessible to all.
             </p>
             <p className="text-xs text-muted-foreground italic">
@@ -41,7 +41,7 @@ const Footer = () => {
               </li>
               <li>
                 <Link to="/methodology" className="text-muted-foreground hover:text-foreground transition-colors">
-                  CBS Methodology
+                  CCM Methodology
                 </Link>
               </li>
               <li>

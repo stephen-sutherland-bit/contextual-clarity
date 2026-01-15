@@ -37,7 +37,7 @@ const Header = () => {
             to="/methodology" 
             className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
-            CBS Methodology
+            CCM Methodology
           </Link>
           <Link 
             to="/teachings" 
@@ -73,7 +73,7 @@ const Header = () => {
             </Link>
           </Button>
           {user ? (
-            <Button variant="ghost" size="sm" onClick={handleSignOut} className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={handleSignOut} className="flex items-center gap-2 ml-4">
               <LogOut className="h-4 w-4" />
               Sign Out
             </Button>
@@ -113,7 +113,7 @@ const Header = () => {
                 className="block px-4 py-2 rounded-md hover:bg-secondary transition-colors"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                CBS Methodology
+                CCM Methodology
               </Link>
               <Link 
                 to="/teachings" 

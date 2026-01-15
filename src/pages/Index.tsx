@@ -13,7 +13,7 @@ const Index = () => {
         <title>The Berean Press | Contextual Bible Study</title>
         <meta 
           name="description" 
-          content="Correcting misinterpretations through Contextual Bible Study. Sound exegesis making ancient Scripture accessible. Answers your pastor couldn't explain." 
+          content="Correcting misinterpretations through Covenantal Contextual Methodology. Sound exegesis making ancient Scripture accessible. Answers your pastor couldn't explain." 
         />
       </Helmet>
       <div className="min-h-screen flex flex-col">
