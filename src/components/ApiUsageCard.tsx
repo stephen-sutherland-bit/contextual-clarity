@@ -8,6 +8,7 @@ interface UsageSummary {
   transcriptionCost: number;
   processingCost: number;
   indexingCost: number;
+  aiGenerationCost: number; // Covers illustration, pondered questions, phase suggestions
   operationCount: number;
 }
 
@@ -34,6 +35,7 @@ const ApiUsageCard = () => {
           transcriptionCost: 0,
           processingCost: 0,
           indexingCost: 0,
+          aiGenerationCost: 0,
           operationCount: data?.length || 0,
         };
 
@@ -47,7 +49,14 @@ const ApiUsageCard = () => {
             summary.processingCost += cost;
           } else if (row.operation_type === "indexing") {
             summary.indexingCost += cost;
+          } else if (
+            row.operation_type === "illustration" ||
+            row.operation_type === "generate-pondered-questions" ||
+            row.operation_type === "phase-suggestion"
+          ) {
+            summary.aiGenerationCost += cost;
           }
+          // Note: pdf_parse is always $0 and other types will be included in totalCost
         });
 
         setUsage(summary);
@@ -61,7 +70,7 @@ const ApiUsageCard = () => {
     fetchUsage();
   }, []);
 
-  const formatCost = (cost: number) => `$${cost.toFixed(4)}`;
+  const formatCost = (cost: number) => `$${cost.toFixed(2)}`;
 
   if (isLoading) {
     return (
@@ -84,7 +93,7 @@ const ApiUsageCard = () => {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
           <div className="space-y-1">
             <p className="text-muted-foreground">Total</p>
             <p className="text-xl font-bold text-primary">
@@ -102,6 +111,10 @@ const ApiUsageCard = () => {
           <div className="space-y-1">
             <p className="text-muted-foreground">Indexing</p>
             <p className="font-medium">{formatCost(usage?.indexingCost || 0)}</p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-muted-foreground">AI Generation</p>
+            <p className="font-medium">{formatCost(usage?.aiGenerationCost || 0)}</p>
           </div>
         </div>
         <div className="mt-3 pt-3 border-t flex items-center gap-2 text-xs text-muted-foreground">
