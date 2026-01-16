@@ -84,6 +84,8 @@ const TeachingDetail = () => {
           fullContent: data.full_content,
           readingOrder: data.reading_order || undefined,
           phase: (data.phase as Phase) || "foundations",
+          module: data.module || undefined,
+          moduleOrder: data.module_order || undefined,
         });
         setCoverImage((data as any).cover_image || undefined);
         setPonderedQuestions((data as any).pondered_questions || []);
