@@ -35,6 +35,8 @@ interface TeachingEditorProps {
     quickAnswer: string;
     fullContent: string;
     phase: Phase;
+    module?: string;
+    moduleOrder?: number;
   };
   ponderedQuestions?: PonderedQuestion[];
   open: boolean;
@@ -62,6 +64,8 @@ const TeachingEditor = ({ teaching, ponderedQuestions: initialPondered = [], ope
   const [quickAnswer, setQuickAnswer] = useState(teaching.quickAnswer);
   const [fullContent, setFullContent] = useState(teaching.fullContent);
   const [phase, setPhase] = useState<Phase>(teaching.phase);
+  const [module, setModule] = useState(teaching.module || "");
+  const [moduleOrder, setModuleOrder] = useState<number | "">(teaching.moduleOrder ?? "");
   const [ponderedQuestions, setPonderedQuestions] = useState<PonderedQuestion[]>(initialPondered);
   
   // New item inputs
@@ -87,6 +91,8 @@ const TeachingEditor = ({ teaching, ponderedQuestions: initialPondered = [], ope
           quick_answer: quickAnswer,
           full_content: fullContent,
           phase,
+          module: module || null,
+          module_order: moduleOrder === "" ? null : moduleOrder,
           pondered_questions: ponderedQuestions,
         } as any)
         .eq("id", teaching.id);
@@ -410,6 +416,37 @@ const TeachingEditor = ({ teaching, ponderedQuestions: initialPondered = [], ope
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+            </div>
+
+            {/* Module Assignment */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="module">Module</Label>
+                <Select value={module} onValueChange={setModule}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select module..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">No Module</SelectItem>
+                    {["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"].map((m) => (
+                      <SelectItem key={m} value={m}>
+                        Module {m}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="moduleOrder">Order in Module</Label>
+                <Input
+                  id="moduleOrder"
+                  type="number"
+                  min={1}
+                  placeholder="e.g., 1, 2, 3..."
+                  value={moduleOrder}
+                  onChange={(e) => setModuleOrder(e.target.value === "" ? "" : parseInt(e.target.value, 10))}
+                />
               </div>
             </div>
 

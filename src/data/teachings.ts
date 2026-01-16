@@ -14,6 +14,8 @@ export interface Teaching {
   fullContent: string;
   readingOrder?: number;
   phase: Phase;
+  module?: string;
+  moduleOrder?: number;
 }
 
 export type Phase = 'foundations' | 'essentials' | 'building-blocks' | 'moving-on' | 'advanced';
