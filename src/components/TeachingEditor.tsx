@@ -423,12 +423,12 @@ const TeachingEditor = ({ teaching, ponderedQuestions: initialPondered = [], ope
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="module">Module</Label>
-                <Select value={module} onValueChange={setModule}>
+                <Select value={module || "__none__"} onValueChange={(v) => setModule(v === "__none__" ? "" : v)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select module..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">No Module</SelectItem>
+                    <SelectItem value="__none__">No Module</SelectItem>
                     {["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"].map((m) => (
                       <SelectItem key={m} value={m}>
                         Module {m}
