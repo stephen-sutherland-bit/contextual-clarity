@@ -14,6 +14,82 @@ import { Helmet } from "react-helmet-async";
 
 const PAGE_SIZE = 24;
 
+// Component to group and display teachings by module
+const ModuleGroupedTeachings = ({ teachings }: { teachings: Teaching[] }) => {
+  // Group teachings by module
+  const grouped = useMemo(() => {
+    const modules: Record<string, Teaching[]> = {};
+    const unassigned: Teaching[] = [];
+    
+    teachings.forEach(teaching => {
+      if (teaching.module) {
+        if (!modules[teaching.module]) {
+          modules[teaching.module] = [];
+        }
+        modules[teaching.module].push(teaching);
+      } else {
+        unassigned.push(teaching);
+      }
+    });
+    
+    // Sort modules alphabetically
+    const sortedModules = Object.keys(modules).sort();
+    
+    return { modules, sortedModules, unassigned };
+  }, [teachings]);
+
+  return (
+    <div className="space-y-10">
+      {grouped.sortedModules.map((moduleKey) => (
+        <div key={moduleKey}>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+              <span className="text-sm font-bold text-primary">{moduleKey}</span>
+            </div>
+            <h3 className="text-lg font-heading font-semibold">Module {moduleKey}</h3>
+            <span className="text-sm text-muted-foreground">
+              ({grouped.modules[moduleKey].length} teaching{grouped.modules[moduleKey].length !== 1 ? 's' : ''})
+            </span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {grouped.modules[moduleKey].map((teaching, index) => (
+              <TeachingCard
+                key={teaching.id}
+                teaching={teaching}
+                index={index}
+                showReadingOrder
+              />
+            ))}
+          </div>
+        </div>
+      ))}
+      
+      {grouped.unassigned.length > 0 && (
+        <div>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
+              <span className="text-sm font-bold text-muted-foreground">–</span>
+            </div>
+            <h3 className="text-lg font-heading font-semibold text-muted-foreground">Unassigned</h3>
+            <span className="text-sm text-muted-foreground">
+              ({grouped.unassigned.length} teaching{grouped.unassigned.length !== 1 ? 's' : ''})
+            </span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {grouped.unassigned.map((teaching, index) => (
+              <TeachingCard
+                key={teaching.id}
+                teaching={teaching}
+                index={index}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const Teachings = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState("");
@@ -48,7 +124,9 @@ const Teachings = () => {
           reading_order,
           phase,
           keywords,
-          questions_answered
+          questions_answered,
+          module,
+          module_order
         `);
 
       // Apply phase filter if specified
@@ -57,13 +135,18 @@ const Teachings = () => {
       }
 
       // Add ordering - for "All Phases" view, sort by phase first to group them
+      // For phase views, sort by module then module_order for grouped display
       if (!phaseFilter) {
         query = query
           .order("phase", { ascending: true })
+          .order("module", { ascending: true, nullsFirst: false })
+          .order("module_order", { ascending: true, nullsFirst: false })
           .order("reading_order", { ascending: true, nullsFirst: false })
           .order("created_at", { ascending: false });
       } else {
         query = query
+          .order("module", { ascending: true, nullsFirst: false })
+          .order("module_order", { ascending: true, nullsFirst: false })
           .order("reading_order", { ascending: true, nullsFirst: false })
           .order("created_at", { ascending: false });
       }
@@ -106,6 +189,8 @@ const Teachings = () => {
           fullContent: "",
           readingOrder: t.reading_order || undefined,
           phase: (t.phase as Phase) || "foundations",
+          module: t.module || undefined,
+          moduleOrder: t.module_order || undefined,
         }));
 
         if (append) {
@@ -340,15 +425,21 @@ const Teachings = () => {
 
                   {filteredTeachings.length > 0 ? (
                     <>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {filteredTeachings.map((teaching, index) => (
-                          <TeachingCard
-                            key={teaching.id}
-                            teaching={teaching}
-                            index={index}
-                          />
-                        ))}
-                      </div>
+                      {selectedPhase && !searchQuery && !selectedTheme ? (
+                        // Grouped by module view for phase tabs (when not searching/filtering)
+                        <ModuleGroupedTeachings teachings={filteredTeachings} />
+                      ) : (
+                        // Flat grid for "All Teachings" or when filtering
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                          {filteredTeachings.map((teaching, index) => (
+                            <TeachingCard
+                              key={teaching.id}
+                              teaching={teaching}
+                              index={index}
+                            />
+                          ))}
+                        </div>
+                      )}
                     </>
                   ) : (
                     <div className="text-center py-12">
