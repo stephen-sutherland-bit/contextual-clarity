@@ -86,7 +86,7 @@ Extract the following from the teaching:
    - Don't use Māori words
    - Use NZ English (e.g., "Judgement" not "Judgment")
 6. **Questions Answered**: What questions does this teaching answer? Phrase as actual questions someone might ask.
-7. **Quick Answer**: A 2-3 sentence summary that directly answers the main question(s) this teaching addresses. This is shown before the full teaching.
+7. **Quick Answer**: A 2-3 sentence summary that directly answers the main question(s) this teaching addresses. This is shown before the full teaching. IMPORTANT: Do NOT include bullet points, question lists, or "Questions like..." phrasing in the quick_answer. Keep it as pure prose only—no lists or questions embedded.
 8. **Suggested Title**: A clear, descriptive title for the teaching
 9. **Suggested Phase**: Which of the five learning phases (foundations, essentials, building-blocks, moving-on, advanced) best fits this teaching? Consider the complexity and where it fits in the learning journey.`;
 
