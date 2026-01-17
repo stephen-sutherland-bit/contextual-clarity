@@ -494,19 +494,6 @@ const InlineTeachingContent = ({
               ))}
             </div>
             
-            {/* Summary Box */}
-            <div className="mt-8 bg-muted/50 rounded-xl p-6 border border-border">
-              <h4 className="font-heading font-bold text-lg mb-4">Summary:</h4>
-              <p className="mb-3 text-foreground/80">This teaching provides clear, contextually-grounded answers to questions like:</p>
-              <ul className="list-disc list-inside space-y-1 mb-4 text-foreground/80">
-                {ponderedQuestions.map((q, idx) => (
-                  <li key={idx}>{q.question}</li>
-                ))}
-              </ul>
-              <p className="text-sm italic text-muted-foreground">
-                This system does not offer childish analogies or vague spiritualising. It provides answers rooted in the original languages, historical context, and the Bible's covenant framework, showing that these are not mysteries to be speculated about but truths to be understood from the text itself.
-              </p>
-            </div>
           </motion.section>
         )}
 
