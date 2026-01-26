@@ -15,6 +15,9 @@ import {
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import ApiUsageCard from "@/components/ApiUsageCard";
 import ImportHistoryPanel from "@/components/ImportHistoryPanel";
 
@@ -53,6 +56,8 @@ const Admin = () => {
   const [batchId, setBatchId] = useState<string>("");
   const [alreadyImported, setAlreadyImported] = useState<Set<string>>(new Set());
   const [isCheckingDb, setIsCheckingDb] = useState(false);
+  const [preserveTitle, setPreserveTitle] = useState(false);
+  const [manualTitle, setManualTitle] = useState("");
 
   // ============== AUDIO IMPORT STATE ==============
   const [audioFile, setAudioFile] = useState<File | null>(null);
@@ -322,7 +327,11 @@ const Admin = () => {
               "Content-Type": "application/json",
               Authorization: `Bearer ${session.access_token}`,
             },
-            body: JSON.stringify({ content, title: "" }),
+            body: JSON.stringify({ 
+              content, 
+              title: preserveTitle && manualTitle.trim() ? manualTitle.trim() : "",
+              preserve_title: preserveTitle && manualTitle.trim() ? true : false
+            }),
           }
         );
         
@@ -1004,6 +1013,31 @@ const Admin = () => {
                               })}
                             </div>
                           </ScrollArea>
+                        </div>
+
+                        {/* Preserve Title Option */}
+                        <div className="bg-muted/30 rounded-lg p-4 space-y-3 border border-border">
+                          <div className="flex items-center space-x-2">
+                            <Checkbox 
+                              id="preserveTitle" 
+                              checked={preserveTitle}
+                              onCheckedChange={(checked) => setPreserveTitle(checked === true)}
+                            />
+                            <Label htmlFor="preserveTitle" className="text-sm font-medium cursor-pointer">
+                              Use this title (don't let AI change it)
+                            </Label>
+                          </div>
+                          {preserveTitle && (
+                            <Input
+                              placeholder="Enter the original title..."
+                              value={manualTitle}
+                              onChange={(e) => setManualTitle(e.target.value)}
+                              className="mt-2"
+                            />
+                          )}
+                          {preserveTitle && !manualTitle.trim() && (
+                            <p className="text-xs text-amber-600">Enter a title above, or uncheck to let AI generate one</p>
+                          )}
                         </div>
 
                         <div className="flex gap-2">
