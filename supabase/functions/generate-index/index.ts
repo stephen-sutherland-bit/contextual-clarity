@@ -106,7 +106,7 @@ serve(async (req) => {
       );
     }
 
-    const { content, title } = await req.json();
+    const { content, title, preserve_title } = await req.json();
 
     if (!content) {
       return new Response(JSON.stringify({ error: 'Content is required' }), {
@@ -116,6 +116,7 @@ serve(async (req) => {
     }
 
     console.log('Generating index for content, length:', content.length);
+    console.log('Preserve title:', preserve_title, 'Title:', title);
     
     // Estimate input tokens (~4 chars per token)
     const inputTokens = Math.ceil((INDEX_SYSTEM_PROMPT.length + content.length) / 4);
@@ -213,6 +214,13 @@ serve(async (req) => {
     }
 
     const metadata = JSON.parse(toolCall.function.arguments);
+    
+    // If preserve_title is true and a title was provided, use the original title
+    if (preserve_title && title) {
+      console.log('Preserving original title:', title);
+      metadata.suggested_title = title;
+    }
+    
     console.log('Extracted metadata:', metadata);
 
     // Estimate cost: GPT-4o input ~$2.50/1M, output ~$10/1M
