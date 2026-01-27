@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
-import { DollarSign, TrendingUp, Loader2 } from "lucide-react";
+import { DollarSign, TrendingUp, Loader2, Info } from "lucide-react";
 
 interface UsageSummary {
   totalCost: number;
@@ -121,6 +122,12 @@ const ApiUsageCard = () => {
           <TrendingUp className="h-3 w-3" />
           <span>{usage?.operationCount || 0} operations this month</span>
         </div>
+        <Alert variant="default" className="mt-3 bg-muted/30 border-muted">
+          <Info className="h-4 w-4" />
+          <AlertDescription className="text-xs text-muted-foreground">
+            This only tracks API usage within this app. Direct OpenAI or AssemblyAI usage (e.g., ChatGPT, DeepSeek) is not included.
+          </AlertDescription>
+        </Alert>
       </CardContent>
     </Card>
   );
