@@ -1,76 +1,51 @@
 
 
-## Plan: Add Usage Disclaimer to API Cost Tracker
+## Plan: Remove Confusing "Start Here" Badges
 
 ### Problem
-Dad has seen $120 in OpenAI charges but the in-app tracker only shows $28.01. This is because:
-1. The tracker only logs API calls made through the Lovable app
-2. Direct OpenAI API usage (DeepSeek, ChatGPT web, other tools using the same key) is not tracked
-3. Dad needs to understand this limitation to avoid confusion
+Teaching cards display "Start Here: #234" badges that show the database `readingOrder` field. These numbers are:
+- Meaningless to users (e.g., #234, #114 are not helpful sequence indicators)
+- Confusing - "Start Here" implies first teaching, but high numbers contradict this
+- Redundant now that teachings are grouped by Module (which already shows reading order)
 
 ### Solution
-Add a clear disclaimer to the API Usage card explaining what is and is not tracked.
+Remove the `showReadingOrder` feature entirely since Module grouping now provides the reading order context.
 
 ---
 
 ### Changes
 
-**File:** `src/components/ApiUsageCard.tsx`
-
-Add an info note below the usage statistics:
-
-```text
-┌─────────────────────────────────────────────────────────────┐
-│ 💵 API Usage - January                                      │
-├─────────────────────────────────────────────────────────────┤
-│ Total    Transcription    Processing    Indexing    AI Gen  │
-│ $28.01   $12.50           $8.00         $6.01       $1.50   │
-├─────────────────────────────────────────────────────────────┤
-│ 📊 156 operations this month                                │
-├─────────────────────────────────────────────────────────────┤
-│ ℹ️ This only tracks API usage within this app.              │
-│    Direct OpenAI/AssemblyAI usage (e.g., ChatGPT,           │
-│    DeepSeek) is not included. Check your OpenAI             │
-│    dashboard for total account charges.                     │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Technical Implementation
-
-1. Add an `Alert` component with `variant="default"` below the operations count
-2. Include an `Info` icon from lucide-react
-3. Use muted styling to keep it subtle but visible
-4. Link text could optionally point to OpenAI usage dashboard
-
-### Code Changes
-
-```tsx
-// Add import
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Info } from "lucide-react";
-
-// Add after the operations count div (around line 95)
-<Alert variant="default" className="mt-3 bg-muted/30 border-muted">
-  <Info className="h-4 w-4" />
-  <AlertDescription className="text-xs text-muted-foreground">
-    This only tracks API usage within this app. Direct OpenAI or AssemblyAI 
-    usage (e.g., ChatGPT, DeepSeek) is not included.
-  </AlertDescription>
-</Alert>
-```
-
-### Files to Modify
-
 | File | Change |
 |------|--------|
-| `src/components/ApiUsageCard.tsx` | Add disclaimer Alert below operations count |
+| `src/components/TeachingCard.tsx` | Remove the `showReadingOrder` prop and badge rendering code (lines 25-31) |
+| `src/pages/Teachings.tsx` | Remove `showReadingOrder` prop from TeachingCard calls (lines 56-61) |
+| `src/components/RecommendedPath.tsx` | Remove `showReadingOrder` prop from TeachingCard calls |
 
-### What This Does NOT Change
-- The actual cost tracking logic
-- Any edge functions
-- Database schema
-- Other admin features
+### Technical Details
+
+**TeachingCard.tsx** - Remove lines 25-31:
+```tsx
+// DELETE THIS BLOCK:
+{showReadingOrder && teaching.readingOrder && (
+  <div className="flex items-center gap-2 mb-2">
+    <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+      Start Here: #{teaching.readingOrder}
+    </span>
+  </div>
+)}
+```
+
+Also remove `showReadingOrder` from the props interface.
+
+**Teachings.tsx** - Line 60: Remove `showReadingOrder` prop
+
+**RecommendedPath.tsx** - Line 44: Remove `showReadingOrder` prop
+
+### Result
+- Clean teaching cards without confusing badges
+- Module grouping continues to provide reading order context
+- Simpler component with less props to manage
 
 ### Risk Level
-Very Low - purely additive UI change with no functional impact.
+Very Low - purely removes UI clutter, no functional impact on data or navigation.
 
