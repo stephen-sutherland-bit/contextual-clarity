@@ -41,7 +41,6 @@ const RecommendedPath = () => {
               key={teaching.id} 
               teaching={teaching} 
               index={index}
-              showReadingOrder 
             />
           ))}
         </div>

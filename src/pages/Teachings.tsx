@@ -57,7 +57,6 @@ const ModuleGroupedTeachings = ({ teachings }: { teachings: Teaching[] }) => {
                 key={teaching.id}
                 teaching={teaching}
                 index={index}
-                showReadingOrder
               />
             ))}
           </div>
