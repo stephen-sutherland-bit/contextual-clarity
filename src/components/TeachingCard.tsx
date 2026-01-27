@@ -9,10 +9,9 @@ import { Teaching } from "@/data/teachings";
 interface TeachingCardProps {
   teaching: Teaching;
   index: number;
-  showReadingOrder?: boolean;
 }
 
-const TeachingCard = ({ teaching, index, showReadingOrder = false }: TeachingCardProps) => {
+const TeachingCard = ({ teaching, index }: TeachingCardProps) => {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -22,13 +21,6 @@ const TeachingCard = ({ teaching, index, showReadingOrder = false }: TeachingCar
     >
       <Card variant="teaching" className="h-full flex flex-col group">
         <CardHeader>
-          {showReadingOrder && teaching.readingOrder && (
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">
-                Start Here: #{teaching.readingOrder}
-              </span>
-            </div>
-          )}
           <CardTitle className="group-hover:text-primary transition-colors">
             {teaching.title}
           </CardTitle>
