@@ -1,51 +1,84 @@
 
 
-## Plan: Remove Confusing "Start Here" Badges
+## Plan: Add Dad's Terminology and Tone Enhancements to AI Prompts
 
-### Problem
-Teaching cards display "Start Here: #234" badges that show the database `readingOrder` field. These numbers are:
-- Meaningless to users (e.g., #234, #114 are not helpful sequence indicators)
-- Confusing - "Start Here" implies first teaching, but high numbers contradict this
-- Redundant now that teachings are grouped by Module (which already shows reading order)
+### What's Being Added
 
-### Solution
-Remove the `showReadingOrder` feature entirely since Module grouping now provides the reading order context.
+Dad has refined his prompt with two important additions that improve both the **voice** and **historical accuracy** of the processed teachings.
 
 ---
 
-### Changes
+### 1. Collaborative Tone & Voice (New Section)
+
+Add guidance for a humble, collaborative teaching style:
+
+- Use **collaborative language** ("we," "us," "our exploration") instead of authoritative pronouncements
+- Position the writer as a **knowledgeable guide walking beside the reader**, not a lecturer
+- Avoid definitive, debate-ending declarations like "This proves..."
+- Instead use tentative phrasing: "This suggests...", "The text invites us to see...", "We might understand this as..."
+
+**Why this matters**: It matches the informal, exploratory nature of Jim's Bible studies and makes the content feel more inviting rather than preachy.
+
+---
+
+### 2. Terminology Precision: Israelite, Judean, Jew (New Section)
+
+Add specific guidance on using these terms correctly:
+
+| Term | Usage |
+|------|-------|
+| **Israelite** | For the broad, ethnic/covenantal descendants of Jacob (e.g., "the promises to Israel") |
+| **Judean** | Default translation for NT Greek *Ioudaioi* - specifies the religious-political faction from Jerusalem/Judea, often in conflict with Jesus |
+| **Jew** | Use cautiously - mainly for modern contexts or when quoting directly |
+
+**The key instruction**: When John mentions "the Jews" (Greek *Ioudaioi*), invisibly explain that this refers to "Judean religious authorities" rather than all Jewish people.
+
+**Why this matters**: This is historically accurate scholarship. The Greek *Ioudaioi* literally means "Judeans" and usually refers to the Jerusalem establishment, not ethnic Jews broadly. Using "Judean" prevents modern misreadings and is more contextually precise.
+
+---
+
+### Files to Modify
 
 | File | Change |
 |------|--------|
-| `src/components/TeachingCard.tsx` | Remove the `showReadingOrder` prop and badge rendering code (lines 25-31) |
-| `src/pages/Teachings.tsx` | Remove `showReadingOrder` prop from TeachingCard calls (lines 56-61) |
-| `src/components/RecommendedPath.tsx` | Remove `showReadingOrder` prop from TeachingCard calls |
+| `supabase/functions/process-transcript/index.ts` | Add new sections to CCM_SYSTEM_PROMPT |
+| `supabase/functions/generate-index/index.ts` | Add terminology guidance to INDEX_SYSTEM_PROMPT (for consistency in extracted metadata) |
 
-### Technical Details
+---
 
-**TeachingCard.tsx** - Remove lines 25-31:
-```tsx
-// DELETE THIS BLOCK:
-{showReadingOrder && teaching.readingOrder && (
-  <div className="flex items-center gap-2 mb-2">
-    <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">
-      Start Here: #{teaching.readingOrder}
-    </span>
-  </div>
-)}
+### Specific Changes to process-transcript
+
+Add after the "Core Task" section (around line 105):
+
+```text
+## Tone & Voice
+- Unfailingly collaborative ("we," "us," "our exploration") and humble
+- You are a knowledgeable guide walking beside the reader, never a lecturer behind a podium
+- Avoid definitive, debate-ending declarations ("This proves…", "This clearly shows…")
+- Use tentative, inviting phrasing: "This suggests…", "The text invites us to see…", "We might understand this as…"
+
+## Terminology Precision: Israelite, Judean, Jew
+These terms must not be used interchangeably:
+
+- **Israelite**: For the broad, ethnic/covenantal descendants of Jacob (e.g., "the promises to Israel," "the twelve tribes of Israel")
+- **Judean**: Default for NT Greek Ioudaioi. This specifies the religious-political faction from Jerusalem/Judea, often in conflict with Jesus. When scripture mentions "the Jews" opposing Jesus, invisibly clarify: "the Judean religious authorities" or "the leaders in Jerusalem"
+- **Jew**: Use cautiously - mainly for modern contexts, direct quotations, or when the ethnic/religious identity is clearly intended rather than the political establishment
+
+When rewriting, naturally replace mistranslated "Jews" with "Judeans" where contextually appropriate, with invisible clarification woven into the prose.
 ```
 
-Also remove `showReadingOrder` from the props interface.
+---
 
-**Teachings.tsx** - Line 60: Remove `showReadingOrder` prop
+### Specific Changes to generate-index
 
-**RecommendedPath.tsx** - Line 44: Remove `showReadingOrder` prop
+Add to the CCM methodology section (around line 66):
 
-### Result
-- Clean teaching cards without confusing badges
-- Module grouping continues to provide reading order context
-- Simpler component with less props to manage
+```text
+**Terminology Precision**: Distinguish between Israelites (ethnic/covenantal descendants of Jacob), Judeans (NT Ioudaioi - Jerusalem religious establishment), and Jews (modern usage). When indexing, prefer "Judean authorities" over "Jewish leaders" for NT conflicts.
+```
+
+---
 
 ### Risk Level
-Very Low - purely removes UI clutter, no functional impact on data or navigation.
+Low - These are additive prompt enhancements that align with Dad's existing methodology. They won't change the core processing logic, just refine the output quality.
 
