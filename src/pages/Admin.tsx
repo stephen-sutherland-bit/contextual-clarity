@@ -482,10 +482,37 @@ const Admin = () => {
   };
 
   // ============== AUDIO IMPORT LOGIC ==============
+  
+  // File size limits for audio uploads
+  const MAX_AUDIO_SIZE_MB = 50;
+  const MAX_AUDIO_SIZE_BYTES = MAX_AUDIO_SIZE_MB * 1024 * 1024;
+  const WARN_AUDIO_SIZE_MB = 25;
+  const WARN_AUDIO_SIZE_BYTES = WARN_AUDIO_SIZE_MB * 1024 * 1024;
 
   const handleAudioFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      const fileSizeMB = file.size / 1024 / 1024;
+      
+      // Block files over 50MB
+      if (file.size > MAX_AUDIO_SIZE_BYTES) {
+        toast({
+          title: "File too large",
+          description: `Maximum size is ${MAX_AUDIO_SIZE_MB}MB. Your file is ${fileSizeMB.toFixed(1)}MB. Try compressing to 64kbps mono MP3 to reduce size by ~80%.`,
+          variant: "destructive"
+        });
+        e.target.value = ''; // Reset the input
+        return;
+      }
+      
+      // Warn for files between 25-50MB
+      if (file.size > WARN_AUDIO_SIZE_BYTES) {
+        toast({
+          title: "Large file detected",
+          description: `${fileSizeMB.toFixed(1)}MB file may take longer to upload. Consider compressing for faster processing.`,
+        });
+      }
+      
       setAudioFile(file);
       setTranscriptText("");
       setProcessedText("");
@@ -683,11 +710,8 @@ const Admin = () => {
       
       const nextReadingOrder = (maxOrderData?.reading_order || 0) + 1;
       
-      const { count } = await supabase
-        .from("teachings")
-        .select("*", { count: "exact", head: true });
-      
-      const documentId = `D-${String((count || 0) + 1).padStart(3, "0")}`;
+      // Use UUID-based document ID to prevent collisions
+      const documentId = `D-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
       
       const { error: insertError } = await supabase.from("teachings").insert({
         document_id: documentId,
@@ -1204,9 +1228,14 @@ const Admin = () => {
                         />
                         <div className="border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:border-primary/50 transition-colors">
                           {audioFile ? (
-                            <p className="text-sm font-medium truncate">{audioFile.name}</p>
+                            <div className="space-y-1">
+                              <p className="text-sm font-medium truncate">{audioFile.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {(audioFile.size / 1024 / 1024).toFixed(1)} MB
+                              </p>
+                            </div>
                           ) : (
-                            <p className="text-sm text-muted-foreground">Click to select audio file</p>
+                            <p className="text-sm text-muted-foreground">Click to select audio file (max 50MB)</p>
                           )}
                         </div>
                       </label>
