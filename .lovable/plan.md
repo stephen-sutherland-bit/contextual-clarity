@@ -1,24 +1,57 @@
-# Plan: Fix Dad's Audio Import Issues ✅ COMPLETED
 
-All 6 issues from the WhatsApp conversation have been resolved.
 
-## Summary of Fixes
+## Plan: Fix Audio File Picker Not Showing WhatsApp Audio Files
 
-| # | Issue | Status | Fix Applied |
-|---|-------|--------|-------------|
-| 1 | Large audio files fail (104MB+) | ✅ Done | 50MB limit with warning at 25MB, compression tips |
-| 2 | Duplicate document_id error | ✅ Done | UUID-based IDs instead of count-based |
-| 3 | Missing "Add New Question" button | ✅ Done | Added "+ Add Question" button |
-| 4 | AI outputs as one long block | ✅ Done | Strengthened Structure section in prompt |
-| 5 | Duplicate questions | ✅ Done | Added "Questions Handling" section to prompt |
-| 6 | Preview app access | ✅ Done | Preview URL provided |
+### The Problem
 
-## Files Modified
+Your WhatsApp audio file uses the `.opus` format. While the code uses `accept="audio/*"` which should accept all audio, there's a known Windows/browser issue:
 
-- `src/pages/Admin.tsx` - File size validation, UUID document IDs, file size display
-- `src/components/TeachingEditor.tsx` - "+ Add Question" button for manual entry
-- `supabase/functions/process-transcript/index.ts` - Added Questions Handling section
+- Windows doesn't have `.opus` registered in its MIME type registry by default
+- The browser's file picker uses Windows file associations to filter files
+- Since Windows doesn't recognize `.opus` as audio, it gets filtered out even though `audio/*` is specified
 
-## Preview URL
+You can see this in your screenshot - the dialog says "Audio Files" but the WhatsApp audio file isn't visible.
 
-https://id-preview--9db6ffe6-44ab-4656-93fc-aceeefafdea0.lovable.app
+### The Solution
+
+Explicitly list all common audio extensions in the `accept` attribute. This tells the browser exactly which file extensions to allow, bypassing the MIME type issue.
+
+**Current code:**
+```tsx
+accept="audio/*"
+```
+
+**Fixed code:**
+```tsx
+accept="audio/*,.mp3,.m4a,.wav,.ogg,.opus,.aac,.flac,.wma,.webm"
+```
+
+This explicitly includes:
+- `.opus` - WhatsApp audio format
+- `.ogg` - Alternative WhatsApp format  
+- `.m4a` - Common iPhone/Mac format
+- `.mp3`, `.wav`, `.aac`, `.flac`, `.wma`, `.webm` - Other common formats
+
+### File to Modify
+
+| File | Change |
+|------|--------|
+| `src/pages/Admin.tsx` | Update line 1225: change `accept="audio/*"` to explicitly include `.opus` and other formats |
+
+### Technical Details
+
+Change on line 1225:
+```tsx
+// Before
+accept="audio/*"
+
+// After  
+accept="audio/*,.mp3,.m4a,.wav,.ogg,.opus,.aac,.flac,.wma,.webm"
+```
+
+### Risk Level
+Very Low - This is a simple attribute change that expands file compatibility without affecting any processing logic.
+
+### Result
+The file picker will now show your WhatsApp audio file (and any other audio format) when you click "Click to select audio file".
+
