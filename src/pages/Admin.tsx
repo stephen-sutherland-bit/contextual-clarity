@@ -1222,7 +1222,7 @@ const Admin = () => {
                       <label className="flex-1">
                         <input
                           type="file"
-                          accept="audio/*"
+                          accept="audio/*,.mp3,.m4a,.wav,.ogg,.opus,.aac,.flac,.wma,.webm"
                           onChange={handleAudioFileChange}
                           className="hidden"
                         />
