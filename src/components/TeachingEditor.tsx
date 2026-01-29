@@ -573,21 +573,38 @@ const TeachingEditor = ({ teaching, ponderedQuestions: initialPondered = [], ope
                     Structured Q&A section showing common misconceptions vs CBS answers
                   </p>
                 </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleGeneratePondered}
-                  disabled={isGeneratingPondered}
-                  className="gap-1.5"
-                >
-                  {isGeneratingPondered ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Sparkles className="h-3.5 w-3.5" />
-                  )}
-                  {ponderedQuestions.length > 0 ? "Regenerate" : "Generate"} Questions
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPonderedQuestions(prev => [...prev, {
+                      topic: "",
+                      question: "",
+                      commonAnswer: "",
+                      cbsAnswer: ""
+                    }])}
+                    className="gap-1.5"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Add Question
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleGeneratePondered}
+                    disabled={isGeneratingPondered}
+                    className="gap-1.5"
+                  >
+                    {isGeneratingPondered ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-3.5 w-3.5" />
+                    )}
+                    {ponderedQuestions.length > 0 ? "Regenerate" : "Generate"}
+                  </Button>
+                </div>
               </div>
               
               {ponderedQuestions.length > 0 && (

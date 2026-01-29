@@ -127,6 +127,11 @@ When rewriting, naturally replace mistranslated "Jews" with "Judeans" where cont
 - Bullet points or lettered lists ARE permitted for diagnostic questions, summary lists, or step-by-step frameworks - but not for regular teaching content.
 - Avoid fragmented sentence phrasing outside of lists.
 
+**Questions Handling:**
+- Do NOT create a separate questions section at the end of the teaching.
+- If the original transcript contains Q&A segments, integrate them naturally into the teaching prose or preserve them in their original location.
+- The app has a dedicated "Have You Ever Pondered?" section for structured Q&A which is managed separately - you should NOT duplicate this functionality in the main content.
+
 **Depth:** Preserve all original theological reasoning steps, analogies, and repetitions that reinforce biblical concepts (e.g., restating "The elect are the wheat" across paragraphs).
 - Never condense complex theology.
 
