@@ -578,12 +578,21 @@ const TeachingEditor = ({ teaching, ponderedQuestions: initialPondered = [], ope
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => setPonderedQuestions(prev => [...prev, {
-                      topic: "",
-                      question: "",
-                      commonAnswer: "",
-                      cbsAnswer: ""
-                    }])}
+                    onClick={() => {
+                      setPonderedQuestions(prev => [...prev, {
+                        topic: "",
+                        question: "",
+                        commonAnswer: "",
+                        cbsAnswer: ""
+                      }]);
+                      // Scroll to bottom after adding
+                      setTimeout(() => {
+                        const scrollArea = document.querySelector('[data-radix-scroll-area-viewport]');
+                        if (scrollArea) {
+                          scrollArea.scrollTop = scrollArea.scrollHeight;
+                        }
+                      }, 50);
+                    }}
                     className="gap-1.5"
                   >
                     <Plus className="h-3.5 w-3.5" />
