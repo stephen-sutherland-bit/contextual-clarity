@@ -7,23 +7,23 @@ import { Link } from "react-router-dom";
 const principles = [
   {
     icon: BookMarked,
-    title: "Context is King",
-    description: "Interpret within the original historical, cultural, and covenantal setting."
+    title: "Covenantal Location",
+    description: "Every passage belongs to a specific covenant—Mosaic or New. Identify which governs."
   },
   {
     icon: History,
-    title: "Fulfilment Horizon",
-    description: "Jesus' prophecies in Matthew 24 and Revelation were fulfilled in AD 70."
+    title: "The Imminent Horizon",
+    description: "Jesus' prophecies had a first-century fulfilment—AD 70 marked the end of the Mosaic age."
   },
   {
     icon: Scale,
-    title: "Law vs Grace",
-    description: "The Mosaic Covenant ended at AD 70; we now live under the New Covenant of grace."
+    title: "Two Instrumental Modes",
+    description: "Mosaic: material, external, national. New Covenant: spiritual, internal, universal."
   },
   {
     icon: Eye,
-    title: "Literal vs Symbolic",
-    description: "Recognise ancient metaphor—'clouds' mean judgement, not weather patterns."
+    title: "Transition Literature",
+    description: "The NT was written during the overlap of two covenants—read it as such."
   }
 ];
 
