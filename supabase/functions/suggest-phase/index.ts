@@ -61,55 +61,64 @@ Your task is to categorise teachings into one of five scaffolded learning phases
 
 **CCM METHODOLOGY CONTEXT:**
 - Interpret within original historical/cultural/covenantal setting
-- Identify governing covenant (Mosaic/New)
-- Recognise ancient metaphor (e.g., "clouds" = judgement; "world" = Israel's world)
-- Jesus' prophecies (Matthew 24, Revelation) were fulfilled in AD 70
-- Mosaic Covenant ended at AD 70; sin = transgression of Mosaic Law
+- Identify governing covenant and its "Instrumental Mode" (Mosaic = material/external/national; New = spiritual/internal/universal)
+- Recognise "Covenantal Mislocation"—the error of applying wrong-covenant commands to the wrong audience
+- Understand the NT as "Transition Literature" written during the Mosaic age (AD 30–70), not after it ended
+- Recognise ancient metaphor (e.g., "clouds" = judgement; "world" = Israel's world; "the dead" = those under the Old Covenant)
+- The "Imminent Horizon": Jesus' prophecies (Matthew 24, Revelation) were fulfilled in AD 70—the end of the Mosaic age
+- Sin = transgression of Mosaic Law (not applicable today under the New Covenant of grace)
 
 **THE FIVE LEARNING PHASES:**
 
-1. **foundations** - The basics of biblical interpretation and CCM
-   - How to read the Bible contextually
-   - Introduction to hermeneutics
-   - Understanding audience relevance
-   - Basic principles of interpretation
+1. **foundations** - Introduction to Contextual Reading
+   - How to read the Bible contextually (original audience, historical setting)
+   - Introduction to hermeneutics and interpretive principles
+   - Understanding audience relevance—"Who was this written to?"
+   - Basic principles: let Scripture interpret Scripture
    - For complete newcomers to CCM
 
 2. **essentials** - Covenant Basics
-   - What is a covenant?
-   - Old vs New Covenant
-   - The nature and structure of biblical covenants
-   - Abraham, Moses, David covenants
-   - Foundation for understanding covenant theology
+   - What is a covenant? How do they function?
+   - The major covenants: Abrahamic, Mosaic, Davidic, New
+   - Key differences between covenants (terms, parties, duration)
+   - The concept of "Instrumental Mode"—how each covenant operated (material vs. spiritual)
+   - Foundation for understanding why covenant identification matters
 
-3. **building-blocks** - Transition from Mosaic to New Covenant / AD70 Fulfilment
-   - How the Mosaic Covenant ended
-   - The significance of AD 70
-   - Prophetic fulfilment in the first century
-   - The transition period (30-70 AD)
-   - Matthew 24, Revelation fulfilled prophecy
-   - This is CENTRAL to CCM - most teachings about prophecy, judgement, or covenant transition belong here
+3. **building-blocks** - Transition Literature & AD 70 Fulfilment
+   - The NT as Transition Literature—written during overlapping covenants
+   - The "Passport Transition" from Mosaic to New Covenant
+   - How the Mosaic Covenant ended at AD 70
+   - Prophetic fulfilment: Matthew 24, Revelation, Daniel fulfilled in the first century
+   - The significance of "the last days," "the end of the age," and "this generation"
+   - This is CENTRAL to CCM—most teachings about prophecy, judgement, or covenant transition belong here
 
 4. **moving-on** - Life in the New Covenant
-   - Practical Christian living
-   - What it means to be "in Christ"
-   - Freedom from the law
-   - New Covenant blessings and responsibilities
-   - Application-focused teachings
+   - Practical Christian living under grace, not Law
+   - What it means to be "in Christ"—identity, freedom, inheritance
+   - The indwelling Spirit vs. external Law
+   - New Covenant blessings and the completed work of Christ
+   - Application-focused teachings about living from an accomplished reality
 
-5. **advanced** - Doctrinal Deep Dives
-   - Complex theological topics
-   - Detailed exegesis of difficult passages
-   - Addressing common objections
-   - Topics requiring prior CCM foundation
-   - For those with solid understanding of phases 1-4
+5. **advanced** - Doctrinal Deep Dives & Difficult Passages
+   - Complex theological topics requiring solid CCM foundation
+   - Detailed exegesis of commonly misunderstood passages
+   - Addressing objections and "problem texts"
+   - Topics like: resurrection, the nature of Satan/demons, non-Trinitarian perspectives
+   - For those with solid understanding of phases 1–4
 
 **DECISION GUIDE:**
 - If it teaches HOW to interpret Scripture → foundations
-- If it explains WHAT covenants are → essentials  
-- If it discusses AD70, prophecy fulfilment, or covenant transition → building-blocks
-- If it's about living the Christian life today → moving-on
-- If it's a deep dive requiring prior knowledge → advanced
+- If it explains WHAT covenants are and how they differ → essentials
+- If it discusses AD 70, prophecy fulfilment, Transition Literature, or covenant ending → building-blocks
+- If it's about practical Christian living today, identity in Christ, grace → moving-on
+- If it's a deep dive into difficult doctrines or addresses common objections → advanced
+
+**KEY TERMINOLOGY TO RECOGNISE:**
+- "Covenantal Mislocation" → usually building-blocks or advanced
+- "Instrumental Mode" → usually essentials or building-blocks
+- "Transition Literature" → building-blocks
+- "Imminent Horizon" → building-blocks
+- "Intra-Covenantal" language → essentials or building-blocks
 
 Analyse the teaching and determine which phase best fits.`;
 
