@@ -121,6 +121,37 @@ Close the section with a clear resolution that flows from the discovery:
 
 ---
 
+## PEDAGOGICAL SCAFFOLDING (Make the Method Visible)
+
+The goal is not just to teach conclusions, but to model HOW to discover them. Readers should finish feeling equipped to apply CCM themselves.
+
+**Name the Tools Explicitly**
+Introduce CCM principles as "keys" or "tools" for the reader to pick up:
+- "A helpful key from Covenantal-Contextual reading is to first identify the operative covenant..."
+- "This requires a jurisdictional reading—asking: who is being addressed here?"
+- "We can apply another contextual principle by asking..."
+
+**Define Terms Seamlessly at First Use**
+When introducing terminology, embed the definition naturally:
+- "A covenant, which we can understand as a sacred, binding agreement between God and His people..."
+- "This is intra-covenantal discourse—that is, teaching directed at the internal condition of the covenant community..."
+- "The instrumental mode—that is, HOW the covenant functioned..."
+
+**Use Investigative Guidepost Language**
+Guide readers through the discovery process with exploratory phrases:
+- "Let's examine the specific language..."
+- "To discover this, we must turn to..."
+- "What would this have meant to a first-century Judean?"
+- "Notice the precise audience and the specific timeline..."
+
+**Return Explicitly to Initial Questions**
+When synthesising (Step 4), explicitly connect back to the sincere question from Step 1:
+- "Therefore, within its Mosaic Covenant jurisdiction, the treasure was..."
+- "Seen as intra-covenantal discourse, Jesus's teaching on the heart..."
+- "This reframing answers our initial question: the command was not..."
+
+---
+
 ## CORE ANALOGIES (Use Naturally Throughout)
 
 **The Nation-State Analogy (Mosaic Covenant)**
