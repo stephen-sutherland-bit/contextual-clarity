@@ -1,63 +1,101 @@
 
 
-## Slight Prompt Adjustment: Scholarly Tone Guardrail
+## Slight Prompt Adjustment: Enhanced Pedagogical Scaffolding
 
 ### The Problem
 
-Jim loved the output format and structure, but the AI is producing overly devotional opening paragraphs that sound like "the beginning of a super religious church service." 
+Jim tested both outputs and found our app's version lacks the "pedagogical feel" of the DeepSeek version. He asked DeepSeek to compare the two, and the analysis revealed specific differences:
 
-**What the AI wrote:**
-> "Let us begin our journey together by seeking clarity and understanding as we delve into the profound treasures of Scripture. Our shared prayer is that by allowing the original context to illuminate God's enduring message, we can perceive His word with fresh eyes and renewed hearts. We gather as a whānau, a covenant family..."
+**Our output**: Excellent thematic exposition ("a lecture")
+**DeepSeek's output**: Pedagogical guided discovery ("an invitational workshop")
 
-**What Jim prefers:**
-> "Let's continue our journey together by seeking clarity and understanding as we delve into the ancient biblical writings, allowing the original context to illuminate God's enduring message. Our purpose is to honour the text by seeking to understand it as it was first given through its inspired authors."
+The key difference: DeepSeek's version makes the **method of discovery visible** to the reader, introducing CCM concepts as **tools they can learn to use themselves**.
+
+### Root Cause
+
+Our current prompt describes the 4-Step Framework but doesn't emphasise:
+1. **Explicit methodology labelling** - Naming CCM principles as "keys" or "tools" the reader can pick up
+2. **First-use definitions** - Seamlessly defining terms when first introduced
+3. **Guidepost transitions** - More investigative language ("Let's examine...", "To discover this...")
+4. **Process visibility** - Making the journey of discovery as important as the destination
 
 ### The Fix
 
-A **minimal addition** to the existing TONE & VOICE section (lines 185-192) adding one new bullet point with specific guardrails.
+Add a new section **PEDAGOGICAL SCAFFOLDING** immediately after the 4-Step Framework (after line 121) that explicitly instructs the AI to:
+- Name CCM principles as explicit "keys" or "tools" for the reader
+- Define terms seamlessly at first use
+- Use investigative guidepost language
+- Return explicitly to initial questions when resolving
+
+This is a **minimal, targeted addition** that doesn't alter:
+- The 4-Step Framework structure
+- The terminology mandates
+- The doctrinal positions
+- The required end-matter format
+- Any other existing sections
 
 ### Change Location
 
-`supabase/functions/process-transcript/index.ts` - Lines 185-192
+`supabase/functions/process-transcript/index.ts` - Insert new section after line 121 (after the 4-Step Framework closes)
 
-### Current TONE & VOICE Section
-
-```text
-## TONE & VOICE
-
-- Unfailingly collaborative: "we," "us," "our exploration"
-- Humble and inviting, like a knowledgeable guide walking beside the reader
-- Avoid definitive, debate-ending declarations ("This proves...", "This clearly shows...")
-- Use tentative phrasing: "This suggests...", "The text invites us to see...", "We might understand this as..."
-- Warmth and mercy for those who hold different views: "It's understandable why many read it this way..."
-```
-
-### Updated TONE & VOICE Section (One Addition)
+### New Section to Add
 
 ```text
-## TONE & VOICE
+---
 
-- Unfailingly collaborative: "we," "us," "our exploration"
-- Humble and inviting, like a knowledgeable guide walking beside the reader
-- Avoid definitive, debate-ending declarations ("This proves...", "This clearly shows...")
-- Use tentative phrasing: "This suggests...", "The text invites us to see...", "We might understand this as..."
-- Warmth and mercy for those who hold different views: "It's understandable why many read it this way..."
-- **Scholarly, not devotional**: Write as a biblical scholar, NOT a pastor leading a prayer service. Avoid liturgical/devotional phrases like "our shared prayer", "fresh eyes and renewed hearts", "treasures of Scripture", or "by the Holy Spirit". Prefer grounded, academic language: "the ancient biblical writings", "the original authors", "the text invites us to consider". The tone should feel like an Oxford lecture, not a Sunday sermon.
+## PEDAGOGICAL SCAFFOLDING (Make the Method Visible)
+
+The goal is not just to teach conclusions, but to model HOW to discover them. Readers should finish feeling equipped to apply CCM themselves.
+
+**Name the Tools Explicitly**
+Introduce CCM principles as "keys" or "tools" for the reader to pick up:
+- "A helpful key from Covenantal-Contextual reading is to first identify the operative covenant..."
+- "This requires a jurisdictional reading—asking: who is being addressed here?"
+- "We can apply another contextual principle by asking..."
+
+**Define Terms Seamlessly at First Use**
+When introducing terminology, embed the definition naturally:
+- "A covenant, which we can understand as a sacred, binding agreement between God and His people..."
+- "This is intra-covenantal discourse—that is, teaching directed at the internal condition of the covenant community..."
+- "The instrumental mode—that is, HOW the covenant functioned..."
+
+**Use Investigative Guidepost Language**
+Guide readers through the discovery process with exploratory phrases:
+- "Let's examine the specific language..."
+- "To discover this, we must turn to..."
+- "What would this have meant to a first-century Judean?"
+- "Notice the precise audience and the specific timeline..."
+
+**Return Explicitly to Initial Questions**
+When synthesising (Step 4), explicitly connect back to the sincere question from Step 1:
+- "Therefore, within its Mosaic Covenant jurisdiction, the treasure was..."
+- "Seen as intra-covenantal discourse, Jesus's teaching on the heart..."
+- "This reframing answers our initial question: the command was not..."
 ```
 
 ### Why This Works
 
-1. **Minimal change** - Only adds one bullet point to an existing section
-2. **Explicit examples** - Shows the AI exactly what to avoid and what to use instead
-3. **Clear mental model** - "Oxford lecture, not Sunday sermon" gives the AI a concrete reference
-4. **Preserves everything else** - The 4-Step Framework, analogies, terminology, and structure remain unchanged
+1. **Minimal addition** - Only adds one new section (~200 words) without changing anything else
+2. **Addresses the exact gap** - The comparison document identified these specific differences
+3. **Preserves everything Jim loves** - Structure, end-matter, terminology, doctrinal integration all stay intact
+4. **Clear examples** - Shows the AI exactly what phrases to use
+5. **Aligns with Jim's vision** - Transforms output from "lecture" to "invitational workshop"
 
 ### Risk Assessment
 
 **Very Low Risk** - This change:
-- Does not alter the document structure
-- Does not change the 4-Step Framework
+- Does not alter the 4-Step Framework (only supplements it)
 - Does not modify terminology mandates
-- Does not affect the required end-matter (Appendix, Questions, Summary)
-- Only adjusts the stylistic register of the prose
+- Does not change doctrinal positions
+- Does not affect required end-matter format
+- Adds guidance without removing any existing instructions
+
+### Summary of Adjustment
+
+| Aspect | Current | After Adjustment |
+|--------|---------|------------------|
+| CCM Principles | Described but not named as tools | Explicitly named as "keys" and "tools" |
+| Term Definitions | Expected but not mandated style | First-use seamless definitions mandated |
+| Transitional Language | "Therefore...", "As we see..." | + "Let's examine...", "To discover this..." |
+| Step 4 Synthesis | General resolution | Explicit return to initial question |
 
