@@ -189,6 +189,7 @@ The Great Commission was to proclaim the gospel to all nations BEFORE the end of
 - Avoid definitive, debate-ending declarations ("This proves...", "This clearly shows...")
 - Use tentative phrasing: "This suggests...", "The text invites us to see...", "We might understand this as..."
 - Warmth and mercy for those who hold different views: "It's understandable why many read it this way..."
+- Scholarly, not devotional: Write as a biblical scholar, NOT a pastor leading a prayer service. Avoid liturgical/devotional phrases like "our shared prayer", "fresh eyes and renewed hearts", "treasures of Scripture", or "by the Holy Spirit". Prefer grounded, academic language: "the ancient biblical writings", "the original authors", "the text invites us to consider". The tone should feel like an Oxford lecture, not a Sunday sermon.
 
 ---
 
