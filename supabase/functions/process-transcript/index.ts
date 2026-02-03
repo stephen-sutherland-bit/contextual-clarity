@@ -226,20 +226,25 @@ The Great Commission was to proclaim the gospel to all nations BEFORE the end of
 
 ## STRUCTURE & FORMATTING
 
-**Bold Headings**
-Use clear, bold headings to introduce major new topics. Do NOT use markdown symbols (#, *, etc.) in the final output—only plain text with the word or phrase that should be bold marked as bold.
+Bold Headings
+Use clear, bold headings to introduce major new topics. Output these as PLAIN TEXT on their own line—the rendering system will style them. Do NOT include any markdown symbols whatsoever.
 
-**Relational Transitions**
+WRONG: "## The Mosaic Covenant" or "**The Mosaic Covenant**"
+RIGHT: "The Mosaic Covenant" (on its own line, the system recognises it as a heading)
+
+Relational Transitions
 Maintain full essay-style paragraphs with transitions: "Therefore...", "As we see...", "This leads us to consider..."
 
-**Bullet Points**
+Bullet Points
 ONLY permitted for:
 - Diagnostic questions
 - Summary lists
 - Step-by-step frameworks
 NOT for regular teaching paragraphs.
 
-**Questions Handling**
+Use plain hyphens (-) for bullets, never asterisks.
+
+Questions Handling
 Do NOT create a separate questions section at the end. The app has a dedicated "Have You Ever Pondered?" section managed separately.
 
 ---
@@ -248,18 +253,18 @@ Do NOT create a separate questions section at the end. The app has a dedicated "
 
 Every rewritten teaching MUST conclude with these three sections:
 
-**Appendix**
+Appendix
 At the very end, include:
-- **Core Focus**: A single sentence stating the central topic explored
-- **Purpose**: A single sentence stating what the teaching aimed to help readers understand or experience
+- Core Focus: A single sentence stating the central topic explored
+- Purpose: A single sentence stating what the teaching aimed to help readers understand or experience
 
-**Reflective Questions**
+Reflective Questions
 Provide 3–5 questions in this format:
-- **The Question**: A sincere question a reader might ask
-- **Common Understanding**: How mainstream Christianity typically answers
-- **Covenantal-Contextual Answer**: How CCM invites us to reconsider
+- The Question: A sincere question a reader might ask
+- Common Understanding: How mainstream Christianity typically answers
+- Covenantal-Contextual Answer: How CCM invites us to reconsider
 
-**Summary**
+Summary
 A bulleted list of the key questions the teaching addressed, each with a one-sentence answer.
 
 ---
@@ -269,7 +274,9 @@ A bulleted list of the key questions the teaching addressed, each with a one-sen
 - All Bible references: ESV translation, quoted in full (not abbreviated)
 - Use New Zealand English: fulfilment, baptise, judgement, honour, neighbour, realisation, organise, colour
 - Occasionally integrate Māori words: whānau (covenant family), whakapapa (genealogy), aroha (compassion). Provide translation.
-- NO asterisks (*) in output
+- ABSOLUTELY NO markdown symbols in output: no #, ##, ###, *, **, _
+- Use plain text only. The rendering system handles all styling.
+- For emphasis, use phrasing rather than formatting: "This is crucial:" not "**This is crucial:**"
 - NO compressing arguments for brevity
 - NO mentioning "redundancy," "repetition," or pedagogical justification to readers
 

@@ -22,6 +22,16 @@ interface InlineTeachingContentProps {
   onClose: () => void;
 }
 
+// Helper function to strip inline markdown symbols from text
+const stripInlineMarkdown = (text: string): string => {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '$1')  // **bold** → bold
+    .replace(/\*(.+?)\*/g, '$1')       // *italic* → italic
+    .replace(/__(.+?)__/g, '$1')       // __bold__ → bold
+    .replace(/_(.+?)_/g, '$1')         // _italic_ → italic
+    .replace(/^#{1,6}\s+/gm, '');      // Remove markdown heading prefixes
+};
+
 // Parse content to detect and render headings properly, preserving original doc structure
 const parseContentWithHeadings = (content: string) => {
   // Split by double newlines first, but also handle single newlines for tighter spacing
@@ -36,7 +46,7 @@ const parseContentWithHeadings = (content: string) => {
     if (trimmed.startsWith("### ")) {
       results.push({
         type: "heading",
-        content: trimmed.slice(4),
+        content: stripInlineMarkdown(trimmed.slice(4)),
         key: index * 100,
       });
       return;
@@ -45,7 +55,7 @@ const parseContentWithHeadings = (content: string) => {
     if (trimmed.startsWith("## ")) {
       results.push({
         type: "heading",
-        content: trimmed.slice(3),
+        content: stripInlineMarkdown(trimmed.slice(3)),
         key: index * 100,
       });
       return;
@@ -56,7 +66,7 @@ const parseContentWithHeadings = (content: string) => {
     if (boldMatch && boldMatch[1].length < 100) {
       results.push({
         type: "heading",
-        content: boldMatch[1],
+        content: stripInlineMarkdown(boldMatch[1]),
         key: index * 100,
       });
       return;
@@ -67,7 +77,7 @@ const parseContentWithHeadings = (content: string) => {
     if (numberedMatch && trimmed.length < 120 && !trimmed.includes('\n')) {
       results.push({
         type: "heading",
-        content: trimmed,
+        content: stripInlineMarkdown(trimmed),
         key: index * 100,
       });
       return;
@@ -83,7 +93,7 @@ const parseContentWithHeadings = (content: string) => {
     ) {
       results.push({
         type: "heading",
-        content: trimmed,
+        content: stripInlineMarkdown(trimmed),
         key: index * 100,
       });
       return;
@@ -102,7 +112,7 @@ const parseContentWithHeadings = (content: string) => {
       // Could be a subheading - check if it's followed by longer content
       results.push({
         type: "subheading",
-        content: trimmed,
+        content: stripInlineMarkdown(trimmed),
         key: index * 100,
       });
       return;
@@ -114,7 +124,7 @@ const parseContentWithHeadings = (content: string) => {
       lines.forEach((line, lineIndex) => {
         results.push({
           type: "paragraph",
-          content: line.trim(),
+          content: stripInlineMarkdown(line.trim()),
           key: index * 100 + lineIndex,
         });
       });
@@ -123,7 +133,7 @@ const parseContentWithHeadings = (content: string) => {
     
     results.push({
       type: "paragraph",
-      content: trimmed,
+      content: stripInlineMarkdown(trimmed),
       key: index * 100,
     });
   });
