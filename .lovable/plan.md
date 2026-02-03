@@ -1,101 +1,139 @@
 
 
-## Slight Prompt Adjustment: Enhanced Pedagogical Scaffolding
+## Plan: Fix Markdown Formatting Output
 
 ### The Problem
 
-Jim tested both outputs and found our app's version lacks the "pedagogical feel" of the DeepSeek version. He asked DeepSeek to compare the two, and the analysis revealed specific differences:
+Jim's feedback shows the AI is outputting raw markdown symbols that appear in the rendered content:
+- `**Common Understanding**:` showing as literal asterisks instead of bold text
+- `### Summary` and `## Heading` sometimes showing raw
+- Bullet points with `*` markers appearing as text
 
-**Our output**: Excellent thematic exposition ("a lecture")
-**DeepSeek's output**: Pedagogical guided discovery ("an invitational workshop")
+The prompt already says "NO asterisks" but the AI is still using markdown syntax.
 
-The key difference: DeepSeek's version makes the **method of discovery visible** to the reader, introducing CCM concepts as **tools they can learn to use themselves**.
+### Root Cause Analysis
 
-### Root Cause
+**Prompt Issue**: The current instructions are scattered and inconsistent:
+- Line 229-230: "Do NOT use markdown symbols"
+- Line 272: "NO asterisks (*) in output"
+- BUT: The REQUIRED END-MATTER section shows examples WITH markdown: `**The Question**:`, `**Common Understanding**:`
 
-Our current prompt describes the 4-Step Framework but doesn't emphasise:
-1. **Explicit methodology labelling** - Naming CCM principles as "keys" or "tools" the reader can pick up
-2. **First-use definitions** - Seamlessly defining terms when first introduced
-3. **Guidepost transitions** - More investigative language ("Let's examine...", "To discover this...")
-4. **Process visibility** - Making the journey of discovery as important as the destination
+The AI sees markdown in the examples and mimics that format.
 
-### The Fix
+**Parser Issue**: The `InlineTeachingContent` parser handles standalone markdown headings but doesn't strip inline markdown from paragraphs.
 
-Add a new section **PEDAGOGICAL SCAFFOLDING** immediately after the 4-Step Framework (after line 121) that explicitly instructs the AI to:
-- Name CCM principles as explicit "keys" or "tools" for the reader
-- Define terms seamlessly at first use
-- Use investigative guidepost language
-- Return explicitly to initial questions when resolving
+### The Fix (Two Parts)
 
-This is a **minimal, targeted addition** that doesn't alter:
-- The 4-Step Framework structure
-- The terminology mandates
-- The doctrinal positions
-- The required end-matter format
-- Any other existing sections
-
-### Change Location
-
-`supabase/functions/process-transcript/index.ts` - Insert new section after line 121 (after the 4-Step Framework closes)
-
-### New Section to Add
-
-```text
 ---
 
-## PEDAGOGICAL SCAFFOLDING (Make the Method Visible)
+**Part 1: Update Prompt (process-transcript/index.ts)**
 
-The goal is not just to teach conclusions, but to model HOW to discover them. Readers should finish feeling equipped to apply CCM themselves.
+Replace the STRUCTURE & FORMATTING and FINAL FORMATTING sections with clearer, absolute instructions:
 
-**Name the Tools Explicitly**
-Introduce CCM principles as "keys" or "tools" for the reader to pick up:
-- "A helpful key from Covenantal-Contextual reading is to first identify the operative covenant..."
-- "This requires a jurisdictional reading—asking: who is being addressed here?"
-- "We can apply another contextual principle by asking..."
+```text
+## STRUCTURE & FORMATTING
 
-**Define Terms Seamlessly at First Use**
-When introducing terminology, embed the definition naturally:
-- "A covenant, which we can understand as a sacred, binding agreement between God and His people..."
-- "This is intra-covenantal discourse—that is, teaching directed at the internal condition of the covenant community..."
-- "The instrumental mode—that is, HOW the covenant functioned..."
+**Bold Headings**
+Use clear, bold headings to introduce major new topics. Output these as PLAIN TEXT on their own line—the rendering system will style them. Do NOT include any markdown symbols whatsoever.
 
-**Use Investigative Guidepost Language**
-Guide readers through the discovery process with exploratory phrases:
-- "Let's examine the specific language..."
-- "To discover this, we must turn to..."
-- "What would this have meant to a first-century Judean?"
-- "Notice the precise audience and the specific timeline..."
+WRONG: "## The Mosaic Covenant" or "**The Mosaic Covenant**"
+RIGHT: "The Mosaic Covenant" (on its own line, the system recognises it as a heading)
 
-**Return Explicitly to Initial Questions**
-When synthesising (Step 4), explicitly connect back to the sincere question from Step 1:
-- "Therefore, within its Mosaic Covenant jurisdiction, the treasure was..."
-- "Seen as intra-covenantal discourse, Jesus's teaching on the heart..."
-- "This reframing answers our initial question: the command was not..."
+**Relational Transitions**
+Maintain full essay-style paragraphs with transitions: "Therefore...", "As we see...", "This leads us to consider..."
+
+**Bullet Points**
+ONLY permitted for:
+- Diagnostic questions
+- Summary lists  
+- Step-by-step frameworks
+NOT for regular teaching paragraphs.
+
+Use plain hyphens (-) for bullets, never asterisks.
+
+**Questions Handling**
+Do NOT create a separate questions section at the end. The app has a dedicated "Have You Ever Pondered?" section managed separately.
 ```
 
-### Why This Works
+Update the REQUIRED END-MATTER section to remove markdown from examples:
 
-1. **Minimal addition** - Only adds one new section (~200 words) without changing anything else
-2. **Addresses the exact gap** - The comparison document identified these specific differences
-3. **Preserves everything Jim loves** - Structure, end-matter, terminology, doctrinal integration all stay intact
-4. **Clear examples** - Shows the AI exactly what phrases to use
-5. **Aligns with Jim's vision** - Transforms output from "lecture" to "invitational workshop"
+```text
+## REQUIRED END-MATTER
+
+Every rewritten teaching MUST conclude with these three sections:
+
+Appendix
+At the very end, include:
+- Core Focus: A single sentence stating the central topic explored
+- Purpose: A single sentence stating what the teaching aimed to help readers understand or experience
+
+Reflective Questions
+Provide 3–5 questions in this format:
+- The Question: A sincere question a reader might ask
+- Common Understanding: How mainstream Christianity typically answers
+- Covenantal-Contextual Answer: How CCM invites us to reconsider
+
+Summary
+A bulleted list of the key questions the teaching addressed, each with a one-sentence answer.
+```
+
+Update FINAL FORMATTING NOTES to be more explicit:
+
+```text
+## FINAL FORMATTING NOTES
+
+- All Bible references: ESV translation, quoted in full (not abbreviated)
+- Use New Zealand English: fulfilment, baptise, judgement, honour, neighbour, realisation, organise, colour
+- Occasionally integrate Māori words: whānau (covenant family), whakapapa (genealogy), aroha (compassion). Provide translation.
+- ABSOLUTELY NO markdown symbols in output: no #, ##, ###, *, **, _
+- Use plain text only. The rendering system handles all styling.
+- For emphasis, use phrasing rather than formatting: "This is crucial:" not "**This is crucial:**"
+- NO compressing arguments for brevity
+- NO mentioning "redundancy," "repetition," or pedagogical justification to readers
+```
+
+---
+
+**Part 2: Update Parser (InlineTeachingContent.tsx)**
+
+Add a cleanup step to strip any remaining markdown from content before rendering:
+
+```typescript
+// Add helper function to strip inline markdown
+const stripInlineMarkdown = (text: string): string => {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '$1')  // **bold** → bold
+    .replace(/\*(.+?)\*/g, '$1')       // *italic* → italic
+    .replace(/__(.+?)__/g, '$1')       // __bold__ → bold
+    .replace(/_(.+?)_/g, '$1');        // _italic_ → italic
+};
+
+// Apply to heading content and paragraph content
+```
+
+Update the `parseContentWithHeadings` function to strip markdown from all content, and apply cleanup when rendering paragraphs.
+
+---
+
+### Files to Modify
+
+| File | Change |
+|------|--------|
+| `supabase/functions/process-transcript/index.ts` | Rewrite STRUCTURE & FORMATTING, REQUIRED END-MATTER, and FINAL FORMATTING sections with zero-markdown examples |
+| `src/components/InlineTeachingContent.tsx` | Add `stripInlineMarkdown` helper and apply to all rendered content |
 
 ### Risk Assessment
 
-**Very Low Risk** - This change:
-- Does not alter the 4-Step Framework (only supplements it)
-- Does not modify terminology mandates
-- Does not change doctrinal positions
-- Does not affect required end-matter format
-- Adds guidance without removing any existing instructions
+**Low Risk**:
+- Prompt changes only affect new transcripts (existing content unchanged)
+- Parser changes add cleanup without breaking existing functionality
+- Both changes work together as belt-and-suspenders solution
 
-### Summary of Adjustment
+### Expected Outcome
 
-| Aspect | Current | After Adjustment |
-|--------|---------|------------------|
-| CCM Principles | Described but not named as tools | Explicitly named as "keys" and "tools" |
-| Term Definitions | Expected but not mandated style | First-use seamless definitions mandated |
-| Transitional Language | "Therefore...", "As we see..." | + "Let's examine...", "To discover this..." |
-| Step 4 Synthesis | General resolution | Explicit return to initial question |
+After these changes:
+- New AI outputs will have no markdown symbols
+- Any residual markdown that slips through will be cleaned by the parser
+- Headings appear as styled text, not raw `##` symbols
+- Bold labels like "Common Understanding:" appear as bold text, not `**Common Understanding**:`
 
