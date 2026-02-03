@@ -32,6 +32,12 @@ const stripInlineMarkdown = (text: string): string => {
     .replace(/^#{1,6}\s+/gm, '');      // Remove markdown heading prefixes
 };
 
+// Check if a line is a horizontal rule (---, ***, ___)
+const isHorizontalRule = (text: string): boolean => {
+  const trimmed = text.trim();
+  return /^[-*_]{3,}$/.test(trimmed);
+};
+
 // Parse content to detect and render headings properly, preserving original doc structure
 const parseContentWithHeadings = (content: string) => {
   // Split by double newlines first, but also handle single newlines for tighter spacing
@@ -99,19 +105,26 @@ const parseContentWithHeadings = (content: string) => {
       return;
     }
     
-    // Check for short lines that look like subheadings (capitalized, no period at end, short)
+    // Skip horizontal rules (---, ***, ___)
+    if (isHorizontalRule(trimmed)) {
+      return;
+    }
+    
+    // Check for short lines that look like subheadings/headings
+    // Lines with colons like "Title: Subtitle" are likely headings
+    const hasColonFormat = trimmed.includes(':') && trimmed.length < 100;
     if (
-      trimmed.length < 80 &&
+      trimmed.length < 100 &&
       trimmed.length > 5 &&
       !trimmed.endsWith('.') &&
       !trimmed.endsWith(',') &&
       !trimmed.includes('\n') &&
       /^[A-Z]/.test(trimmed) &&
-      !/^(The|A|An|This|That|In|On|At|For|To|And|But|Or|If|When|What|How|Why|Where)\s/i.test(trimmed)
+      (hasColonFormat || !/^(The|A|An|This|That|In|On|At|For|To|And|But|Or|If|When|What|How|Why|Where)\s/i.test(trimmed))
     ) {
-      // Could be a subheading - check if it's followed by longer content
+      // Headings with colon format get full heading treatment
       results.push({
-        type: "subheading",
+        type: hasColonFormat ? "heading" : "subheading",
         content: stripInlineMarkdown(trimmed),
         key: index * 100,
       });
