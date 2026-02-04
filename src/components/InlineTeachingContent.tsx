@@ -39,25 +39,22 @@ const isHorizontalRule = (text: string): boolean => {
   return /^[-*_]{3,}$/.test(trimmed);
 };
 
-// Stricter heading detection - only true section titles, not sentences
+// Relaxed heading detection for legacy content without **markers**
+// With explicit **Heading** markers from the AI, this is now just a fallback
 const isTrueHeading = (text: string): boolean => {
   const trimmed = text.trim();
   
   // Length constraints: not too short, not too long
   if (trimmed.length > 60 || trimmed.length < 5) return false;
   
-  // Must not end with sentence punctuation (except colon for some titles)
+  // Must not end with sentence punctuation
   if (trimmed.endsWith('.') || trimmed.endsWith(',') || trimmed.endsWith('?') || trimmed.endsWith('!')) return false;
   
   // Must start with capital letter
   if (!/^[A-Z]/.test(trimmed)) return false;
   
-  // Must NOT start with common sentence openers - these are sentences, not headings
-  const sentenceOpeners = /^(The|A|An|This|That|In|On|At|For|To|And|But|Or|If|When|What|How|Why|Where|Let's|Let us|We|Here|It|As|So|Now|Yet|However|Therefore|Thus|Hence|Although|Because|Since|While|After|Before|Until|Unless|Though|Even|Just|Only|Also|Still|Already|Perhaps|Maybe|Certainly|Surely|Indeed|Of course|In fact|For example|For instance|In other words|On the other hand|First|Second|Third|Finally|Lastly|Next|Then|Meanwhile|Furthermore|Moreover|Additionally|Besides|Instead|Rather|Otherwise|Nonetheless|Nevertheless|Consequently|Accordingly|Similarly|Likewise|Conversely|Alternatively|Specifically|Particularly|Especially|Generally|Usually|Often|Sometimes|Always|Never|Rarely|Frequently|Occasionally|Typically)\s/i;
-  if (sentenceOpeners.test(trimmed)) return false;
-  
-  // Must NOT contain conversational phrases
-  const conversationalPhrases = /(let's|we will|we can|we must|we should|here is|here are|there is|there are|you will|you can|I will|I can)/i;
+  // Must NOT contain conversational phrases (clear sentence indicators)
+  const conversationalPhrases = /(let's|we will|we can|we must|we should|here is|here are|there is|there are|you will|you can|I will|I can|we see|we find|we note)/i;
   if (conversationalPhrases.test(trimmed)) return false;
   
   return true;
