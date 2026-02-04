@@ -1,139 +1,184 @@
 
 
-## Plan: Fix Markdown Formatting Output
+## Jim's Feedback: Comprehensive Issue List and Fixes
 
-### The Problem
-
-Jim's feedback shows the AI is outputting raw markdown symbols that appear in the rendered content:
-- `**Common Understanding**:` showing as literal asterisks instead of bold text
-- `### Summary` and `## Heading` sometimes showing raw
-- Bullet points with `*` markers appearing as text
-
-The prompt already says "NO asterisks" but the AI is still using markdown syntax.
-
-### Root Cause Analysis
-
-**Prompt Issue**: The current instructions are scattered and inconsistent:
-- Line 229-230: "Do NOT use markdown symbols"
-- Line 272: "NO asterisks (*) in output"
-- BUT: The REQUIRED END-MATTER section shows examples WITH markdown: `**The Question**:`, `**Common Understanding**:`
-
-The AI sees markdown in the examples and mimics that format.
-
-**Parser Issue**: The `InlineTeachingContent` parser handles standalone markdown headings but doesn't strip inline markdown from paragraphs.
-
-### The Fix (Two Parts)
+After reviewing all of Jim's messages, screenshots, and the sample document, I've identified the following issues that need addressing. I'll present them in order of importance as Jim would likely prioritise them.
 
 ---
 
-**Part 1: Update Prompt (process-transcript/index.ts)**
+### Issue 1: Inconsistent Bold Headings
 
-Replace the STRUCTURE & FORMATTING and FINAL FORMATTING sections with clearer, absolute instructions:
+**Jim's Observation:**
+- "Some of the headings are not bold type but others are"
+- "also put a random sentence in bold, making it look like a heading"
+- "It has put as a heading (in bold) 'Let's read the verse in its immediate context:'... Well, that isn't a heading"
 
-```text
-## STRUCTURE & FORMATTING
+**Root Cause:**
+The parser's heading detection logic in `InlineTeachingContent.tsx` uses heuristics that are too permissive:
+- Lines with colons (`:`) get treated as headings regardless of content
+- Short sentences that happen to be capitalised and lack periods get detected as subheadings
+- "Let's read the verse in its immediate context:" matches because it has a colon and is under 100 characters
 
-**Bold Headings**
-Use clear, bold headings to introduce major new topics. Output these as PLAIN TEXT on their own line—the rendering system will style them. Do NOT include any markdown symbols whatsoever.
-
-WRONG: "## The Mosaic Covenant" or "**The Mosaic Covenant**"
-RIGHT: "The Mosaic Covenant" (on its own line, the system recognises it as a heading)
-
-**Relational Transitions**
-Maintain full essay-style paragraphs with transitions: "Therefore...", "As we see...", "This leads us to consider..."
-
-**Bullet Points**
-ONLY permitted for:
-- Diagnostic questions
-- Summary lists  
-- Step-by-step frameworks
-NOT for regular teaching paragraphs.
-
-Use plain hyphens (-) for bullets, never asterisks.
-
-**Questions Handling**
-Do NOT create a separate questions section at the end. The app has a dedicated "Have You Ever Pondered?" section managed separately.
-```
-
-Update the REQUIRED END-MATTER section to remove markdown from examples:
-
-```text
-## REQUIRED END-MATTER
-
-Every rewritten teaching MUST conclude with these three sections:
-
-Appendix
-At the very end, include:
-- Core Focus: A single sentence stating the central topic explored
-- Purpose: A single sentence stating what the teaching aimed to help readers understand or experience
-
-Reflective Questions
-Provide 3–5 questions in this format:
-- The Question: A sincere question a reader might ask
-- Common Understanding: How mainstream Christianity typically answers
-- Covenantal-Contextual Answer: How CCM invites us to reconsider
-
-Summary
-A bulleted list of the key questions the teaching addressed, each with a one-sentence answer.
-```
-
-Update FINAL FORMATTING NOTES to be more explicit:
-
-```text
-## FINAL FORMATTING NOTES
-
-- All Bible references: ESV translation, quoted in full (not abbreviated)
-- Use New Zealand English: fulfilment, baptise, judgement, honour, neighbour, realisation, organise, colour
-- Occasionally integrate Māori words: whānau (covenant family), whakapapa (genealogy), aroha (compassion). Provide translation.
-- ABSOLUTELY NO markdown symbols in output: no #, ##, ###, *, **, _
-- Use plain text only. The rendering system handles all styling.
-- For emphasis, use phrasing rather than formatting: "This is crucial:" not "**This is crucial:**"
-- NO compressing arguments for brevity
-- NO mentioning "redundancy," "repetition," or pedagogical justification to readers
-```
+**Proposed Fix:**
+Refine the heading detection heuristics:
+1. Remove the colon-based heading detection (too many false positives)
+2. Add a stricter pattern: headings should be short (under 60 chars), not start with common sentence starters, and NOT contain phrases like "Let's", "We", "This", "Here"
+3. Only treat lines as headings if they appear to be deliberate section titles (e.g., "The Mosaic Covenant", "Divine Initiative in Salvation")
 
 ---
 
-**Part 2: Update Parser (InlineTeachingContent.tsx)**
+### Issue 2: Broken Paragraph Flow (Weird Line Breaks)
 
-Add a cleanup step to strip any remaining markdown from content before rendering:
+**Jim's Observation:**
+Screenshot shows text breaking mid-sentence:
+> "actions and into the depths of our hearts,"
+> 
+> "always knows the true state of a person's belief."
 
+These should be one continuous paragraph but are being split.
+
+**Root Cause:**
+The AI is producing output with hard line breaks within paragraphs (likely from PDF processing artifacts or the AI itself), and the parser is treating each line as a separate paragraph.
+
+**Proposed Fix:**
+1. Add paragraph joining logic: if a "paragraph" ends with a comma or doesn't end with proper sentence punctuation, join it with the next block
+2. Pre-process content to collapse single line breaks within paragraphs before parsing
+
+---
+
+### Issue 3: Unwanted `>` Before Scripture Quotes
+
+**Jim's Observation:**
+- "It puts a > before some of the scripture quotes (unnecessary)"
+
+**Root Cause:**
+The AI is using markdown blockquote syntax (`>`) for scripture quotes, which the parser doesn't strip.
+
+**Proposed Fix:**
+1. Add to `stripInlineMarkdown` function: remove leading `>` characters from lines
+2. Add prompt instruction: "Do NOT use > for blockquotes. Quotes should be in regular quotation marks within paragraphs."
+
+---
+
+### Issue 4: Scripture References Not Being Extracted Properly
+
+**Jim's Observation:**
+- "It's not picking up on the scripture references properly. I see that it only has 2 scripture references in that last teaching and yet there are several in that teaching"
+
+**Root Cause:**
+Scripture extraction happens in the `generate-index` edge function during initial import. The AI may not be comprehensively parsing all scripture references from the content.
+
+**Proposed Fix:**
+This is a metadata generation issue, not a display issue. The `generate-index` function needs to be reviewed to ensure it extracts ALL scripture references from the full content. However, since Jim said "I'm good with that" regarding reprocessing, this may be acceptable as-is if reprocessing captures them.
+
+---
+
+### Issue 5: Tone Regression (Lost Gentle Guiding Lead)
+
+**Jim's Observation:**
+- "In this reprocess it seems to have lost its gentle guiding lead and gone back to talking like Uncle Reg and I would talk to each other"
+
+**Root Cause:**
+Output quality varies between runs. The pedagogical scaffolding additions may need reinforcement, or there's randomness in the AI model's interpretation.
+
+**Proposed Fix:**
+This is an AI prompt consistency issue. The current prompt includes the scholarly tone guardrail but may need stronger emphasis on maintaining the "gentle guiding lead" throughout. Consider adding explicit examples of good vs. bad tone in the prompt.
+
+---
+
+### Issue 6: Questions Section Heading Regression
+
+**Jim's Observation:**
+- "It also went back to the old way of the questions. It says 'Have you pondered...' instead of 'Reflective Questions' and the same answer headings as old prompt"
+
+**Root Cause:**
+The AI prompt specifies "Reflective Questions" in the REQUIRED END-MATTER section, but the AI is ignoring this and using its own phrasing.
+
+**Proposed Fix:**
+Strengthen the prompt language:
+- Change "Reflective Questions" section to be more explicit: "The section MUST be titled exactly: 'Reflective Questions' - no variations"
+- Add: "Do NOT use phrases like 'Have you pondered' or 'Have you ever wondered' as section titles"
+
+---
+
+### Summary of Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/components/InlineTeachingContent.tsx` | 1. Fix heading detection heuristics (remove colon-based detection, add stricter rules) 2. Add paragraph joining for broken sentences 3. Strip blockquote markers (`>`) |
+| `supabase/functions/process-transcript/index.ts` | 1. Add explicit instruction about no blockquote markers 2. Strengthen "Reflective Questions" title mandate |
+
+---
+
+### Technical Details: Parser Changes
+
+**New `stripInlineMarkdown` function:**
 ```typescript
-// Add helper function to strip inline markdown
 const stripInlineMarkdown = (text: string): string => {
   return text
-    .replace(/\*\*(.+?)\*\*/g, '$1')  // **bold** → bold
-    .replace(/\*(.+?)\*/g, '$1')       // *italic* → italic
-    .replace(/__(.+?)__/g, '$1')       // __bold__ → bold
-    .replace(/_(.+?)_/g, '$1');        // _italic_ → italic
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/\*(.+?)\*/g, '$1')
+    .replace(/__(.+?)__/g, '$1')
+    .replace(/_(.+?)_/g, '$1')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/^>\s*/gm, '');  // Remove blockquote markers
 };
-
-// Apply to heading content and paragraph content
 ```
 
-Update the `parseContentWithHeadings` function to strip markdown from all content, and apply cleanup when rendering paragraphs.
+**New heading detection logic (stricter):**
+```typescript
+// Only detect as heading if:
+// 1. Short (under 60 chars)
+// 2. Doesn't end with . or ,
+// 3. Starts with capital letter
+// 4. Does NOT start with common sentence openers
+// 5. Does NOT contain phrases like "Let's", "We will", "Here is"
+const isTrueHeading = (text: string): boolean => {
+  const trimmed = text.trim();
+  if (trimmed.length > 60 || trimmed.length < 5) return false;
+  if (trimmed.endsWith('.') || trimmed.endsWith(',')) return false;
+  if (!/^[A-Z]/.test(trimmed)) return false;
+  
+  const sentenceOpeners = /^(The|A|An|This|That|In|On|At|For|To|And|But|Or|If|When|What|How|Why|Where|Let's|Let us|We|Here|It)\s/i;
+  if (sentenceOpeners.test(trimmed)) return false;
+  
+  return true;
+};
+```
+
+**Paragraph joining logic:**
+```typescript
+// Join paragraphs that end with comma or don't end with sentence punctuation
+const joinBrokenParagraphs = (blocks: string[]): string[] => {
+  const joined: string[] = [];
+  let accumulator = '';
+  
+  for (const block of blocks) {
+    const trimmed = block.trim();
+    if (accumulator) {
+      accumulator += ' ' + trimmed;
+      if (/[.!?"]$/.test(trimmed)) {
+        joined.push(accumulator);
+        accumulator = '';
+      }
+    } else if (/[,]$/.test(trimmed) || !/[.!?"]$/.test(trimmed)) {
+      accumulator = trimmed;
+    } else {
+      joined.push(trimmed);
+    }
+  }
+  if (accumulator) joined.push(accumulator);
+  return joined;
+};
+```
 
 ---
-
-### Files to Modify
-
-| File | Change |
-|------|--------|
-| `supabase/functions/process-transcript/index.ts` | Rewrite STRUCTURE & FORMATTING, REQUIRED END-MATTER, and FINAL FORMATTING sections with zero-markdown examples |
-| `src/components/InlineTeachingContent.tsx` | Add `stripInlineMarkdown` helper and apply to all rendered content |
 
 ### Risk Assessment
 
-**Low Risk**:
-- Prompt changes only affect new transcripts (existing content unchanged)
-- Parser changes add cleanup without breaking existing functionality
-- Both changes work together as belt-and-suspenders solution
+**Medium Risk** - These changes affect:
+1. How all existing and new teachings display (parser changes)
+2. How new reprocessed content is generated (prompt changes)
 
-### Expected Outcome
-
-After these changes:
-- New AI outputs will have no markdown symbols
-- Any residual markdown that slips through will be cleaned by the parser
-- Headings appear as styled text, not raw `##` symbols
-- Bold labels like "Common Understanding:" appear as bold text, not `**Common Understanding**:`
+Recommend testing with several existing teachings to ensure the stricter heading logic doesn't miss legitimate headings.
 
