@@ -29,7 +29,8 @@ const stripInlineMarkdown = (text: string): string => {
     .replace(/\*(.+?)\*/g, '$1')       // *italic* → italic
     .replace(/__(.+?)__/g, '$1')       // __bold__ → bold
     .replace(/_(.+?)_/g, '$1')         // _italic_ → italic
-    .replace(/^#{1,6}\s+/gm, '');      // Remove markdown heading prefixes
+    .replace(/^#{1,6}\s+/gm, '')       // Remove markdown heading prefixes
+    .replace(/^>\s*/gm, '');           // Remove blockquote markers
 };
 
 // Check if a line is a horizontal rule (---, ***, ___)
@@ -38,15 +39,97 @@ const isHorizontalRule = (text: string): boolean => {
   return /^[-*_]{3,}$/.test(trimmed);
 };
 
+// Stricter heading detection - only true section titles, not sentences
+const isTrueHeading = (text: string): boolean => {
+  const trimmed = text.trim();
+  
+  // Length constraints: not too short, not too long
+  if (trimmed.length > 60 || trimmed.length < 5) return false;
+  
+  // Must not end with sentence punctuation (except colon for some titles)
+  if (trimmed.endsWith('.') || trimmed.endsWith(',') || trimmed.endsWith('?') || trimmed.endsWith('!')) return false;
+  
+  // Must start with capital letter
+  if (!/^[A-Z]/.test(trimmed)) return false;
+  
+  // Must NOT start with common sentence openers - these are sentences, not headings
+  const sentenceOpeners = /^(The|A|An|This|That|In|On|At|For|To|And|But|Or|If|When|What|How|Why|Where|Let's|Let us|We|Here|It|As|So|Now|Yet|However|Therefore|Thus|Hence|Although|Because|Since|While|After|Before|Until|Unless|Though|Even|Just|Only|Also|Still|Already|Perhaps|Maybe|Certainly|Surely|Indeed|Of course|In fact|For example|For instance|In other words|On the other hand|First|Second|Third|Finally|Lastly|Next|Then|Meanwhile|Furthermore|Moreover|Additionally|Besides|Instead|Rather|Otherwise|Nonetheless|Nevertheless|Consequently|Accordingly|Similarly|Likewise|Conversely|Alternatively|Specifically|Particularly|Especially|Generally|Usually|Often|Sometimes|Always|Never|Rarely|Frequently|Occasionally|Typically)\s/i;
+  if (sentenceOpeners.test(trimmed)) return false;
+  
+  // Must NOT contain conversational phrases
+  const conversationalPhrases = /(let's|we will|we can|we must|we should|here is|here are|there is|there are|you will|you can|I will|I can)/i;
+  if (conversationalPhrases.test(trimmed)) return false;
+  
+  return true;
+};
+
+// Join paragraphs that are broken mid-sentence
+const joinBrokenParagraphs = (blocks: string[]): string[] => {
+  const joined: string[] = [];
+  let accumulator = '';
+  
+  for (const block of blocks) {
+    const trimmed = block.trim();
+    if (!trimmed) continue;
+    
+    if (accumulator) {
+      // Continue accumulating
+      accumulator += ' ' + trimmed;
+      // Check if this block completes the sentence
+      if (/[.!?"]$/.test(trimmed)) {
+        joined.push(accumulator);
+        accumulator = '';
+      }
+    } else {
+      // Check if this block is incomplete (ends with comma or no terminal punctuation)
+      if (/[,]$/.test(trimmed) || !/[.!?":)]$/.test(trimmed)) {
+        // Also check it's not a heading-like line (short, title-case)
+        if (trimmed.length > 60 || /[a-z]/.test(trimmed.charAt(0))) {
+          accumulator = trimmed;
+        } else {
+          joined.push(trimmed);
+        }
+      } else {
+        joined.push(trimmed);
+      }
+    }
+  }
+  // Don't lose any remaining accumulator
+  if (accumulator) joined.push(accumulator);
+  return joined;
+};
+
 // Parse content to detect and render headings properly, preserving original doc structure
 const parseContentWithHeadings = (content: string) => {
-  // Split by double newlines first, but also handle single newlines for tighter spacing
-  const blocks = content.split(/\n\n+/).filter(p => p.trim());
+  // Split by double newlines first
+  const rawBlocks = content.split(/\n\n+/).filter(p => p.trim());
+  
+  // Expand blocks that contain single newlines into separate items
+  const expandedBlocks: string[] = [];
+  rawBlocks.forEach(block => {
+    const trimmed = block.trim();
+    if (trimmed.includes('\n')) {
+      // Split by single newlines and add each as separate block
+      trimmed.split('\n').forEach(line => {
+        if (line.trim()) expandedBlocks.push(line.trim());
+      });
+    } else {
+      expandedBlocks.push(trimmed);
+    }
+  });
+  
+  // Join broken paragraphs
+  const blocks = joinBrokenParagraphs(expandedBlocks);
   
   const results: Array<{type: 'heading' | 'subheading' | 'paragraph', content: string, key: number}> = [];
   
   blocks.forEach((block, index) => {
     const trimmed = block.trim();
+    
+    // Skip horizontal rules
+    if (isHorizontalRule(trimmed)) {
+      return;
+    }
     
     // Check for markdown-style headings (## or ### Heading)
     if (trimmed.startsWith("### ")) {
@@ -69,7 +152,7 @@ const parseContentWithHeadings = (content: string) => {
     
     // Check for markdown bold headings (**Heading**)
     const boldMatch = trimmed.match(/^\*\*(.+?)\*\*$/);
-    if (boldMatch && boldMatch[1].length < 100) {
+    if (boldMatch && boldMatch[1].length < 80) {
       results.push({
         type: "heading",
         content: stripInlineMarkdown(boldMatch[1]),
@@ -80,7 +163,7 @@ const parseContentWithHeadings = (content: string) => {
     
     // Check for numbered headings like "1. Title" or "I. Title" at start of line
     const numberedMatch = trimmed.match(/^([0-9]+\.|[IVXLC]+\.)\s+(.+)$/);
-    if (numberedMatch && trimmed.length < 120 && !trimmed.includes('\n')) {
+    if (numberedMatch && trimmed.length < 80 && !trimmed.includes('\n')) {
       results.push({
         type: "heading",
         content: stripInlineMarkdown(trimmed),
@@ -90,9 +173,8 @@ const parseContentWithHeadings = (content: string) => {
     }
     
     // Check for all-caps headings (likely section titles)
-    // Must be short (under 100 chars) and all uppercase letters/spaces/punctuation
     if (
-      trimmed.length < 100 &&
+      trimmed.length < 80 &&
       trimmed.length > 3 &&
       trimmed === trimmed.toUpperCase() &&
       /^[A-Z\s\-:,.'0-9]+$/.test(trimmed)
@@ -105,45 +187,17 @@ const parseContentWithHeadings = (content: string) => {
       return;
     }
     
-    // Skip horizontal rules (---, ***, ___)
-    if (isHorizontalRule(trimmed)) {
-      return;
-    }
-    
-    // Check for short lines that look like subheadings/headings
-    // Lines with colons like "Title: Subtitle" are likely headings
-    const hasColonFormat = trimmed.includes(':') && trimmed.length < 100;
-    if (
-      trimmed.length < 100 &&
-      trimmed.length > 5 &&
-      !trimmed.endsWith('.') &&
-      !trimmed.endsWith(',') &&
-      !trimmed.includes('\n') &&
-      /^[A-Z]/.test(trimmed) &&
-      (hasColonFormat || !/^(The|A|An|This|That|In|On|At|For|To|And|But|Or|If|When|What|How|Why|Where)\s/i.test(trimmed))
-    ) {
-      // Headings with colon format get full heading treatment
+    // Use strict heading detection for plain text lines
+    if (isTrueHeading(trimmed)) {
       results.push({
-        type: hasColonFormat ? "heading" : "subheading",
+        type: "heading",
         content: stripInlineMarkdown(trimmed),
         key: index * 100,
       });
       return;
     }
     
-    // Handle blocks that contain internal line breaks (preserve them as separate paragraphs)
-    if (trimmed.includes('\n')) {
-      const lines = trimmed.split('\n').filter(l => l.trim());
-      lines.forEach((line, lineIndex) => {
-        results.push({
-          type: "paragraph",
-          content: stripInlineMarkdown(line.trim()),
-          key: index * 100 + lineIndex,
-        });
-      });
-      return;
-    }
-    
+    // Everything else is a paragraph
     results.push({
       type: "paragraph",
       content: stripInlineMarkdown(trimmed),

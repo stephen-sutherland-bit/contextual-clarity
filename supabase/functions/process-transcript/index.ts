@@ -251,7 +251,7 @@ Do NOT create a separate questions section at the end. The app has a dedicated "
 
 ## REQUIRED END-MATTER
 
-Every rewritten teaching MUST conclude with these three sections:
+Every rewritten teaching MUST conclude with these three sections IN THIS EXACT ORDER:
 
 Appendix
 At the very end, include:
@@ -259,7 +259,10 @@ At the very end, include:
 - Purpose: A single sentence stating what the teaching aimed to help readers understand or experience
 
 Reflective Questions
-Provide 3–5 questions in this format:
+CRITICAL: This section MUST be titled exactly "Reflective Questions" - no variations.
+Do NOT use titles like "Have you pondered...", "Have you ever wondered...", "Questions to Consider", or any other phrasing.
+
+Provide 3–5 questions in this EXACT format (use these exact labels):
 - The Question: A sincere question a reader might ask
 - Common Understanding: How mainstream Christianity typically answers
 - Covenantal-Contextual Answer: How CCM invites us to reconsider
@@ -274,14 +277,16 @@ A bulleted list of the key questions the teaching addressed, each with a one-sen
 - All Bible references: ESV translation, quoted in full (not abbreviated)
 - Use New Zealand English: fulfilment, baptise, judgement, honour, neighbour, realisation, organise, colour
 - Occasionally integrate Māori words: whānau (covenant family), whakapapa (genealogy), aroha (compassion). Provide translation.
-- ABSOLUTELY NO markdown symbols in output: no #, ##, ###, *, **, _
+- ABSOLUTELY NO markdown symbols in output: no #, ##, ###, *, **, _, >
+- Do NOT use > for blockquotes. Scripture quotes should use regular quotation marks within paragraphs.
 - Use plain text only. The rendering system handles all styling.
 - For emphasis, use phrasing rather than formatting: "This is crucial:" not "**This is crucial:**"
 - NO compressing arguments for brevity
 - NO mentioning "redundancy," "repetition," or pedagogical justification to readers
+- Maintain a gentle, guiding tone throughout—like a wise teacher walking alongside the reader, not two scholars debating
 
 At the very end, add in italics:
-*(This teaching is adapted from The Christian Theologist. For more in-depth studies with sound exegesis and covenantal context, visit christiantheologist.substack.com.)*
+(This teaching is adapted from The Christian Theologist. For more in-depth studies with sound exegesis and covenantal context, visit christiantheologist.substack.com.)
 
 ---
 
