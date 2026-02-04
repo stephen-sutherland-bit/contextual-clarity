@@ -1,184 +1,116 @@
 
 
-## Jim's Feedback: Comprehensive Issue List and Fixes
+## Plan: Fix Bold Heading Detection (Restore Reliable Markers)
 
-After reviewing all of Jim's messages, screenshots, and the sample document, I've identified the following issues that need addressing. I'll present them in order of importance as Jim would likely prioritise them.
+### The Core Problem
 
----
+You're absolutely right - this iteration broke heading detection. Here's what happened:
 
-### Issue 1: Inconsistent Bold Headings
+1. **Previously**: The AI output headings with markdown markers (`**Heading**` or `## Heading`)
+2. **Parser detected these markers** and rendered them as bold headings
+3. **We changed the prompt** to say "NO markdown symbols, output plain text headings"
+4. **The parser's fallback heuristics** now have to GUESS which lines are headings
+5. **The `isTrueHeading` function excludes lines starting with "The", "A", "In"** - but real headings often start with these words!
 
-**Jim's Observation:**
-- "Some of the headings are not bold type but others are"
-- "also put a random sentence in bold, making it look like a heading"
-- "It has put as a heading (in bold) 'Let's read the verse in its immediate context:'... Well, that isn't a heading"
+For example, "The Binding of the Adversary: A Legal Victory" gets excluded because it starts with "The".
 
-**Root Cause:**
-The parser's heading detection logic in `InlineTeachingContent.tsx` uses heuristics that are too permissive:
-- Lines with colons (`:`) get treated as headings regardless of content
-- Short sentences that happen to be capitalised and lack periods get detected as subheadings
-- "Let's read the verse in its immediate context:" matches because it has a colon and is under 100 characters
+### The Solution: Restore Markers (But Clean Them Up)
 
-**Proposed Fix:**
-Refine the heading detection heuristics:
-1. Remove the colon-based heading detection (too many false positives)
-2. Add a stricter pattern: headings should be short (under 60 chars), not start with common sentence starters, and NOT contain phrases like "Let's", "We", "This", "Here"
-3. Only treat lines as headings if they appear to be deliberate section titles (e.g., "The Mosaic Covenant", "Divine Initiative in Salvation")
+The most reliable fix is to **tell the AI to use markdown markers for headings, and have the parser detect AND strip them**. This gives explicit control over what becomes bold.
 
 ---
 
-### Issue 2: Broken Paragraph Flow (Weird Line Breaks)
+### Changes to Make
 
-**Jim's Observation:**
-Screenshot shows text breaking mid-sentence:
-> "actions and into the depths of our hearts,"
-> 
-> "always knows the true state of a person's belief."
+**File 1: `supabase/functions/process-transcript/index.ts`**
 
-These should be one continuous paragraph but are being split.
+Change the STRUCTURE & FORMATTING section to tell the AI to use bold markers for headings:
 
-**Root Cause:**
-The AI is producing output with hard line breaks within paragraphs (likely from PDF processing artifacts or the AI itself), and the parser is treating each line as a separate paragraph.
+```text
+## STRUCTURE & FORMATTING
 
-**Proposed Fix:**
-1. Add paragraph joining logic: if a "paragraph" ends with a comma or doesn't end with proper sentence punctuation, join it with the next block
-2. Pre-process content to collapse single line breaks within paragraphs before parsing
+Bold Headings
+Use **bold markers** around section headings so the rendering system can identify them.
 
----
+FORMAT: **Heading Title Here**
 
-### Issue 3: Unwanted `>` Before Scripture Quotes
+Example:
+**The Mosaic Covenant**
+**Divine Initiative in Salvation**
+**The Binding of the Adversary: A Legal Victory**
 
-**Jim's Observation:**
-- "It puts a > before some of the scripture quotes (unnecessary)"
+The bold markers will be stripped during rendering - they are only used for detection.
 
-**Root Cause:**
-The AI is using markdown blockquote syntax (`>`) for scripture quotes, which the parser doesn't strip.
+Do NOT use ## or ### markdown heading syntax.
+Do NOT make regular sentences bold - only true section titles that introduce new topics.
 
-**Proposed Fix:**
-1. Add to `stripInlineMarkdown` function: remove leading `>` characters from lines
-2. Add prompt instruction: "Do NOT use > for blockquotes. Quotes should be in regular quotation marks within paragraphs."
-
----
-
-### Issue 4: Scripture References Not Being Extracted Properly
-
-**Jim's Observation:**
-- "It's not picking up on the scripture references properly. I see that it only has 2 scripture references in that last teaching and yet there are several in that teaching"
-
-**Root Cause:**
-Scripture extraction happens in the `generate-index` edge function during initial import. The AI may not be comprehensively parsing all scripture references from the content.
-
-**Proposed Fix:**
-This is a metadata generation issue, not a display issue. The `generate-index` function needs to be reviewed to ensure it extracts ALL scripture references from the full content. However, since Jim said "I'm good with that" regarding reprocessing, this may be acceptable as-is if reprocessing captures them.
-
----
-
-### Issue 5: Tone Regression (Lost Gentle Guiding Lead)
-
-**Jim's Observation:**
-- "In this reprocess it seems to have lost its gentle guiding lead and gone back to talking like Uncle Reg and I would talk to each other"
-
-**Root Cause:**
-Output quality varies between runs. The pedagogical scaffolding additions may need reinforcement, or there's randomness in the AI model's interpretation.
-
-**Proposed Fix:**
-This is an AI prompt consistency issue. The current prompt includes the scholarly tone guardrail but may need stronger emphasis on maintaining the "gentle guiding lead" throughout. Consider adding explicit examples of good vs. bad tone in the prompt.
-
----
-
-### Issue 6: Questions Section Heading Regression
-
-**Jim's Observation:**
-- "It also went back to the old way of the questions. It says 'Have you pondered...' instead of 'Reflective Questions' and the same answer headings as old prompt"
-
-**Root Cause:**
-The AI prompt specifies "Reflective Questions" in the REQUIRED END-MATTER section, but the AI is ignoring this and using its own phrasing.
-
-**Proposed Fix:**
-Strengthen the prompt language:
-- Change "Reflective Questions" section to be more explicit: "The section MUST be titled exactly: 'Reflective Questions' - no variations"
-- Add: "Do NOT use phrases like 'Have you pondered' or 'Have you ever wondered' as section titles"
-
----
-
-### Summary of Files to Modify
-
-| File | Changes |
-|------|---------|
-| `src/components/InlineTeachingContent.tsx` | 1. Fix heading detection heuristics (remove colon-based detection, add stricter rules) 2. Add paragraph joining for broken sentences 3. Strip blockquote markers (`>`) |
-| `supabase/functions/process-transcript/index.ts` | 1. Add explicit instruction about no blockquote markers 2. Strengthen "Reflective Questions" title mandate |
-
----
-
-### Technical Details: Parser Changes
-
-**New `stripInlineMarkdown` function:**
-```typescript
-const stripInlineMarkdown = (text: string): string => {
-  return text
-    .replace(/\*\*(.+?)\*\*/g, '$1')
-    .replace(/\*(.+?)\*/g, '$1')
-    .replace(/__(.+?)__/g, '$1')
-    .replace(/_(.+?)_/g, '$1')
-    .replace(/^#{1,6}\s+/gm, '')
-    .replace(/^>\s*/gm, '');  // Remove blockquote markers
-};
+Relational Transitions
+Maintain full essay-style paragraphs with transitions...
 ```
 
-**New heading detection logic (stricter):**
-```typescript
-// Only detect as heading if:
-// 1. Short (under 60 chars)
-// 2. Doesn't end with . or ,
-// 3. Starts with capital letter
-// 4. Does NOT start with common sentence openers
-// 5. Does NOT contain phrases like "Let's", "We will", "Here is"
-const isTrueHeading = (text: string): boolean => {
-  const trimmed = text.trim();
-  if (trimmed.length > 60 || trimmed.length < 5) return false;
-  if (trimmed.endsWith('.') || trimmed.endsWith(',')) return false;
-  if (!/^[A-Z]/.test(trimmed)) return false;
-  
-  const sentenceOpeners = /^(The|A|An|This|That|In|On|At|For|To|And|But|Or|If|When|What|How|Why|Where|Let's|Let us|We|Here|It)\s/i;
-  if (sentenceOpeners.test(trimmed)) return false;
-  
-  return true;
-};
-```
+Update FINAL FORMATTING NOTES:
 
-**Paragraph joining logic:**
-```typescript
-// Join paragraphs that end with comma or don't end with sentence punctuation
-const joinBrokenParagraphs = (blocks: string[]): string[] => {
-  const joined: string[] = [];
-  let accumulator = '';
-  
-  for (const block of blocks) {
-    const trimmed = block.trim();
-    if (accumulator) {
-      accumulator += ' ' + trimmed;
-      if (/[.!?"]$/.test(trimmed)) {
-        joined.push(accumulator);
-        accumulator = '';
-      }
-    } else if (/[,]$/.test(trimmed) || !/[.!?"]$/.test(trimmed)) {
-      accumulator = trimmed;
-    } else {
-      joined.push(trimmed);
-    }
-  }
-  if (accumulator) joined.push(accumulator);
-  return joined;
-};
+```text
+- Use **bold markers** ONLY for section headings (the parser will strip them)
+- Do NOT use ## or ### for headings
+- Do NOT use * for bullet points - use plain hyphens (-)
+- Do NOT use > for blockquotes
 ```
 
 ---
+
+**File 2: `src/components/InlineTeachingContent.tsx`**
+
+The parser already handles `**Heading**` detection at lines 153-162:
+
+```typescript
+// Check for markdown bold headings (**Heading**)
+const boldMatch = trimmed.match(/^\*\*(.+?)\*\*$/);
+if (boldMatch && boldMatch[1].length < 80) {
+  results.push({
+    type: "heading",
+    content: stripInlineMarkdown(boldMatch[1]),
+    key: index * 100,
+  });
+  return;
+}
+```
+
+This is already there! The issue is the AI stopped outputting `**Heading**` format because we told it not to use asterisks.
+
+We should also **remove or relax** the `isTrueHeading` function since it's causing false negatives. With explicit `**markers**`, we don't need to guess.
+
+---
+
+### Summary of Changes
+
+| File | Change |
+|------|--------|
+| `supabase/functions/process-transcript/index.ts` | Restore `**Heading**` format instruction; remove "no asterisks" blanket rule; keep "no ## or > symbols" |
+| `src/components/InlineTeachingContent.tsx` | Keep existing `**Heading**` detection (it works); optionally simplify/remove the unreliable `isTrueHeading` heuristics |
+
+---
+
+### Why This Works
+
+1. **Explicit control**: The AI knows EXACTLY which lines should be headings
+2. **Reliable detection**: The parser can reliably detect `**...**` pattern
+3. **Clean output**: The markers get stripped, so readers see bold text without asterisks
+4. **No guessing**: We don't need heuristics that might miss "The Mosaic Covenant"
+
+---
+
+### Technical Details
+
+The key regex that already exists in the parser:
+
+```typescript
+const boldMatch = trimmed.match(/^\*\*(.+?)\*\*$/);
+```
+
+This matches lines that are ONLY a bold marker, like `**The Mosaic Covenant**`, and extracts the text inside. The `stripInlineMarkdown` function then removes any remaining markers.
 
 ### Risk Assessment
 
-**Medium Risk** - These changes affect:
-1. How all existing and new teachings display (parser changes)
-2. How new reprocessed content is generated (prompt changes)
-
-Recommend testing with several existing teachings to ensure the stricter heading logic doesn't miss legitimate headings.
+**Low Risk** - This restores previous working behaviour while keeping the other cleanup improvements (no `>` blockquotes, no `##` headers, paragraph joining, horizontal rule filtering).
 
