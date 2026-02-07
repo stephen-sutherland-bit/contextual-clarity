@@ -131,7 +131,10 @@ const parseContentWithHeadings = (content: string) => {
   // Join broken paragraphs
   const blocks = joinBrokenParagraphs(expandedBlocks);
   
-  const results: Array<{type: 'heading' | 'subheading' | 'paragraph', content: string, key: number}> = [];
+  const results: Array<{type: 'heading' | 'subheading' | 'paragraph' | 'bullet' | 'italic-paragraph', content: string, key: number}> = [];
+  
+  // Track if we're in Key Takeaways or Appendix section (for special formatting)
+  let inKeyTakeawaysSection = false;
   
   // Track if we're in a section to strip (e.g., Reflective Questions)
   let inStrippableSection = false;
@@ -177,18 +180,33 @@ const parseContentWithHeadings = (content: string) => {
     
     // Check for markdown-style headings (## or ### Heading)
     if (trimmed.startsWith("### ")) {
+      const headingContent = stripInlineMarkdown(trimmed.slice(4));
+      // Check if entering Key Takeaways or Appendix section
+      if (/^(key takeaways|appendix)/i.test(headingContent)) {
+        inKeyTakeawaysSection = true;
+      } else if (inKeyTakeawaysSection) {
+        // Exiting the section when we hit another heading
+        inKeyTakeawaysSection = false;
+      }
       results.push({
         type: "heading",
-        content: stripInlineMarkdown(trimmed.slice(4)),
+        content: headingContent,
         key: index * 100,
       });
       return;
     }
     
     if (trimmed.startsWith("## ")) {
+      const headingContent = stripInlineMarkdown(trimmed.slice(3));
+      // Check if entering Key Takeaways or Appendix section
+      if (/^(key takeaways|appendix)/i.test(headingContent)) {
+        inKeyTakeawaysSection = true;
+      } else if (inKeyTakeawaysSection) {
+        inKeyTakeawaysSection = false;
+      }
       results.push({
         type: "heading",
-        content: stripInlineMarkdown(trimmed.slice(3)),
+        content: headingContent,
         key: index * 100,
       });
       return;
@@ -197,9 +215,16 @@ const parseContentWithHeadings = (content: string) => {
     // Check for markdown bold headings (**Heading**)
     const boldMatch = trimmed.match(/^\*\*(.+?)\*\*$/);
     if (boldMatch && boldMatch[1].length < 80) {
+      const headingContent = stripInlineMarkdown(boldMatch[1]);
+      // Check if entering Key Takeaways or Appendix section
+      if (/^(key takeaways|appendix)/i.test(headingContent)) {
+        inKeyTakeawaysSection = true;
+      } else if (inKeyTakeawaysSection) {
+        inKeyTakeawaysSection = false;
+      }
       results.push({
         type: "heading",
-        content: stripInlineMarkdown(boldMatch[1]),
+        content: headingContent,
         key: index * 100,
       });
       return;
@@ -235,6 +260,26 @@ const parseContentWithHeadings = (content: string) => {
     if (isTrueHeading(trimmed)) {
       results.push({
         type: "heading",
+        content: stripInlineMarkdown(trimmed),
+        key: index * 100,
+      });
+      return;
+    }
+    
+    // Check for bullet point lines (- Something)
+    if (trimmed.startsWith("- ")) {
+      results.push({
+        type: "bullet",
+        content: stripInlineMarkdown(trimmed.slice(2)),
+        key: index * 100,
+      });
+      return;
+    }
+    
+    // In Key Takeaways section, non-bullet paragraphs are answers (italic)
+    if (inKeyTakeawaysSection) {
+      results.push({
+        type: "italic-paragraph",
         content: stripInlineMarkdown(trimmed),
         key: index * 100,
       });
@@ -568,6 +613,27 @@ const InlineTeachingContent = ({
                   >
                     {item.content}
                   </h5>
+                );
+              }
+              if (item.type === "bullet") {
+                return (
+                  <p
+                    key={item.key}
+                    className="text-base md:text-[17px] leading-[1.75] text-foreground/90 mb-3 text-left flex"
+                  >
+                    <span className="mr-3 text-primary">•</span>
+                    <span>{item.content}</span>
+                  </p>
+                );
+              }
+              if (item.type === "italic-paragraph") {
+                return (
+                  <p
+                    key={item.key}
+                    className="text-base md:text-[17px] leading-[1.75] text-foreground/90 mb-5 text-left italic"
+                  >
+                    {item.content}
+                  </p>
                 );
               }
               return (
