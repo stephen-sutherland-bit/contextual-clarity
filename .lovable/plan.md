@@ -1,177 +1,145 @@
 
-# Plan: Fix Jim's Five Formatting Issues
 
-## Overview of Issues
+# Plan: Format Key Takeaways with Bullet Points and Italic Answers
 
-After analysing the codebase and sample teachings, here are the five issues Jim identified and my proposed solutions:
+## What You're Asking For
 
----
+Looking at your screenshot of the Key Takeaways section:
+- Questions like `- Is the thousand-year reign in Revelation a literal future event?` should have a proper bullet point (•) instead of `-`
+- Answers like "No, it is a symbolic number representing..." should be rendered in *italic*
 
-## Issue 1: Some Headings Not Rendering as Bold
+## Current Behaviour
 
-**Jim's Observation:** Some headings in the teaching appear correctly bold, but others that are clearly recognised as headings in the editing section blend invisibly into the following paragraph. Jim had to manually add `##` before some headings to make them bold.
+The parser currently treats all content as either `heading` or `paragraph`. Lines starting with `-` are just rendered as regular paragraphs with the hyphen visible.
 
-**Root Cause:** The AI is inconsistently marking headings. Looking at the sample teaching, I can see:
-- Some headings use `### The Final Breath of Jesus...` (with `###`)  
-- Others use `**The Mosaic Covenant**` (with bold markers)
-- Some might have no markers at all
+## Proposed Solution
 
-The parser currently checks for both `##/###` markdown headings AND `**bold**` markers, but if the AI outputs neither, the heading becomes a normal paragraph.
+Modify the **parser** in `InlineTeachingContent.tsx` to:
+1. Track when we're inside the "Key Takeaways" or "Appendix" section
+2. Detect lines starting with `- ` and render them as proper bullet points
+3. Make non-bullet paragraphs in the Key Takeaways section italic (these are the answers)
 
-**Solution:** 
-1. Update the AI prompt to be stricter about ALWAYS using `**Heading**` format for EVERY section heading
-2. Add redundancy in the parser to detect a heading that starts a line, is followed by text, then a paragraph break (pattern-based fallback)
-3. Ensure the parser handles `## ` and `### ` headings as well (already does, but reinforce)
+**No changes to the rewrite process/edge function** - this is purely a display change.
 
 ---
 
-## Issue 2: AI Meta-Commentary at Start of Teaching
+## Technical Changes
 
-**Jim's Observation:** Occasionally the AI starts the teaching with something like "Here is the rewritten teaching you asked for, done to your instructions."
+### File: `src/components/InlineTeachingContent.tsx`
 
-**Root Cause:** The AI is including its response preamble in the output. This is a common LLM behaviour when following instructions.
-
-**Solution:**
-1. Add explicit instruction to the prompt: "Do NOT include any meta-commentary about the rewriting task. Begin directly with the teaching content."
-2. Add a post-processing step in the edge function to strip common AI preambles from the start of the output
-
----
-
-## Issue 3: Duplicate Credit Lines at End
-
-**Jim's Observation:** The teaching occasionally has two credit lines that say "thechristiantheologist."
-
-**Root Cause:** The AI prompt instructs adding the credit at the end, but sometimes the AI duplicates it or the source content already contains one.
-
-**Solution:**
-1. Add post-processing in the edge function to detect and remove duplicate credit lines
-2. Add instruction to the prompt: "Add the credit line ONLY ONCE at the very end. Do NOT duplicate it."
-
----
-
-## Issue 4: Duplicate Question Sections
-
-**Jim's Observation:** There are two question sections appearing:
-1. The AI-generated "Reflective Questions" section within the `full_content` 
-2. The separate "Clarifying Common Questions" section that appears after the teaching (from `ponderedQuestions` data)
-
-These are two different things and both are showing.
-
-**Current Situation:**
-- The AI prompt instructs to add a "Reflective Questions" section in the REQUIRED END-MATTER
-- The app also shows a separate "Clarifying Common Questions" section using the `ponderedQuestions` array
-
-**Options to discuss with Jim:**
-1. **Remove AI questions from content, keep only the fancy "Clarifying Common Questions" section** - Cleaner, but requires AI to NOT include questions
-2. **Keep AI questions in content, remove the fancy section** - Simpler, but loses the nice formatting
-3. **Merge them** - Use the AI questions to populate the fancy section, stripping them from the content
-
-**Proposed Solution:** Remove the "Reflective Questions" section from the AI output entirely, since the fancy "Clarifying Common Questions" section is managed separately and looks better. Update the prompt to NOT include the Reflective Questions section.
-
----
-
-## Issue 5: Two Different Summaries
-
-**Jim's Observation:** There are two summaries:
-1. The nice-looking Summary box at the TOP of the teaching (uses `quickAnswer` field)
-2. A "Summary" section at the END of the teaching content (generated by AI)
-
-They contain different content and it's confusing having two.
-
-**Options:**
-1. **Keep top summary, remove end summary** - Cleaner look, the top summary is more prominent
-2. **Keep end summary, remove top summary** - Keeps the AI-generated summary which may be more detailed
-3. **Rename the end summary** - Call it "Key Takeaways" or "Key Points" instead of "Summary"
-
-**Proposed Solution:** Rename the end-of-teaching summary to **"Key Takeaways"** since it contains bullet points with specific questions/answers, while the top summary is more of an overview. This gives each a distinct purpose.
-
----
-
-## Summary of Changes
-
-| File | Changes |
-|------|---------|
-| `supabase/functions/process-transcript/index.ts` | 1. Add instruction to NOT include meta-commentary at start 2. Add instruction to NOT duplicate credit line 3. Remove "Reflective Questions" from REQUIRED END-MATTER 4. Rename "Summary" to "Key Takeaways" 5. Reinforce that ALL headings MUST use `**bold markers**` |
-| `supabase/functions/process-transcript/index.ts` | Add post-processing to strip AI preambles and duplicate credits from output |
-| `src/components/InlineTeachingContent.tsx` | 1. Add detection for "Reflective Questions" section to strip it from content (since it's shown separately) 2. Improve heading fallback detection for edge cases |
-
----
-
-## Technical Details
-
-### Post-Processing Function (Edge Function)
-
-Add a function to clean the AI output before returning:
+**1. Add new item types to the parser results:**
 
 ```typescript
-function cleanAIOutput(content: string): string {
-  // Strip AI preambles
-  const preamblePatterns = [
-    /^Here is the rewritten.*?:\s*/i,
-    /^Here's the rewritten.*?:\s*/i,
-    /^I've rewritten.*?:\s*/i,
-    /^Below is the rewritten.*?:\s*/i,
-  ];
-  
-  let cleaned = content;
-  for (const pattern of preamblePatterns) {
-    cleaned = cleaned.replace(pattern, '');
-  }
-  
-  // Remove duplicate credit lines (keep only the last one)
-  const creditPattern = /\(This teaching is adapted from The Christian Theologist\..*?\)/g;
-  const matches = cleaned.match(creditPattern);
-  if (matches && matches.length > 1) {
-    // Remove all but the last occurrence
-    for (let i = 0; i < matches.length - 1; i++) {
-      cleaned = cleaned.replace(matches[i], '');
-    }
-  }
-  
-  return cleaned.trim();
+const results: Array<{
+  type: 'heading' | 'subheading' | 'paragraph' | 'bullet' | 'italic-paragraph', 
+  content: string, 
+  key: number
+}> = [];
+```
+
+**2. Track when we're in the Key Takeaways or Appendix section:**
+
+```typescript
+// Track if we're in Key Takeaways or Appendix section (for special formatting)
+let inKeyTakeawaysSection = false;
+```
+
+**3. Detect section entry:**
+
+```typescript
+// When we hit "Key Takeaways" or "Appendix" heading, enable special mode
+if (trimmed.match(/^\*\*(key takeaways|appendix)\*\*$/i) || 
+    trimmed.match(/^(key takeaways|appendix)$/i)) {
+  inKeyTakeawaysSection = true;
+  // Still add the heading
+  results.push({ type: "heading", content: "Key Takeaways" or "Appendix", ... });
+  return;
+}
+
+// Exit special mode when we hit another major heading
+if (inKeyTakeawaysSection && /* is a different heading */) {
+  inKeyTakeawaysSection = false;
 }
 ```
 
-### Prompt Changes
-
-**Remove from REQUIRED END-MATTER:**
-```text
-Reflective Questions
-CRITICAL: This section MUST be titled exactly "Reflective Questions"...
-(entire section removed)
-```
-
-**Rename in REQUIRED END-MATTER:**
-```text
-Summary → Key Takeaways
-```
-
-**Add to prompt:**
-```text
-CRITICAL: Do NOT include any meta-commentary about the rewriting task.
-Do NOT start with phrases like "Here is the rewritten teaching" or similar.
-Begin directly with the teaching content.
-
-CRITICAL: Add the credit line ONLY ONCE at the very end. Never duplicate it.
-```
-
-### Parser Improvement (Strip Reflective Questions from Content)
-
-Since the "Clarifying Common Questions" section is shown separately using `ponderedQuestions`, we should strip any "Reflective Questions" section that appears in the `full_content` to avoid duplication:
+**4. Convert `- ` lines to bullet points:**
 
 ```typescript
-// In parseContentWithHeadings, filter out Reflective Questions section
-const isReflectiveQuestionsSection = (text: string): boolean => {
-  return /^(reflective questions|have you.*pondered)/i.test(text.trim());
-};
+// Check for bullet point lines (- Something)
+if (trimmed.startsWith("- ")) {
+  results.push({
+    type: "bullet",
+    content: stripInlineMarkdown(trimmed.slice(2)), // Remove the "- "
+    key: index * 100,
+  });
+  return;
+}
+```
+
+**5. Make answers italic in Key Takeaways:**
+
+```typescript
+// In Key Takeaways section, non-bullet paragraphs are answers (italic)
+if (inKeyTakeawaysSection) {
+  results.push({
+    type: "italic-paragraph",
+    content: stripInlineMarkdown(trimmed),
+    key: index * 100,
+  });
+  return;
+}
+```
+
+**6. Add rendering for new types:**
+
+```typescript
+{parsedContent.map((item) => {
+  if (item.type === "bullet") {
+    return (
+      <p key={item.key} className="text-base md:text-[17px] leading-[1.75] text-foreground/90 mb-3 text-left flex">
+        <span className="mr-3 text-primary">•</span>
+        <span>{item.content}</span>
+      </p>
+    );
+  }
+  if (item.type === "italic-paragraph") {
+    return (
+      <p key={item.key} className="text-base md:text-[17px] leading-[1.75] text-foreground/90 mb-5 text-left italic">
+        {item.content}
+      </p>
+    );
+  }
+  // ... existing heading/paragraph rendering
+})}
 ```
 
 ---
 
-## Risk Assessment
+## Summary
 
-**Low-Medium Risk** - These changes affect:
-1. How new teachings are processed (prompt changes)
-2. How existing teachings display (parser changes to strip duplicate sections)
+| Change | Description |
+|--------|-------------|
+| Parser logic | Track when inside Key Takeaways/Appendix section |
+| Bullet detection | Convert `- text` into proper bullet point (•) |
+| Answer formatting | Non-bullet paragraphs in Key Takeaways become italic |
+| No edge function changes | Display-only change, no rewrite process modifications |
 
-The changes are additive and defensive - they add cleanup steps rather than changing core logic.
+---
+
+## Expected Result
+
+**Before:**
+```
+- Is the thousand-year reign in Revelation a literal future event?
+
+No, it is a symbolic number representing the perfect and complete reign of Christ...
+```
+
+**After:**
+```
+• Is the thousand-year reign in Revelation a literal future event?
+
+No, it is a symbolic number representing the perfect and complete reign of Christ...
+(in italic)
+```
+
