@@ -1,22 +1,177 @@
-# Plan: Fix Bold Heading Detection - COMPLETED
 
-## Changes Made
+# Plan: Fix Jim's Five Formatting Issues
 
-### 1. `supabase/functions/process-transcript/index.ts`
-- Updated STRUCTURE & FORMATTING section to instruct AI to use `**Heading Title Here**` format
-- Provided explicit examples: `**The Mosaic Covenant**`, `**The Binding of the Adversary: A Legal Victory**`
-- Updated FINAL FORMATTING NOTES to clarify: use `**bold markers**` ONLY for section headings
-- Removed the blanket "no asterisks" rule
+## Overview of Issues
 
-### 2. `src/components/InlineTeachingContent.tsx`
-- Relaxed `isTrueHeading` function by removing the overly aggressive `sentenceOpeners` regex
-- Lines starting with "The", "A", "In" etc. are now allowed as headings (for legacy content)
-- Kept conversational phrase detection to avoid bolding actual sentences
-- The primary detection method is now the explicit `**Heading**` regex match at lines 153-162
+After analysing the codebase and sample teachings, here are the five issues Jim identified and my proposed solutions:
 
-## Why This Works
+---
 
-1. **Explicit control**: AI outputs `**Heading Title Here**` format
-2. **Reliable detection**: Parser detects `^\*\*(.+?)\*\*$` pattern
-3. **Clean output**: Markers get stripped via `stripInlineMarkdown()`
-4. **Fallback exists**: Legacy content can still use heuristics, but less aggressively
+## Issue 1: Some Headings Not Rendering as Bold
+
+**Jim's Observation:** Some headings in the teaching appear correctly bold, but others that are clearly recognised as headings in the editing section blend invisibly into the following paragraph. Jim had to manually add `##` before some headings to make them bold.
+
+**Root Cause:** The AI is inconsistently marking headings. Looking at the sample teaching, I can see:
+- Some headings use `### The Final Breath of Jesus...` (with `###`)  
+- Others use `**The Mosaic Covenant**` (with bold markers)
+- Some might have no markers at all
+
+The parser currently checks for both `##/###` markdown headings AND `**bold**` markers, but if the AI outputs neither, the heading becomes a normal paragraph.
+
+**Solution:** 
+1. Update the AI prompt to be stricter about ALWAYS using `**Heading**` format for EVERY section heading
+2. Add redundancy in the parser to detect a heading that starts a line, is followed by text, then a paragraph break (pattern-based fallback)
+3. Ensure the parser handles `## ` and `### ` headings as well (already does, but reinforce)
+
+---
+
+## Issue 2: AI Meta-Commentary at Start of Teaching
+
+**Jim's Observation:** Occasionally the AI starts the teaching with something like "Here is the rewritten teaching you asked for, done to your instructions."
+
+**Root Cause:** The AI is including its response preamble in the output. This is a common LLM behaviour when following instructions.
+
+**Solution:**
+1. Add explicit instruction to the prompt: "Do NOT include any meta-commentary about the rewriting task. Begin directly with the teaching content."
+2. Add a post-processing step in the edge function to strip common AI preambles from the start of the output
+
+---
+
+## Issue 3: Duplicate Credit Lines at End
+
+**Jim's Observation:** The teaching occasionally has two credit lines that say "thechristiantheologist."
+
+**Root Cause:** The AI prompt instructs adding the credit at the end, but sometimes the AI duplicates it or the source content already contains one.
+
+**Solution:**
+1. Add post-processing in the edge function to detect and remove duplicate credit lines
+2. Add instruction to the prompt: "Add the credit line ONLY ONCE at the very end. Do NOT duplicate it."
+
+---
+
+## Issue 4: Duplicate Question Sections
+
+**Jim's Observation:** There are two question sections appearing:
+1. The AI-generated "Reflective Questions" section within the `full_content` 
+2. The separate "Clarifying Common Questions" section that appears after the teaching (from `ponderedQuestions` data)
+
+These are two different things and both are showing.
+
+**Current Situation:**
+- The AI prompt instructs to add a "Reflective Questions" section in the REQUIRED END-MATTER
+- The app also shows a separate "Clarifying Common Questions" section using the `ponderedQuestions` array
+
+**Options to discuss with Jim:**
+1. **Remove AI questions from content, keep only the fancy "Clarifying Common Questions" section** - Cleaner, but requires AI to NOT include questions
+2. **Keep AI questions in content, remove the fancy section** - Simpler, but loses the nice formatting
+3. **Merge them** - Use the AI questions to populate the fancy section, stripping them from the content
+
+**Proposed Solution:** Remove the "Reflective Questions" section from the AI output entirely, since the fancy "Clarifying Common Questions" section is managed separately and looks better. Update the prompt to NOT include the Reflective Questions section.
+
+---
+
+## Issue 5: Two Different Summaries
+
+**Jim's Observation:** There are two summaries:
+1. The nice-looking Summary box at the TOP of the teaching (uses `quickAnswer` field)
+2. A "Summary" section at the END of the teaching content (generated by AI)
+
+They contain different content and it's confusing having two.
+
+**Options:**
+1. **Keep top summary, remove end summary** - Cleaner look, the top summary is more prominent
+2. **Keep end summary, remove top summary** - Keeps the AI-generated summary which may be more detailed
+3. **Rename the end summary** - Call it "Key Takeaways" or "Key Points" instead of "Summary"
+
+**Proposed Solution:** Rename the end-of-teaching summary to **"Key Takeaways"** since it contains bullet points with specific questions/answers, while the top summary is more of an overview. This gives each a distinct purpose.
+
+---
+
+## Summary of Changes
+
+| File | Changes |
+|------|---------|
+| `supabase/functions/process-transcript/index.ts` | 1. Add instruction to NOT include meta-commentary at start 2. Add instruction to NOT duplicate credit line 3. Remove "Reflective Questions" from REQUIRED END-MATTER 4. Rename "Summary" to "Key Takeaways" 5. Reinforce that ALL headings MUST use `**bold markers**` |
+| `supabase/functions/process-transcript/index.ts` | Add post-processing to strip AI preambles and duplicate credits from output |
+| `src/components/InlineTeachingContent.tsx` | 1. Add detection for "Reflective Questions" section to strip it from content (since it's shown separately) 2. Improve heading fallback detection for edge cases |
+
+---
+
+## Technical Details
+
+### Post-Processing Function (Edge Function)
+
+Add a function to clean the AI output before returning:
+
+```typescript
+function cleanAIOutput(content: string): string {
+  // Strip AI preambles
+  const preamblePatterns = [
+    /^Here is the rewritten.*?:\s*/i,
+    /^Here's the rewritten.*?:\s*/i,
+    /^I've rewritten.*?:\s*/i,
+    /^Below is the rewritten.*?:\s*/i,
+  ];
+  
+  let cleaned = content;
+  for (const pattern of preamblePatterns) {
+    cleaned = cleaned.replace(pattern, '');
+  }
+  
+  // Remove duplicate credit lines (keep only the last one)
+  const creditPattern = /\(This teaching is adapted from The Christian Theologist\..*?\)/g;
+  const matches = cleaned.match(creditPattern);
+  if (matches && matches.length > 1) {
+    // Remove all but the last occurrence
+    for (let i = 0; i < matches.length - 1; i++) {
+      cleaned = cleaned.replace(matches[i], '');
+    }
+  }
+  
+  return cleaned.trim();
+}
+```
+
+### Prompt Changes
+
+**Remove from REQUIRED END-MATTER:**
+```text
+Reflective Questions
+CRITICAL: This section MUST be titled exactly "Reflective Questions"...
+(entire section removed)
+```
+
+**Rename in REQUIRED END-MATTER:**
+```text
+Summary → Key Takeaways
+```
+
+**Add to prompt:**
+```text
+CRITICAL: Do NOT include any meta-commentary about the rewriting task.
+Do NOT start with phrases like "Here is the rewritten teaching" or similar.
+Begin directly with the teaching content.
+
+CRITICAL: Add the credit line ONLY ONCE at the very end. Never duplicate it.
+```
+
+### Parser Improvement (Strip Reflective Questions from Content)
+
+Since the "Clarifying Common Questions" section is shown separately using `ponderedQuestions`, we should strip any "Reflective Questions" section that appears in the `full_content` to avoid duplication:
+
+```typescript
+// In parseContentWithHeadings, filter out Reflective Questions section
+const isReflectiveQuestionsSection = (text: string): boolean => {
+  return /^(reflective questions|have you.*pondered)/i.test(text.trim());
+};
+```
+
+---
+
+## Risk Assessment
+
+**Low-Medium Risk** - These changes affect:
+1. How new teachings are processed (prompt changes)
+2. How existing teachings display (parser changes to strip duplicate sections)
+
+The changes are additive and defensive - they add cleanup steps rather than changing core logic.
