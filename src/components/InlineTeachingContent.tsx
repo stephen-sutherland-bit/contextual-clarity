@@ -96,6 +96,19 @@ const joinBrokenParagraphs = (blocks: string[]): string[] => {
   return joined;
 };
 
+// Check if we're entering a section that should be stripped (Reflective Questions, etc.)
+const isStrippableSection = (text: string): boolean => {
+  const trimmed = text.trim().toLowerCase();
+  // Match "Reflective Questions", "Have you pondered", "Questions to Consider", etc.
+  return /^(reflective questions|have you.*pondered|questions to consider)/i.test(trimmed) ||
+         /^\*\*(reflective questions|have you.*pondered|questions to consider)/i.test(trimmed);
+};
+
+// Check if a line is the credit line (to detect duplicates)
+const isCreditLine = (text: string): boolean => {
+  return /this teaching is adapted from the christian theologist/i.test(text);
+};
+
 // Parse content to detect and render headings properly, preserving original doc structure
 const parseContentWithHeadings = (content: string) => {
   // Split by double newlines first
@@ -120,12 +133,46 @@ const parseContentWithHeadings = (content: string) => {
   
   const results: Array<{type: 'heading' | 'subheading' | 'paragraph', content: string, key: number}> = [];
   
+  // Track if we're in a section to strip (e.g., Reflective Questions)
+  let inStrippableSection = false;
+  // Track credit lines to only keep the last one
+  let creditLineIndex = -1;
+  
   blocks.forEach((block, index) => {
     const trimmed = block.trim();
     
     // Skip horizontal rules
     if (isHorizontalRule(trimmed)) {
       return;
+    }
+    
+    // Check if this is the start of a strippable section
+    if (isStrippableSection(trimmed)) {
+      inStrippableSection = true;
+      return; // Skip this heading
+    }
+    
+    // If we hit a new major section (bold heading), we exit the strippable section
+    if (inStrippableSection) {
+      const boldMatch = trimmed.match(/^\*\*(.+?)\*\*$/);
+      if (boldMatch || trimmed.startsWith("### ") || trimmed.startsWith("## ")) {
+        // This is a new major section, exit strippable mode
+        inStrippableSection = false;
+      } else {
+        // Still in strippable section, skip this block
+        return;
+      }
+    }
+    
+    // Track credit lines (keep only last one)
+    if (isCreditLine(trimmed)) {
+      // If we already have a credit line, remove it from results
+      if (creditLineIndex >= 0) {
+        const idx = results.findIndex(r => r.key === creditLineIndex);
+        if (idx >= 0) results.splice(idx, 1);
+      }
+      creditLineIndex = index * 100;
+      // Continue to add this credit line
     }
     
     // Check for markdown-style headings (## or ### Heading)

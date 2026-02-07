@@ -67,6 +67,14 @@ FAILURE TO MEET LENGTH REQUIREMENT = TASK FAILURE.
 
 ---
 
+## CRITICAL - NO META-COMMENTARY
+
+Do NOT include any meta-commentary about the rewriting task.
+Do NOT start with phrases like "Here is the rewritten teaching", "I've rewritten the following", "Below is the teaching", or any similar preamble.
+Begin DIRECTLY with the teaching content—your very first words should be the teaching itself.
+
+---
+
 ## Content to REMOVE FIRST
 
 Before processing, REMOVE non-teaching material:
@@ -227,7 +235,8 @@ The Great Commission was to proclaim the gospel to all nations BEFORE the end of
 ## STRUCTURE & FORMATTING
 
 Bold Headings
-Use **bold markers** around section headings so the rendering system can identify them.
+Use **bold markers** around ALL section headings so the rendering system can identify them.
+EVERY heading MUST use this format—no exceptions.
 
 FORMAT: **Heading Title Here**
 
@@ -235,11 +244,13 @@ Examples:
 **The Mosaic Covenant**
 **Divine Initiative in Salvation**
 **The Binding of the Adversary: A Legal Victory**
+**Understanding Covenantal Context**
 
 The bold markers will be stripped during rendering—they are only used for detection.
 
 Do NOT use ## or ### markdown heading syntax.
 Do NOT make regular sentences bold—only true section titles that introduce new topics.
+EVERY section heading in the teaching MUST be wrapped in **bold markers**.
 
 Relational Transitions
 Maintain full essay-style paragraphs with transitions: "Therefore...", "As we see...", "This leads us to consider..."
@@ -247,37 +258,36 @@ Maintain full essay-style paragraphs with transitions: "Therefore...", "As we se
 Bullet Points
 ONLY permitted for:
 - Diagnostic questions
-- Summary lists
+- Key Takeaways lists
 - Step-by-step frameworks
 NOT for regular teaching paragraphs.
 
 Use plain hyphens (-) for bullets, never asterisks.
 
 Questions Handling
-Do NOT create a separate questions section at the end. The app has a dedicated "Have You Ever Pondered?" section managed separately.
+Do NOT create a "Reflective Questions" section or any similar questions section at the end.
+The app has a dedicated "Clarifying Common Questions" section managed separately.
+Do NOT include "Have you pondered...", "Questions to Consider", or any end-of-teaching questions section.
 
 ---
 
 ## REQUIRED END-MATTER
 
-Every rewritten teaching MUST conclude with these three sections IN THIS EXACT ORDER:
+Every rewritten teaching MUST conclude with these sections IN THIS EXACT ORDER:
 
-Appendix
+**Appendix**
 At the very end, include:
 - Core Focus: A single sentence stating the central topic explored
 - Purpose: A single sentence stating what the teaching aimed to help readers understand or experience
 
-Reflective Questions
-CRITICAL: This section MUST be titled exactly "Reflective Questions" - no variations.
-Do NOT use titles like "Have you pondered...", "Have you ever wondered...", "Questions to Consider", or any other phrasing.
-
-Provide 3–5 questions in this EXACT format (use these exact labels):
-- The Question: A sincere question a reader might ask
-- Common Understanding: How mainstream Christianity typically answers
-- Covenantal-Contextual Answer: How CCM invites us to reconsider
-
-Summary
+**Key Takeaways**
+CRITICAL: This section MUST be titled exactly "Key Takeaways" (not "Summary").
 A bulleted list of the key questions the teaching addressed, each with a one-sentence answer.
+
+**Credit Line**
+Add the credit line ONLY ONCE at the very end. Do NOT duplicate it.
+Use this exact format in italics:
+(This teaching is adapted from The Christian Theologist. For more in-depth studies with sound exegesis and covenantal context, visit christiantheologist.substack.com.)
 
 ---
 
@@ -287,6 +297,7 @@ A bulleted list of the key questions the teaching addressed, each with a one-sen
 - Use New Zealand English: fulfilment, baptise, judgement, honour, neighbour, realisation, organise, colour
 - Occasionally integrate Māori words: whānau (covenant family), whakapapa (genealogy), aroha (compassion). Provide translation.
 - Use **bold markers** ONLY for section headings (the parser will strip them)
+- EVERY section heading MUST be wrapped in **bold markers**—this is mandatory
 - Do NOT use ## or ### for headings
 - Do NOT use > for blockquotes. Scripture quotes should use regular quotation marks within paragraphs.
 - Do NOT make regular sentences bold—only true section titles
@@ -295,14 +306,13 @@ A bulleted list of the key questions the teaching addressed, each with a one-sen
 - NO mentioning "redundancy," "repetition," or pedagogical justification to readers
 - Maintain a gentle, guiding tone throughout—like a wise teacher walking alongside the reader, not two scholars debating
 
-At the very end, add in italics:
-(This teaching is adapted from The Christian Theologist. For more in-depth studies with sound exegesis and covenantal context, visit christiantheologist.substack.com.)
-
 ---
 
 ## FINAL REMINDER
 
-Your output MUST be AT LEAST as long as the input. You are expanding, clarifying, and enriching through guided discovery—NEVER summarising.`;
+Your output MUST be AT LEAST as long as the input. You are expanding, clarifying, and enriching through guided discovery—NEVER summarising.
+Begin DIRECTLY with the teaching content—no meta-commentary or preamble.
+Add the credit line ONLY ONCE at the end.`;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
