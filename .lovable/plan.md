@@ -1,134 +1,117 @@
 
 
-# Plan: Strengthen CCM Theological Accuracy in the Rewrite Prompt
+# Plan: Align the Rewrite Prompt with Jim's CCM Outline and DeepSeek Analysis
 
-## The Problem
+## Background
 
-The AI rewrite process produces well-structured, beautifully formatted teachings, but the theological content is not consistently aligned with CCM. The AI starts with **consensus/modern definitions** of biblical terms (like "love") and then tries to conform them to CCM, rather than using the correct lexical and covenantal definitions from the outset. This results in teachings that look CCM on the surface but contain subtle theological errors Jim and Dad have identified.
+Dad fed the latest reprocessed teaching ("Church Reform") into DeepSeek for a CCM consistency check. DeepSeek identified eight anomalies where the AI's output drifted from strict CCM. Jim also sent two updates to the CCM Outline document with specific wording changes. This plan incorporates all of these corrections into the system prompt.
 
-The Word document Dad sent shows a detailed analysis where DeepSeek was used to check our AI's output against strict CCM standards. The key issues are:
+## What Stays the Same
 
-1. **"Love" used with modern emotional meaning** instead of its covenantal definition (love-as-mercy downward, love-as-gratitude upward)
-2. **Transpositional application** -- the AI takes first-century transitional commands and applies them as timeless blueprints for today, instead of grounding them in their specific covenantal jurisdiction
-3. **Inconsistent covenant location** -- AD 70 context is applied to some passages (like Ananias and Sapphira) but not others (like household codes in Ephesians 5)
-4. **Pastor/Elder offices treated as permanent** when CCM sees them as transitional structures for the AD 30-70 period
-5. **NT ecclesial instructions read as permanent blueprints** instead of transition-era guidance
+- All formatting, layout, heading detection, bullet point rendering, italic answers
+- The 4-Step Guided Discovery Framework
+- Pedagogical scaffolding, tone, voice, analogies
+- End-matter structure (Appendix, Key Takeaways, Credit Line)
+- All NZ English, Maori terms, and formatting rules
+- No frontend or parser changes whatsoever
 
-## What We Keep (No Changes)
+## What Changes (Prompt Text Only)
 
-- All formatting, layout, heading detection, and rendering logic stays exactly as it is
-- The 4-Step Guided Discovery Framework structure
-- The pedagogical scaffolding approach
-- The tone and voice guidelines
-- The expansion mandate
-- The end-matter format (Appendix, Key Takeaways, Credit Line)
-- All the formatting rules (bold markers, NZ English, Maori terms, etc.)
+Seven specific corrections to the `CCM_SYSTEM_PROMPT` string in `supabase/functions/process-transcript/index.ts`:
 
-## What Changes (Prompt Content Only)
+---
 
-We add a new section to the system prompt called **"CCM LEXICON: WORDS THE AI MUST NOT USE WITH MODERN DEFINITIONS"** that teaches the AI the correct covenantal definitions of commonly misused biblical terms BEFORE it processes any content. This addresses Jim's core concern: the AI needs to understand these definitions before it can write CCM-consistent content.
+### 1. Jim's Section I Wording Update
 
-### New Section: CCM Lexicon
+**Current prompt text (in the methodology descriptions):**
+References to "the covenant in effect at the time of a text's production"
 
-This section will define the correct usage of terms the AI consistently gets wrong because it defaults to consensus theology:
+**Change to:**
+"The covenant that pertains to the external and internal contexts of a text" -- this shifts from a purely temporal definition to a broader contextual one, per Jim's second email.
 
-**Love (Hebrew: chesed / ahav; Greek: agape / eleos)**
-- NOT a universal emotion or feeling of warmth/affection
-- In covenant context, "love" is a directional action defined by the relationship structure:
-  - Love-as-mercy: flows DOWNWARD from authority/ability to those under care (husband to wife, parent to child, God to humanity). It is intentional charitable action, not sentiment.
-  - Love-as-gratitude: flows UPWARD from the recipient of mercy toward the giver (humanity to God, child to parent). Often expressed as honour and obedience.
-- Hebrew/Aramaic has no specific word for "gratitude" -- words like love, praise, bless, glorify were used to express thanks (Stein, Luke, NAC, 237)
-- Hebrew chesed fluctuates between covenant faithfulness, obligation, and mercy -- the LXX translates it as eleos (mercy), not agape (love)
-- When the text says "love your neighbour," it means: show covenantal mercy/gratitude depending on the directional relationship
-- NEVER describe God's character as "loving" in the modern emotional sense. God shows MERCY downward. Humanity responds with GRATITUDE upward.
+---
 
-**Neighbour**
-- NOT anyone geographically nearby or any fellow human
-- A covenantal term: a fellow member of the covenant community who has obligations toward you and you toward them
-- The Good Samaritan parable redefines "neighbour" by action (the one who shows mercy), not by proximity or ethnicity
+### 2. Jim's Updated 3rd and 4th Foundational Presuppositions
 
-**Church / Ekklesia**
-- NOT a permanent institutional structure with offices, buildings, and programmes
-- In the NT: the transitional gathering of believers during the AD 30-70 covenant shift
-- Post-AD 70: the spiritual whanau (family) of God -- organic, led by Christ alone, no mediating human clergy class
-- Do NOT prescribe modern church structures, programmes, or offices as normative
+Add Jim's precise wording to the doctrinal positions section:
 
-**Pastors / Elders / Overseers**
-- These offices are detailed ONLY in transition literature (Pastoral Epistles, c. AD 50-70)
-- Their function was intra-covenantal: to provide order during the unstable final years of the Mosaic Covenant
-- They are NOT permanent offices for the post-AD 70 New Covenant community
-- The New Covenant community has Christ as sole overseer; teaching emerges organically from maturity and gifting
+**3rd Presupposition (updated):**
+"The eschaton is understood as historically completed in the first century. It culminated in the events surrounding the destruction of Jerusalem and the Second Temple in AD 70, the physical manifestation of the Lord's Parousia. The Parousia marks the replacement of the temporal Mosaic Covenant as an operative covenantal system with the eternal New Covenant."
 
-**Spirit / Holy Spirit**
-- Do not use Trinitarian language (e.g., "third person of the Trinity")
-- The Spirit is God's power and presence at work, not a separate divine person
+**4th Presupposition (updated):**
+"The New Testament texts hold primacy within the biblical canon for interpretation. The New Testament is the inspired record of the earthly ministry of Jesus and the last days of the Mosaic Covenant. As such, they provide the contextual lens through which the meaning and trajectory of the Old Testament texts are re-situated in redemptive history."
 
-**Disciple**
-- In the Gospels: specifically a follower of Jesus during His earthly ministry, within the Mosaic Covenant context
-- Do NOT transpose "discipleship" as a permanent programme or modern church activity
+---
 
-**Evangelism / Great Commission**
-- The Great Commission (Matthew 28:19-20) was a specific charge to the apostles to proclaim the gospel to all nations BEFORE the end of the Mosaic age
-- This was accomplished before AD 70
-- "Evangelism" as modern organised outreach is NOT a New Covenant command
+### 3. "Semper Reditus" Not "Semper Reformanda"
 
-**Sheep / Lost / Wolves**
-- These are intra-covenantal Israelite metaphors, not universal categories
-- "Lost sheep" = unfaithful Israel, not modern unbelievers
-- "Wolves" = false teachers within the transitional covenant community
+DeepSeek identified that the AI used the Protestant concept of "always reforming" when CCM's position is "always returning" to the completed apostolic foundation.
 
-### Enhanced Section: Strict Anti-Transposition Rules
+**Add to the Anti-Transposition Rules:**
+- NEVER frame the process of understanding Scripture as "ongoing reformation" or "Semper Reformanda." CCM's position is "Semper Reditus" (always returning) -- the apostolic testimony was delivered once for all (Jude 3, hapax). Our task is not to reform, develop, or progress beyond the apostles but to return to what they actually taught in their specific covenantal context. The faith is not progressively refined through history; it was complete in the first century and has been departed from.
 
-Add explicit rules to prevent the AI from extracting "timeless principles" from transitional texts:
+---
 
-- EVERY NT command must first be located in its covenantal jurisdiction (Mosaic transition period, AD 30-70)
-- Application to post-AD 70 believers is TRANSFORMATIVE (understanding how God's completed work shapes our reality), NEVER TRANSPOSITIONAL (directly copying transitional-era instructions as permanent rules)
-- When discussing NT household codes (Ephesians 5, Colossians 3, 1 Peter 3), ALWAYS note these were given to believers navigating Greco-Roman social structures during the covenant transition -- they are NOT timeless blueprints for marriage, parenting, or employment
-- When discussing church structure, NEVER present first-century organisational models as normative for today
-- The AD 70 covenantal lens must be applied CONSISTENTLY to ALL passages, not selectively to "difficult" ones
+### 4. Strengthen the Disciple/Believer Distinction
 
-### Enhanced Section: The Five Diagnostic Questions
+The existing "Disciple" lexicon entry is too brief. DeepSeek's analysis and the corrected teaching show this is a major CCM position.
 
-Before interpreting ANY passage, the AI must explicitly (but invisibly in the prose) answer these five questions:
+**Replace the current "Disciple" entry with:**
 
-1. **Governance**: Which covenant governs this text? (Mosaic, Transitional, or New?)
-2. **Audience**: Who specifically is being addressed? (Israelites, Judeans, transition-era believers, or post-AD 70 believers?)
-3. **Instrumental Mode**: How does the operative covenant function here? (Material/External/National or Spiritual/Internal/Universal?)
-4. **Covenant History Location**: Where does this sit on the biblical timeline? (Pre-Christ, AD 30-70 transition, or post-AD 70?)
-5. **Fulfilment Horizon**: When was/is this fulfilled? (In the original audience's lifetime, at AD 70, or ongoing?)
+**Disciple (mathetes) vs. Believer (pistos)**
+- "Disciple" (mathetes) means a learner or adherent attached to a rabbi/teacher. This described a relationship that existed exclusively during the Mosaic age and the AD 30-70 transition. Jesus was a rabbi operating within the Mosaic administration; He had disciples. This was appropriate to that covenantal setting.
+- Post-AD 70, the New Covenant does NOT have disciples. It has believers (pistoi -- faithful ones, trusting ones). The New Covenant promise (Jeremiah 31/Hebrews 8) explicitly announces the end of the master-student mode: "They shall not teach, each one his neighbour... for they shall all know me."
+- NEVER use "discipleship" as a current identity or activity. Do NOT speak of "being disciples" or "making disciples" as if these were post-AD 70 mandates. Modern "discipleship programmes" are covenantal mislocation -- they project a first-century rabbi-student relationship across a covenantal boundary.
+- When the source transcript uses "disciple" language about modern believers, reframe it: we are not disciples (mathetes); we are believers (pistoi) in whom the Spirit dwells, who know God directly.
+
+---
+
+### 5. Nuance the Great Commission / Evangelism Entry
+
+DeepSeek noted the AI either over-applies or under-applies the Great Commission's fulfillment. The corrected position distinguishes between horizon and content.
+
+**Replace the current "Evangelism's Completed Purpose" doctrinal position with:**
+
+**The Great Commission: Horizon vs. Content**
+- The Great Commission (Matthew 28:19-20) was given to first-century disciples living under the Mosaic Covenant. Its eschatological horizon was "the end of the age" -- the AD 70 terminus of the Mosaic system. That transitional generation fulfilled it.
+- However, the content of the commission (teaching, forming communities of believers) describes the natural character of New Covenant life -- now operating WITHOUT the urgency of imminent judgement and WITHOUT the institutional scaffolding of the transitional period.
+- Do NOT present the Great Commission as an ongoing institutional mandate requiring organised outreach programmes, missions budgets, or "evangelism strategies." These are modern corporate projections onto a first-century transitional command.
+- Do NOT present the Great Commission as completely irrelevant either. The mode of New Covenant community (mutual edification, teaching, hospitality) naturally flows from the Spirit's work, but it is not "obeying the Great Commission" -- it is living as believers (pistoi) in the New Covenant age.
+
+---
+
+### 6. Eliminate "Timeless Truth" Language
+
+DeepSeek flagged this as a core methodological inconsistency. CCM's entire point is that truths are covenantally situated, not "timeless."
+
+**Add to the Anti-Transposition Rules:**
+- NEVER describe any biblical teaching as a "timeless truth," "timeless principle," or "universal principle that transcends covenantal boundaries." This language directly contradicts CCM's insistence that meaning is determined by covenantal jurisdiction. Instead, explain how understanding God's completed covenantal work shapes our present reality -- this is transformative application, not the extraction of timeless abstractions.
+
+---
+
+### 7. No First-Century Forms as Normative Blueprint
+
+DeepSeek identified that the AI treated house churches and Acts 2:42 practices as normative while correctly treating pastoral offices as transitional. This is inconsistent.
+
+**Add to the Anti-Transposition Rules:**
+- Do NOT treat first-century ecclesial FORMS (house churches, shared meals, the fourfold devotion of Acts 2:42) as normative blueprints for post-AD 70 life. These descriptions are ALSO part of transition literature. The New Covenant provides NO external blueprint for community structure, worship format, or gathering style. Post-AD 70 believers are free to organise communal life as the Spirit guides, since the New Covenant operates through internal transformation, not external codification.
+- When critiquing modern institutional church practices, do so on the basis that they import Mosaic-era external/material modes into New Covenant life -- NOT on the basis that they fail to replicate first-century transitional forms. The error is the instrumental mode (external vs. internal), not the specific historical form.
 
 ---
 
 ## Technical Details
 
-### File Changed: `supabase/functions/process-transcript/index.ts`
+### File Changed
+`supabase/functions/process-transcript/index.ts` -- only the `CCM_SYSTEM_PROMPT` string constant. No code logic, streaming, auth, or structural changes.
 
-Only the `CCM_SYSTEM_PROMPT` string will be modified. No structural, formatting, or code logic changes.
+### Specific Locations in the Prompt
 
-**Additions to the prompt (inserted after the existing TERMINOLOGY MANDATES section):**
-
-1. A new "CCM LEXICON" section (~400 words) defining love, neighbour, church, pastors/elders, spirit, disciple, evangelism, and sheep/lost/wolves with their correct CCM meanings
-2. A new "ANTI-TRANSPOSITION RULES" section (~150 words) with explicit instructions to prevent extracting timeless principles from transitional texts
-3. Enhancement of the existing "5 Diagnostic Questions" to make them more prominent and mandatory
-4. Strengthening of the existing doctrinal positions section to add the pastor/elder transitional nature and the church-as-whanau post-AD 70 understanding
-
-**Modifications to existing sections:**
-
-- The "Mercy not Love" terminology mandate will be expanded with Jim's scholarly definitions (chesed/eleos, the directional love framework from the Substack article)
-- The "Covenantal Mislocation" section will be strengthened with explicit examples of transposition the AI must avoid
-- The existing doctrinal positions will add "NT Ecclesial Structures as Transitional" as a new invisible doctrine
-
-### What This Does NOT Change
-
-- No changes to `InlineTeachingContent.tsx` or any other frontend file
-- No changes to the edge function's code logic, streaming, auth, or error handling
-- No changes to the end-matter format, heading format, or any rendering rules
-- The prompt's structure and formatting instructions remain identical
-- The 4-Step Framework, pedagogical scaffolding, tone/voice, and analogies all stay the same
+1. **Covenantal Mislocation section** (line ~203): Update the covenant definition wording per Jim's change
+2. **CCM Lexicon - Disciple entry** (line ~230-231): Replace with expanded mathetes/pistos distinction
+3. **Anti-Transposition Rules section** (lines ~238-246): Add three new rules (Semper Reditus, no timeless truth, no first-century forms as normative)
+4. **Doctrinal Positions section** (lines ~263-283): Update the AD 70 and NT Primacy positions with Jim's exact wording; replace the Evangelism entry with the nuanced Great Commission position
 
 ### Risk Assessment
 
-**Low risk** -- we are only adding theological precision to the system prompt. The formatting, structure, and all code remain untouched. Existing teachings are unaffected; only new rewrites will use the updated prompt.
-
-The main risk is that the prompt becomes quite long, but Gemini 2.5 Pro handles large context windows well and the existing prompt is already substantial.
+**Low risk.** Only prompt text changes. All formatting, structure, and code logic remain untouched. Existing teachings are unaffected; only new rewrites will use the updated prompt.
 
