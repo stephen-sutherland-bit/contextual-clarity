@@ -5,6 +5,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import RichTextEditor from "@/components/RichTextEditor";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -517,12 +518,9 @@ const TeachingEditor = ({ teaching, ponderedQuestions: initialPondered = [], ope
                   </p>
                 </div>
               )}
-              <Textarea
-                id="fullContent"
-                value={fullContent}
-                onChange={(e) => setFullContent(e.target.value)}
-                rows={12}
-                className="font-mono text-sm"
+              <RichTextEditor
+                content={fullContent}
+                onChange={setFullContent}
                 disabled={isReprocessing}
               />
             </div>
