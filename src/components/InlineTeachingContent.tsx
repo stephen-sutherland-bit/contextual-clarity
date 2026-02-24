@@ -22,6 +22,11 @@ interface InlineTeachingContentProps {
   onClose: () => void;
 }
 
+// Detect if content contains real HTML tags (from TipTap editor)
+const isHtmlContent = (content: string): boolean => {
+  return /<(p|h[1-6]|ul|ol|blockquote|div|strong|em)\b/i.test(content);
+};
+
 // Helper function to strip inline markdown symbols from text
 const stripInlineMarkdown = (text: string): string => {
   return text
@@ -308,7 +313,8 @@ const InlineTeachingContent = ({
   ponderedQuestions = [],
   onClose,
 }: InlineTeachingContentProps) => {
-  const parsedContent = useMemo(() => parseContentWithHeadings(content), [content]);
+  const isHtml = useMemo(() => isHtmlContent(content), [content]);
+  const parsedContent = useMemo(() => isHtml ? [] : parseContentWithHeadings(content), [content, isHtml]);
   const hasPonderedQuestions = ponderedQuestions && ponderedQuestions.length > 0;
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -593,58 +599,62 @@ const InlineTeachingContent = ({
             <h3 className="font-heading font-semibold text-xl text-primary">Full Teaching</h3>
           </div>
           
-          <div className="prose-teaching">
-            {parsedContent.map((item) => {
-              if (item.type === "heading") {
+          <div className={isHtml ? "prose-teaching-html" : "prose-teaching"}>
+            {isHtml ? (
+              <div dangerouslySetInnerHTML={{ __html: content }} />
+            ) : (
+              parsedContent.map((item) => {
+                if (item.type === "heading") {
+                  return (
+                    <h4
+                      key={item.key}
+                      className="font-heading text-xl font-bold text-foreground mt-8 mb-4 first:mt-0"
+                    >
+                      {item.content}
+                    </h4>
+                  );
+                }
+                if (item.type === "subheading") {
+                  return (
+                    <h5
+                      key={item.key}
+                      className="font-heading text-lg font-semibold text-foreground/90 mt-6 mb-3"
+                    >
+                      {item.content}
+                    </h5>
+                  );
+                }
+                if (item.type === "bullet") {
+                  return (
+                    <p
+                      key={item.key}
+                      className="text-base md:text-[17px] leading-[1.75] text-foreground/90 mb-3 text-left flex"
+                    >
+                      <span className="mr-3 text-primary">•</span>
+                      <span>{item.content}</span>
+                    </p>
+                  );
+                }
+                if (item.type === "italic-paragraph") {
+                  return (
+                    <p
+                      key={item.key}
+                      className="text-base md:text-[17px] leading-[1.75] text-foreground/90 mb-5 text-left italic"
+                    >
+                      {item.content}
+                    </p>
+                  );
+                }
                 return (
-                  <h4
+                <p
                     key={item.key}
-                    className="font-heading text-xl font-bold text-foreground mt-8 mb-4 first:mt-0"
+                    className="text-base md:text-[17px] leading-[1.75] text-foreground/90 mb-5 text-left"
                   >
                     {item.content}
-                  </h4>
-                );
-              }
-              if (item.type === "subheading") {
-                return (
-                  <h5
-                    key={item.key}
-                    className="font-heading text-lg font-semibold text-foreground/90 mt-6 mb-3"
-                  >
-                    {item.content}
-                  </h5>
-                );
-              }
-              if (item.type === "bullet") {
-                return (
-                  <p
-                    key={item.key}
-                    className="text-base md:text-[17px] leading-[1.75] text-foreground/90 mb-3 text-left flex"
-                  >
-                    <span className="mr-3 text-primary">•</span>
-                    <span>{item.content}</span>
                   </p>
                 );
-              }
-              if (item.type === "italic-paragraph") {
-                return (
-                  <p
-                    key={item.key}
-                    className="text-base md:text-[17px] leading-[1.75] text-foreground/90 mb-5 text-left italic"
-                  >
-                    {item.content}
-                  </p>
-                );
-              }
-              return (
-              <p
-                  key={item.key}
-                  className="text-base md:text-[17px] leading-[1.75] text-foreground/90 mb-5 text-left"
-                >
-                  {item.content}
-                </p>
-              );
-            })}
+              })
+            )}
           </div>
         </motion.section>
 

@@ -206,6 +206,47 @@
     @apply text-xl mt-6 mb-3;
   }
 
+  /* HTML content from TipTap editor - matches reader aesthetic */
+  .prose-teaching-html {
+    @apply text-foreground leading-relaxed;
+  }
+
+  .prose-teaching-html h2 {
+    @apply font-heading text-xl font-bold text-foreground mt-8 mb-4;
+  }
+
+  .prose-teaching-html h3 {
+    @apply font-heading text-lg font-semibold text-foreground/90 mt-6 mb-3;
+  }
+
+  .prose-teaching-html p {
+    @apply text-base md:text-[17px] leading-[1.75] text-foreground/90 mb-5 text-left;
+  }
+
+  .prose-teaching-html strong {
+    @apply font-bold;
+  }
+
+  .prose-teaching-html em {
+    @apply italic;
+  }
+
+  .prose-teaching-html ul {
+    @apply list-disc pl-6 mb-5 space-y-2 text-foreground/90;
+  }
+
+  .prose-teaching-html ol {
+    @apply list-decimal pl-6 mb-5 space-y-2 text-foreground/90;
+  }
+
+  .prose-teaching-html li {
+    @apply text-base md:text-[17px] leading-[1.75];
+  }
+
+  .prose-teaching-html blockquote {
+    @apply border-l-4 border-primary/30 pl-4 py-2 my-4 italic text-foreground/80;
+  }
+
   /* Subtle texture overlay */
   .texture-paper {
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
