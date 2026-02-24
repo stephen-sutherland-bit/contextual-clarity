@@ -1,55 +1,98 @@
 
 
-# Plan: Add Rich Text Editing to the Teaching Editor
+# Plan: Make the Teaching Reader Honour HTML Formatting from the Editor
 
-## What This Does
+## The Problem
 
-Replace the plain text `<Textarea>` for the "Full Content" field in the Teaching Editor with a proper rich text editor that gives Dad formatting controls like bold, italic, headings, and more.
+Dad edits a teaching in the rich text editor and sees proper headings, bold, and italics. He saves. But when the "Full Teaching" reader displays it, everything comes out as plain text because the reader component strips all HTML and tries to guess formatting from plain text patterns. The editor and reader are completely disconnected in how they handle formatting.
 
-## Approach
+## Root Cause
 
-Install **TipTap** -- a modern, lightweight rich text editor built for React. It works natively with HTML (which is exactly how `fullContent` is already stored in the database), so no data migration is needed.
+`InlineTeachingContent.tsx` has a function called `parseContentWithHeadings` that:
+1. Splits the content by newlines
+2. Strips all HTML tags and markdown symbols
+3. Tries to heuristically detect headings by checking line length, capitalisation, etc.
+
+This was designed for plain-text or markdown content from the AI. Now that the editor saves proper HTML (`<h2>`, `<strong>`, `<em>`, `<ul>`, etc.), this parser destroys all of it.
+
+## The Fix
+
+Add an **HTML detection check** to `InlineTeachingContent`. When the content contains real HTML tags (from the TipTap editor), render it directly with proper styling instead of running it through the text parser. Keep the old parser as a fallback for any legacy plain-text teachings.
 
 ## What Dad Will See
 
-A formatting toolbar above the content editor with buttons for:
-- **Bold** and *Italic*
-- Heading sizes (H2, H3)
-- Bullet lists and numbered lists
-- Blockquote
-- Undo / Redo
+- Headings he sets in the editor will appear as headings in the reader
+- Bold text will appear bold
+- Italic text will appear italic
+- Bullet lists will render as bullet lists
+- Blockquotes will render as blockquotes
+- What You See Is What You Get -- the editor preview matches the final output
 
-The editor will show formatted text as he types (WYSIWYG), not raw HTML.
+## What Changes
 
-## What Stays the Same
+### File: `src/components/InlineTeachingContent.tsx`
 
-- All other fields in the Teaching Editor (title, themes, scriptures, tags, pondered questions)
-- The save/delete/reprocess logic -- `fullContent` is still stored as HTML
-- The reader/frontend rendering in `InlineTeachingContent` -- it already parses HTML
-- No database changes needed
+**1. Add an HTML detection function**
+A simple check: if the content contains tags like `<p>`, `<h2>`, `<strong>`, etc., treat it as HTML.
+
+**2. Add an HTML rendering path in the "Full Teaching" section**
+When HTML is detected, render the content using `dangerouslySetInnerHTML` inside a styled container with CSS classes that match the existing reader aesthetic (heading fonts, paragraph spacing, bullet styles, blockquote borders).
+
+**3. Keep the existing text parser as fallback**
+Legacy teachings that were saved as plain text or markdown will continue to use the current `parseContentWithHeadings` logic unchanged.
+
+**4. Style the HTML content to match the reader design**
+Add Tailwind/CSS classes to ensure:
+- `<h2>` and `<h3>` use the Playfair Display heading font with correct sizes and spacing
+- `<p>` tags get the same line-height and margin as the current paragraph rendering
+- `<strong>` and `<em>` render naturally (they already do in HTML)
+- `<ul>` and `<ol>` get proper list styling with bullets/numbers
+- `<blockquote>` gets the left border and italic styling
+
+### File: `src/pages/TeachingDetail.tsx`
+
+**5. Update the `strippedContent` memo for BookPreview**
+The existing HTML-to-text stripping for the book preview already handles HTML tags (lines 100-134), so this should continue working. No changes expected here.
 
 ---
 
 ## Technical Details
 
-### New Dependencies
-- `@tiptap/react` -- React integration
-- `@tiptap/starter-kit` -- Bundle of common extensions (bold, italic, headings, lists, blockquote, history)
+### HTML Detection Logic
+```text
+function isHtmlContent(content: string): boolean
+  - Returns true if content contains common HTML block tags
+  - e.g. /<(p|h[1-6]|ul|ol|blockquote|div|strong|em)\b/i
+```
 
-### New File: `src/components/RichTextEditor.tsx`
-A reusable component wrapping TipTap with:
-- A toolbar row with icon buttons (using existing Lucide icons)
-- The editable content area styled to match the existing editor theme
-- Props: `content` (HTML string), `onChange` (callback), `disabled` (boolean)
+### Rendering Branch (lines ~596-648)
+```text
+Current:
+  parsedContent.map(item => ...)  // always uses text parser
 
-### Modified File: `src/components/TeachingEditor.tsx`
-- Replace the `<Textarea>` at lines 520-527 with the new `<RichTextEditor>` component
-- Wire up `content={fullContent}` and `onChange={setFullContent}`
-- When reprocessing completes, update the editor content programmatically
+New:
+  if (isHtml) {
+    render <div dangerouslySetInnerHTML={{ __html: content }}
+           className="prose-teaching-html ..." />
+  } else {
+    parsedContent.map(item => ...)  // existing fallback
+  }
+```
 
-### Styling
-- Toolbar buttons styled with the existing `Button` component (ghost/outline variants)
-- Active formatting states highlighted (e.g., bold button appears pressed when cursor is in bold text)
-- Editor area matches the current textarea appearance (border, padding, font)
-- Minimum height matches current `rows={12}` textarea
+### CSS Classes for HTML Content
+Added to the component or to `src/index.css`:
+- `.prose-teaching-html h2` -- Playfair Display, xl size, bold, top margin
+- `.prose-teaching-html h3` -- Playfair Display, lg size, semibold
+- `.prose-teaching-html p` -- base/17px size, 1.75 line-height, bottom margin
+- `.prose-teaching-html ul` -- disc bullets, left padding
+- `.prose-teaching-html ol` -- decimal numbers, left padding
+- `.prose-teaching-html blockquote` -- left border, italic, muted colour
+- `.prose-teaching-html strong` -- bold (browser default, but explicit)
+- `.prose-teaching-html em` -- italic (browser default, but explicit)
+
+### Print Support
+The print function already clones the rendered DOM (`contentRef.current.innerHTML`), so HTML-rendered content will automatically print correctly with the existing print styles.
+
+### Risk Assessment
+**Low risk.** The old parser remains as a fallback. Only teachings with HTML content (from the new editor) will use the new rendering path. No database changes. No edge function changes.
 
