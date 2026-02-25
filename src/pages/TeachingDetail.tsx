@@ -503,7 +503,7 @@ const TeachingDetail = () => {
         <InlineTeachingContent
           title={teaching.title}
           primaryTheme={teaching.primaryTheme}
-          content={strippedContent}
+          content={teaching.fullContent || ""}
           scriptures={teaching.scriptures}
           questionsAnswered={teaching.questionsAnswered}
           quickAnswer={teaching.quickAnswer}
