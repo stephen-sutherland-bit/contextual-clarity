@@ -54,22 +54,26 @@ const insertParagraphBreaks = (text: string): string => {
 
   // Step 2: Split remaining long paragraphs at sentence boundaries
   // Process each block that's still very long (>800 chars with no breaks)
+  // Never break inside parentheses or brackets
   const blocks = result.split(/\n\n+/);
   const processed = blocks.map(block => {
     if (block.length < 800) return block;
     
-    // Split at sentence boundaries roughly every 400-600 chars
     const sentences: string[] = [];
     let current = '';
-    // Match sentence-ending punctuation followed by a space and capital letter
     const parts = block.split(/(?<=[.!?][""]?\s)(?=[A-Z])/);
     
     for (const part of parts) {
-      if (current.length + part.length > 500 && current.length > 200) {
+      current += part;
+      
+      // Don't split if we're inside unclosed parentheses/brackets
+      const openParens = (current.match(/\(/g) || []).length;
+      const closeParens = (current.match(/\)/g) || []).length;
+      const insideParens = openParens > closeParens;
+      
+      if (!insideParens && current.length > 500) {
         sentences.push(current.trim());
-        current = part;
-      } else {
-        current += (current ? '' : '') + part;
+        current = '';
       }
     }
     if (current.trim()) sentences.push(current.trim());
