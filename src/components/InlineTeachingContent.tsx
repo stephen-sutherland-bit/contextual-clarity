@@ -528,9 +528,9 @@ const InlineTeachingContent = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-background texture-paper overflow-y-auto">
+    <div className="fixed inset-0 z-50 bg-background texture-paper overflow-y-auto" style={{ isolation: 'isolate' }}>
       {/* Sticky header */}
-      <div className="sticky top-0 bg-primary/95 backdrop-blur-sm border-b border-accent/20 z-10 shadow-md">
+      <div className="sticky top-0 bg-primary/95 backdrop-blur-sm border-b border-accent/20 z-10 shadow-md" style={{ position: 'sticky' }}>
         <div className="absolute inset-0 texture-leather pointer-events-none" />
         <div className="container max-w-4xl mx-auto px-6 py-4 flex items-center justify-between relative">
           <h1 className="font-heading font-semibold text-lg truncate pr-4 text-primary-foreground letterpress">{title}</h1>
@@ -571,7 +571,7 @@ const InlineTeachingContent = ({
       )}
 
       {/* Main content - this ref is used for print/PDF */}
-      <div ref={contentRef} className="container max-w-4xl mx-auto px-6 md:px-12 py-8 md:py-12">
+      <div ref={contentRef} className="container max-w-4xl mx-auto px-6 md:px-12 py-8 md:py-12 relative z-[2]">
         {/* Summary box */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}
@@ -735,7 +735,7 @@ const InlineTeachingContent = ({
       </div>
 
       {/* Footer - endpaper style */}
-      <div className="relative text-center py-8 border-t-2 border-accent/20 bg-primary/90">
+      <div className="relative text-center py-8 border-t-2 border-accent/20 bg-primary/90 z-[2]">
         <div className="absolute inset-0 texture-leather pointer-events-none" />
         <div className="relative">
           <p className="text-sm text-primary-foreground/70">The Berean Press</p>
