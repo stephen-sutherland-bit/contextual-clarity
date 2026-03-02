@@ -10,7 +10,7 @@ const phaseIcons = {
   'essentials': Layers,
   'building-blocks': Building2,
   'moving-on': Footprints,
-  'advanced': GraduationCap,
+  'advanced': GraduationCap
 };
 
 const PhaseOverview = () => {
@@ -22,8 +22,8 @@ const PhaseOverview = () => {
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
           viewport={{ once: true }}
-          className="text-center mb-12"
-        >
+          className="text-center mb-12">
+
           <h2 className="text-3xl md:text-4xl font-heading font-bold mb-4">
             Learning Phases
           </h2>
@@ -42,11 +42,11 @@ const PhaseOverview = () => {
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: index * 0.1 }}
-                viewport={{ once: true }}
-              >
+                viewport={{ once: true }}>
+
                 <Link to={`/teachings?phase=${phase.slug}`}>
                   <Card className="h-full hover:shadow-card transition-all hover:border-primary/30 cursor-pointer group">
-                    <CardContent className="p-6">
+                    <CardContent className="p-6 rounded-xl">
                       <div className="flex items-start gap-4">
                         <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/20 transition-colors">
                           <Icon className="h-6 w-6 text-primary" />
@@ -63,8 +63,8 @@ const PhaseOverview = () => {
                     </CardContent>
                   </Card>
                 </Link>
-              </motion.div>
-            );
+              </motion.div>);
+
           })}
         </div>
 
@@ -73,8 +73,8 @@ const PhaseOverview = () => {
           whileInView={{ opacity: 1 }}
           transition={{ duration: 0.5, delay: 0.3 }}
           viewport={{ once: true }}
-          className="text-center"
-        >
+          className="text-center">
+
           <Button variant="warm" size="lg" asChild>
             <Link to="/teachings" className="flex items-center gap-2">
               Browse All Teachings
@@ -83,8 +83,8 @@ const PhaseOverview = () => {
           </Button>
         </motion.div>
       </div>
-    </section>
-  );
+    </section>);
+
 };
 
 export default PhaseOverview;
