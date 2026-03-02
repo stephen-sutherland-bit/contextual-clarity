@@ -52,6 +52,10 @@ const insertParagraphBreaks = (text: string): string => {
   // Pattern: end of sentence (. ? ! ") followed by whitespace then **Heading**
   let result = text.replace(/([.?!""'])\s+(\*\*[A-Z])/g, '$1\n\n$2');
   
+  // Step 1b: Insert \n\n AFTER closing ** of a heading when followed by body text
+  // e.g. "**Heading Title** Some body text" → "**Heading Title**\n\nSome body text"
+  result = result.replace(/(\*\*)\s+(?!\*\*|---|$)([A-Z])/g, '$1\n\n$2');
+  
   // Also break before --- (horizontal rules) and treat them as separators
   result = result.replace(/\s*---\s*/g, '\n\n---\n\n');
   
