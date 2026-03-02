@@ -19,8 +19,8 @@ const Header = () => {
       <div className="absolute inset-0 texture-leather pointer-events-none" />
       <div className="container relative flex h-16 items-center justify-between px-4">
         <Link to="/" className="flex items-center gap-3 group">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg overflow-hidden shadow-soft group-hover:shadow-card transition-shadow">
-            <img src="/images/logo-emblem.png" alt="The Berean Press logo" className="h-10 w-10 object-cover" />
+          <div className="flex h-10 w-10 items-center justify-center">
+            <img src="/images/logo-emblem.png" alt="The Berean Press logo" className="h-10 w-10 object-cover" style={{ WebkitMaskImage: 'radial-gradient(circle, black 45%, transparent 75%)', maskImage: 'radial-gradient(circle, black 45%, transparent 75%)' }} />
           </div>
           <div className="flex flex-col">
             <span className="font-heading text-lg font-semibold leading-tight text-primary-foreground">
