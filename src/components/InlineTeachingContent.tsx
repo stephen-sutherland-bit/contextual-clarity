@@ -22,10 +22,23 @@ interface InlineTeachingContentProps {
   onClose: () => void;
 }
 
-// Detect if content contains real block-level HTML tags (from TipTap editor)
-// Only match block-level tags — stray <strong>/<em> in plain text should NOT trigger HTML path
+// Detect if content is properly structured TipTap HTML (not just a single <p> wrapper)
+// Requires multiple </p> closings OR heading tags — a single <p> wrapping everything is NOT real HTML
 const isHtmlContent = (content: string): boolean => {
-  return /<(p|h[1-6]|ul|ol|blockquote|div|section|article)\b/i.test(content);
+  const closingPCount = (content.match(/<\/p>/gi) || []).length;
+  if (closingPCount >= 2) return true;
+  if (/<h[2-6]\b/i.test(content)) return true;
+  if (/<(ul|ol|blockquote)\b/i.test(content)) return true;
+  return false;
+};
+
+// Unwrap content that's wrapped in a single outer <p>...</p> tag
+// so the legacy parser receives clean plain text
+const unwrapSingleParagraph = (content: string): string => {
+  const trimmed = content.trim();
+  const match = trimmed.match(/^<p>([\s\S]*)<\/p>$/i);
+  if (match) return match[1];
+  return trimmed;
 };
 
 // Pre-process legacy/markdown content that was misdetected as HTML
@@ -328,7 +341,9 @@ const InlineTeachingContent = ({
   onClose,
 }: InlineTeachingContentProps) => {
   const isHtml = useMemo(() => isHtmlContent(content), [content]);
-  const parsedContent = useMemo(() => isHtml ? [] : parseContentWithHeadings(content), [content, isHtml]);
+  // If not real HTML, unwrap any single <p> wrapper before legacy parsing
+  const cleanContent = useMemo(() => isHtml ? content : unwrapSingleParagraph(content), [content, isHtml]);
+  const parsedContent = useMemo(() => isHtml ? [] : parseContentWithHeadings(cleanContent), [cleanContent, isHtml]);
   const hasPonderedQuestions = ponderedQuestions && ponderedQuestions.length > 0;
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -586,27 +601,6 @@ const InlineTeachingContent = ({
 
       {/* Main content - this ref is used for print/PDF */}
       <div ref={contentRef} className="container max-w-4xl mx-auto px-6 md:px-12 py-8 md:py-12 relative z-[2]">
-        {/* Summary box */}
-        <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className="page-edge bg-card texture-page-burnt rounded-xl p-6 md:p-8 border border-accent/15 mb-10"
-        >
-          <div className="flex items-center gap-2 mb-4 text-accent">
-            <HelpCircle className="h-5 w-5" />
-            <h3 className="font-heading font-semibold text-lg">Summary</h3>
-          </div>
-          <p className="text-lg md:text-xl leading-relaxed italic text-foreground/90">
-            "{quickAnswer}"
-          </p>
-        </motion.section>
-
-        {/* Flourish divider */}
-        <div className="flourish-divider">
-          <BookOpen className="h-4 w-4 text-accent/50" />
-        </div>
-
         {/* Full teaching content */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}
