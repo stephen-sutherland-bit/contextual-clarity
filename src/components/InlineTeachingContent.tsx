@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, ReactNode } from "react";
 import { motion } from "framer-motion";
 import { X, BookOpen, HelpCircle, Download, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -105,7 +105,7 @@ const preprocessMarkdownToHtml = (content: string): string => {
     .join('\n');
 };
 
-// Helper function to strip inline markdown symbols from text
+// Helper function to strip inline markdown symbols from text (used for headings)
 const stripInlineMarkdown = (text: string): string => {
   return text
     .replace(/\*\*(.+?)\*\*/g, '$1')  // **bold** → bold
@@ -114,6 +114,37 @@ const stripInlineMarkdown = (text: string): string => {
     .replace(/_(.+?)_/g, '$1')         // _italic_ → italic
     .replace(/^#{1,6}\s+/gm, '')       // Remove markdown heading prefixes
     .replace(/^>\s*/gm, '');           // Remove blockquote markers
+};
+
+// Convert **bold** and *italic* markdown to React elements for body text
+
+const renderInlineMarkdown = (text: string): ReactNode[] => {
+  const elements: ReactNode[] = [];
+  // Match **bold** or *italic* patterns
+  const regex = /(\*\*(.+?)\*\*)|(\*(.+?)\*)/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  let key = 0;
+
+  while ((match = regex.exec(text)) !== null) {
+    // Add plain text before this match
+    if (match.index > lastIndex) {
+      elements.push(text.slice(lastIndex, match.index));
+    }
+    if (match[1]) {
+      // **bold**
+      elements.push(<strong key={key++} className="font-semibold">{match[2]}</strong>);
+    } else if (match[3]) {
+      // *italic*
+      elements.push(<em key={key++}>{match[4]}</em>);
+    }
+    lastIndex = match.index + match[0].length;
+  }
+  // Add remaining text
+  if (lastIndex < text.length) {
+    elements.push(text.slice(lastIndex));
+  }
+  return elements;
 };
 
 // Check if a line is a horizontal rule (---, ***, ___)
@@ -354,7 +385,7 @@ const parseContentWithHeadings = (content: string) => {
       const bulletContent = trimmed.startsWith("- ") ? trimmed.slice(2) : trimmed.slice(2);
       results.push({
         type: "bullet",
-        content: stripInlineMarkdown(bulletContent),
+        content: bulletContent,
         key: index * 100,
       });
       return;
@@ -364,7 +395,7 @@ const parseContentWithHeadings = (content: string) => {
     if (inKeyTakeawaysSection) {
       results.push({
         type: "italic-paragraph",
-        content: stripInlineMarkdown(trimmed),
+        content: trimmed,
         key: index * 100,
       });
       return;
@@ -373,7 +404,7 @@ const parseContentWithHeadings = (content: string) => {
     // Everything else is a paragraph
     results.push({
       type: "paragraph",
-      content: stripInlineMarkdown(trimmed),
+      content: trimmed,
       key: index * 100,
     });
   });
@@ -706,7 +737,7 @@ const InlineTeachingContent = ({
                         className="text-base md:text-[17px] leading-[1.75] text-foreground/90 mb-3 text-left flex"
                       >
                         <span className="mr-3 text-accent">•</span>
-                        <span>{item.content}</span>
+                        <span>{renderInlineMarkdown(item.content)}</span>
                       </p>
                     );
                   }
@@ -716,7 +747,7 @@ const InlineTeachingContent = ({
                         key={item.key}
                         className="text-base md:text-[17px] leading-[1.75] text-foreground/90 mb-5 text-left italic"
                       >
-                        {item.content}
+                        {renderInlineMarkdown(item.content)}
                       </p>
                     );
                   }
@@ -727,7 +758,7 @@ const InlineTeachingContent = ({
                       key={item.key}
                       className={`text-base md:text-[17px] leading-[1.75] text-foreground/90 mb-5 text-left ${useDropCap ? 'drop-cap' : ''}`}
                     >
-                      {item.content}
+                      {renderInlineMarkdown(item.content)}
                     </p>
                   );
                 });
