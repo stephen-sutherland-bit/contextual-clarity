@@ -49,8 +49,8 @@ const insertParagraphBreaks = (text: string): string => {
   if (newlineCount > 3) return text;
 
   // Step 1: Insert \n\n before **Bold Heading** patterns that appear mid-text
-  // Pattern: end of sentence (. ? ! ") followed by whitespace then **Heading**
-  let result = text.replace(/([.?!""'])\s+(\*\*[A-Z])/g, '$1\n\n$2');
+  // Pattern: end of sentence (. ? ! ") followed by whitespace then **Heading** (starting with letter or number)
+  let result = text.replace(/([.?!""'])\s+(\*\*[A-Z0-9])/g, '$1\n\n$2');
   
   // Step 1b: Insert \n\n AFTER closing ** of a heading when followed by body text
   // e.g. "**Heading Title** Some body text" → "**Heading Title**\n\nSome body text"
@@ -197,7 +197,12 @@ const joinBrokenParagraphs = (blocks: string[]): string[] => {
       }
     } else {
       // Check if this block is incomplete (ends with comma or no terminal punctuation)
-      if (/[,]$/.test(trimmed) || !/[.!?":)]$/.test(trimmed)) {
+      // But never merge bold headings (**...**), numbered headings (1. ...), or short title-like lines
+      const isBoldHeading = /^\*\*.+\*\*$/.test(trimmed);
+      const isNumberedHeading = /^(\d+\.|[IVXLC]+\.)\s+/.test(trimmed) && trimmed.length < 80;
+      if (isBoldHeading || isNumberedHeading) {
+        joined.push(trimmed);
+      } else if (/[,]$/.test(trimmed) || !/[.!?":)]$/.test(trimmed)) {
         // Also check it's not a heading-like line (short, title-case)
         if (trimmed.length > 60 || /[a-z]/.test(trimmed.charAt(0))) {
           accumulator = trimmed;
