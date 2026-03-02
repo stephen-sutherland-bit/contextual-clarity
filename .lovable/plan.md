@@ -1,75 +1,35 @@
 
 
-# Real Leather-Bound Texture Overhaul
+# Fix Teaching Reader Content Formatting
 
-## What We're Doing
+## Problem
+The teaching content is rendering as one continuous block of text with raw `**bold**` markdown markers visible. This happens because:
 
-The current "leather" and "paper" textures are built from CSS gradients -- they look flat and fake. To get the real look from your reference photos (that beautiful aged leather cover with the clasp, the burnt/foxed pages inside), we need **actual texture images** as tiled backgrounds.
+1. The `isHtmlContent()` detector finds a stray HTML-like tag in the content (e.g., `<em>`, `<strong>`, or even something like `<aion>` in theological text)
+2. This triggers the HTML rendering path (`dangerouslySetInnerHTML`), which treats the content as raw HTML
+3. In HTML, newline characters are collapsed to spaces — so all paragraphs merge into one block
+4. Markdown `**bold**` markers are not processed — they display as literal asterisks
 
-We'll generate two seamless, tileable texture images using AI image generation and apply them across the site, so it genuinely looks and feels like you're reading from an ancient leather-bound book.
+## Solution
 
-## The Two Textures
+Two changes to `src/components/InlineTeachingContent.tsx`:
 
-1. **Leather texture** -- Rich, brown leather grain with subtle wear marks. Applied to: header bar, hero section, footer, teaching reader header/footer. This replaces the current flat brown gradient.
+### 1. Improve `isHtmlContent()` detection (line 26-28)
+Make the check stricter — require actual block-level HTML structure (like `<p>` tags wrapping content), not just the presence of any inline tag. A content string with a few stray `<em>` or `<strong>` tags but no `<p>` paragraph structure is still legacy/markdown content and should use the parser.
 
-2. **Aged parchment/vellum texture** -- Yellowed, slightly crinkled paper with foxing marks and burnt/darkened edges. Applied to: all page backgrounds, card backgrounds, the teaching reader content area. This replaces the current almost-invisible CSS gradient paper texture.
+Change the regex to require block-level tags like `<p>`, `<h2>`, `<h3>`, `<div>`, `<ul>`, `<ol>`, or `<blockquote>` — these indicate TipTap-generated HTML. Skip `<strong>` and `<em>` from the detection since those can appear in otherwise plain-text content.
 
-## What Changes
-
-### Step 1: Generate Texture Images
-- Use the AI image generation endpoint to create two seamless tileable textures (1024x1024):
-  - `public/textures/leather-grain.png` -- dark brown leather grain
-  - `public/textures/aged-parchment.png` -- warm, aged paper with foxing
-- These will be small, optimised files that tile seamlessly
-
-### Step 2: Update CSS Textures (src/index.css)
-- Replace `.texture-leather::before` gradient mess with a simple `background-image: url('/textures/leather-grain.png')` tiled repeat
-- Replace `.texture-paper::before` gradient mess with `background-image: url('/textures/aged-parchment.png')` tiled repeat
-- Add a new `.texture-page-burnt` utility that overlays a vignette/burnt-edge effect on content areas (using CSS radial gradients for the darkened corners, like in the reference photo)
-- Adjust color variables slightly -- the parchment background should be warmer/more golden to match the aged paper in the reference photos
-
-### Step 3: Apply Burnt-Edge Page Effect to Teaching Reader (InlineTeachingContent.tsx)
-- Add burnt/darkened edge vignette around the content area using CSS box-shadow and radial gradients
-- Each content section (summary, full teaching, questions, scriptures) gets a subtle "page" background with the parchment texture and darkened edges
-- The overall reader background gets a slightly darker parchment to create depth between the "pages" and the background
-
-### Step 4: Update Header, Footer, Hero (Header.tsx, Footer.tsx, HeroSection.tsx)
-- These already use `texture-leather` -- the new real texture will automatically apply
-- Minor adjustments to ensure the leather texture image tiles properly with the existing overlay colours
-
-### Step 5: Cards and Content Areas (card.tsx, TeachingCard.tsx, QuestionCard.tsx)
-- Teaching cards get the parchment background texture
-- Add subtle darkened-edge vignette to cards for that "aged page" feel
-
-### Step 6: All Page Wrappers (Index.tsx, Teachings.tsx, Questions.tsx, etc.)
-- These already use `texture-paper` -- the new texture image will automatically flow through
-- No component changes needed for these
+### 2. Add fallback: if HTML path produces no visible paragraphs, use legacy parser
+As a safety net, if content is detected as HTML but doesn't contain `<p>` tags, pre-process it by converting newlines to `<p>` tags and `**bold**` markers to `<strong>` tags before rendering with `dangerouslySetInnerHTML`.
 
 ## Files Modified
 
-| File | What Changes |
-|------|-------------|
-| `src/index.css` | Replace CSS gradient textures with real image-based textures, add burnt-edge utility, adjust parchment colours |
-| `src/components/InlineTeachingContent.tsx` | Add burnt-edge vignette to content sections for "aged page" look |
-| `src/components/ui/card.tsx` | Add parchment texture class to card variants |
-| `src/components/TeachingCard.tsx` | Minor styling for aged-page feel |
-| `src/components/QuestionCard.tsx` | Minor styling for aged-page feel |
+| File | Change |
+|------|--------|
+| `src/components/InlineTeachingContent.tsx` | Fix `isHtmlContent()` to only match true TipTap HTML (block-level tags), not stray inline tags. Add markdown-to-HTML preprocessor as fallback. |
 
-## Files Created
-
-| File | What |
-|------|------|
-| `public/textures/leather-grain.png` | AI-generated tileable leather texture |
-| `public/textures/aged-parchment.png` | AI-generated tileable aged paper texture |
-
-## What Stays the Same
-
-- All layout, navigation, and functionality
-- The teaching reader's content rendering logic
-- Dark mode (textures will be overlaid with opacity adjustments)
-- All existing component structure
-
-## Technical Note
-
-The texture images are generated once and stored as static assets in `public/textures/`. They're small tileable images (~50-100KB each) that repeat seamlessly. This approach is how professional sites achieve realistic material textures -- CSS gradients simply cannot replicate real leather grain or paper crinkle.
-
+## What This Preserves
+- All existing texture/colour styling (leather, parchment, burnt edges)
+- The legacy parser path for plain-text content (headings, bullets, drop caps, flourish dividers)
+- The HTML path for properly structured TipTap content
+- All other reader layout (summary box, scripture references, pondered questions)
