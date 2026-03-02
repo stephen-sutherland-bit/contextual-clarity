@@ -102,25 +102,25 @@ const Methodology = () => {
           content="Learn the Covenantal Contextual Methodology (CCM). Context is king—interpret Scripture in its original historical, cultural, and covenantal setting." 
         />
       </Helmet>
-      <div className="min-h-screen flex flex-col">
+      <div className="min-h-screen flex flex-col texture-paper">
         <Header />
         <main className="flex-1">
           {/* Hero */}
-          <section className="bg-gradient-hero py-16 md:py-24 border-b border-border/50">
-            <div className="container px-4">
+          <section className="relative bg-gradient-hero py-16 md:py-24 border-b border-border/50 texture-leather">
+            <div className="container px-4 relative z-10">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
                 className="max-w-3xl mx-auto text-center"
               >
-                <span className="inline-block px-4 py-1.5 mb-6 text-sm font-medium text-primary bg-primary/10 rounded-full border border-primary/20">
+                <span className="gold-ribbon mb-6 inline-block">
                   Our Approach
                 </span>
-                <h1 className="text-4xl md:text-5xl font-heading font-bold mb-6">
+                <h1 className="text-4xl md:text-5xl font-heading font-bold mb-6 hero-text letterpress">
                   Covenantal Contextual Methodology
                 </h1>
-                <p className="text-lg md:text-xl text-muted-foreground leading-relaxed">
+                <p className="text-lg md:text-xl hero-text-muted leading-relaxed">
                   Most confusion in biblical interpretation comes from reading ancient texts 
                   through modern lenses. CCM places every passage in its proper 
                   historical and covenantal context—the way the original audience would have 

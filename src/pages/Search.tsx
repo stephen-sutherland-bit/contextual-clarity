@@ -129,32 +129,32 @@ const Search = () => {
           content="Search the teaching library by topic, scripture, keyword, or question. Find contextual Bible studies on any subject."
         />
       </Helmet>
-      <div className="min-h-screen flex flex-col">
+      <div className="min-h-screen flex flex-col texture-paper">
         <Header />
         <main className="flex-1">
           {/* Search Header */}
-          <section className="bg-gradient-hero py-12 md:py-16 border-b border-border/50">
-            <div className="container px-4">
+          <section className="relative bg-gradient-hero py-12 md:py-16 border-b border-border/50 texture-leather">
+            <div className="container px-4 relative z-10">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
                 className="max-w-2xl mx-auto text-center"
               >
-                <h1 className="text-3xl md:text-4xl font-heading font-bold mb-6">
+                <h1 className="text-3xl md:text-4xl font-heading font-bold mb-6 hero-text letterpress">
                   Search the Library
                 </h1>
                 <div className="relative">
-                  <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-primary-foreground/50" />
                   <Input
                     placeholder="Search by topic, scripture, keyword, question..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-12 h-14 text-lg"
+                    className="pl-12 h-14 text-lg bg-background/90 border-border"
                     autoFocus
                   />
                 </div>
-                <p className="mt-3 text-sm text-muted-foreground">
+                <p className="mt-3 text-sm hero-text-muted">
                   Try: "covenant", "Matthew 24", "trinity", "AD 70", "elect"
                 </p>
                 {!isLoading && teachings.length > 0 && (

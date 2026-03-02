@@ -65,22 +65,22 @@ const Questions = () => {
           content="Find answers to common biblical questions. Quick answers with links to full contextual teachings. What is the Trinity? What does 'the world' mean? And more."
         />
       </Helmet>
-      <div className="min-h-screen flex flex-col">
+      <div className="min-h-screen flex flex-col texture-paper">
         <Header />
         <main className="flex-1">
           {/* Page Header */}
-          <section className="bg-gradient-hero py-12 md:py-16 border-b border-border/50">
-            <div className="container px-4">
+          <section className="relative bg-gradient-hero py-12 md:py-16 border-b border-border/50 texture-leather">
+            <div className="container px-4 relative z-10">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
                 className="max-w-2xl"
               >
-                <h1 className="text-3xl md:text-4xl font-heading font-bold mb-4">
+                <h1 className="text-3xl md:text-4xl font-heading font-bold mb-4 hero-text letterpress">
                   Questions Answered
                 </h1>
-                <p className="text-lg text-muted-foreground">
+                <p className="text-lg hero-text-muted">
                   Click any question to get a quick answer. Then, if you want to
                   understand the full context and reasoning, dive into the
                   complete teaching.
