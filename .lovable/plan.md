@@ -1,35 +1,50 @@
 
 
-# Fix Teaching Reader Content Formatting
+# Fix Teaching Content Formatting — Hybrid Content Detection
 
 ## Problem
-The teaching content is rendering as one continuous block of text with raw `**bold**` markdown markers visible. This happens because:
 
-1. The `isHtmlContent()` detector finds a stray HTML-like tag in the content (e.g., `<em>`, `<strong>`, or even something like `<aion>` in theological text)
-2. This triggers the HTML rendering path (`dangerouslySetInnerHTML`), which treats the content as raw HTML
-3. In HTML, newline characters are collapsed to spaces — so all paragraphs merge into one block
-4. Markdown `**bold**` markers are not processed — they display as literal asterisks
+The teaching "Bible Time Periods Explained" (and many others) has content that's wrapped in a single `<p>` tag but uses markdown-style formatting inside (`**Bold Headings**`, `*italics*`, plain newlines for paragraph breaks). The current `isHtmlContent()` function detects the `<p>` tag and routes it through the HTML rendering path, which:
+
+1. Renders everything as one giant paragraph (no line breaks in HTML mode)
+2. Shows raw `**asterisks**` instead of bold headings
+3. Loses all the legacy parser benefits (drop caps, heading detection, flourish dividers, bullet formatting)
+
+Out of ~30+ teachings checked, roughly half have proper TipTap HTML (multiple `<p>` tags + `<h4>` headings — like "Playing in the Garden"), and the other half are plain markdown wrapped in a single `<p>` tag or no HTML at all.
 
 ## Solution
 
-Two changes to `src/components/InlineTeachingContent.tsx`:
+Update the HTML detection in `InlineTeachingContent.tsx` to check for **properly structured** HTML — not just the presence of a `<p>` tag. Specifically, require **multiple** `<p>` or heading tags to qualify as real TipTap HTML. Content with a single `<p>` wrapper gets unwrapped and sent through the legacy parser.
 
-### 1. Improve `isHtmlContent()` detection (line 26-28)
-Make the check stricter — require actual block-level HTML structure (like `<p>` tags wrapping content), not just the presence of any inline tag. A content string with a few stray `<em>` or `<strong>` tags but no `<p>` paragraph structure is still legacy/markdown content and should use the parser.
+### Changes to `src/components/InlineTeachingContent.tsx`
 
-Change the regex to require block-level tags like `<p>`, `<h2>`, `<h3>`, `<div>`, `<ul>`, `<ol>`, or `<blockquote>` — these indicate TipTap-generated HTML. Skip `<strong>` and `<em>` from the detection since those can appear in otherwise plain-text content.
+**1. Refine `isHtmlContent()` (lines 25-29)**
 
-### 2. Add fallback: if HTML path produces no visible paragraphs, use legacy parser
-As a safety net, if content is detected as HTML but doesn't contain `<p>` tags, pre-process it by converting newlines to `<p>` tags and `**bold**` markers to `<strong>` tags before rendering with `dangerouslySetInnerHTML`.
+Instead of just checking for any block-level tag, check that the content has **at least 2 closing `</p>` tags** or contains heading tags like `<h2>`, `<h3>`, `<h4>`. A single `<p>` wrapping the entire content is not "real" HTML structure.
+
+```text
+Before: /<(p|h[1-6]|ul|ol|blockquote|div|section|article)\b/i.test(content)
+After:  Check for multiple </p> closings OR any <h2>-<h6> tag
+```
+
+**2. Add content unwrapper**
+
+Add a small helper that strips a single outer `<p>...</p>` wrapper so the legacy parser receives clean plain text. This handles the case where the AI processing wrapped the whole teaching in one `<p>` tag.
+
+**3. Remove the Summary and Questions sections from the reader**
+
+Per the user's request, the Summary box (lines 589-603), the flourish divider after it (lines 605-608), and any "Questions This Teaching Answers" section inside the reader should be removed, since these are already shown on the teaching detail page before clicking "Read Full Teaching". The drop cap on the first paragraph is kept.
+
+## What This Preserves
+
+- Properly formatted TipTap teachings (like "Playing in the Garden") continue to render perfectly via the HTML path
+- Legacy/markdown teachings get full parsing: bold headings in dark brown, paragraph breaks, drop caps, flourish dividers, bullet points
+- All existing textures, colours, and ancient book aesthetic remain untouched
+- The drop cap on the first letter stays
 
 ## Files Modified
 
 | File | Change |
 |------|--------|
-| `src/components/InlineTeachingContent.tsx` | Fix `isHtmlContent()` to only match true TipTap HTML (block-level tags), not stray inline tags. Add markdown-to-HTML preprocessor as fallback. |
+| `src/components/InlineTeachingContent.tsx` | (1) Stricter `isHtmlContent` requiring multiple `</p>` or heading tags. (2) Unwrap single-`<p>` content for legacy parser. (3) Remove Summary box and flourish divider from reader. |
 
-## What This Preserves
-- All existing texture/colour styling (leather, parchment, burnt edges)
-- The legacy parser path for plain-text content (headings, bullets, drop caps, flourish dividers)
-- The HTML path for properly structured TipTap content
-- All other reader layout (summary box, scripture references, pondered questions)
