@@ -7,8 +7,8 @@ import TeachingCard from "@/components/TeachingCard";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, Filter, X, Loader2, RefreshCw, AlertCircle } from "lucide-react";
-import { phases, themes, type Teaching, type Phase } from "@/data/teachings";
+import { Search, Loader2, RefreshCw, AlertCircle, X } from "lucide-react";
+import { phases, type Teaching, type Phase } from "@/data/teachings";
 import { supabase } from "@/integrations/supabase/client";
 import { Helmet } from "react-helmet-async";
 
@@ -92,7 +92,7 @@ const ModuleGroupedTeachings = ({ teachings }: { teachings: Teaching[] }) => {
 const Teachings = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedTheme, setSelectedTheme] = useState<string | null>(null);
+  
   const [selectedPhase, setSelectedPhase] = useState<Phase | null>(
     searchParams.get("phase") ? (searchParams.get("phase") as Phase) : "foundations"
   );
@@ -224,16 +224,11 @@ const Teachings = () => {
           q.toLowerCase().includes(searchQuery.toLowerCase())
         );
 
-      const matchesTheme =
-        !selectedTheme ||
-        teaching.primaryTheme === selectedTheme ||
-        teaching.secondaryThemes.includes(selectedTheme);
-
       const matchesPhase = !selectedPhase || teaching.phase === selectedPhase;
 
-      return matchesSearch && matchesTheme && matchesPhase;
+      return matchesSearch && matchesPhase;
     });
-  }, [searchQuery, selectedTheme, selectedPhase, teachings]);
+  }, [searchQuery, selectedPhase, teachings]);
 
   const handlePhaseClick = (phase: Phase | null) => {
     setSelectedPhase(phase as Phase);
@@ -246,9 +241,8 @@ const Teachings = () => {
     fetchTeachings(0, false, phase);
   };
 
-  const clearFilters = () => {
+  const clearSearch = () => {
     setSearchQuery("");
-    setSelectedTheme(null);
   };
 
   return (
@@ -276,8 +270,8 @@ const Teachings = () => {
                   All Teachings
                 </h1>
                 <p className="text-lg hero-text-muted">
-                  Browse our library of contextual Bible studies. Filter by phase,
-                  theme, or search for specific topics.
+                  Browse our library of contextual Bible studies. Filter by phase
+                  or search for specific topics.
                 </p>
               </motion.div>
             </div>
@@ -331,42 +325,22 @@ const Teachings = () => {
           {/* Search & Theme Filters */}
           <section className="border-b border-border/50 bg-background sticky top-16 z-40">
             <div className="container px-4 py-4">
-              <div className="flex flex-col md:flex-row gap-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search by topic, scripture, keyword..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-                <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0">
-                  <Filter className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                  {(selectedTheme || searchQuery) && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={clearFilters}
-                      className="flex-shrink-0"
-                    >
-                      <X className="h-4 w-4 mr-1" />
-                      Clear
-                    </Button>
-                  )}
-                  {themes.slice(0, 5).map((theme) => (
-                    <Badge
-                      key={theme}
-                      variant={selectedTheme === theme ? "default" : "outline"}
-                      className="cursor-pointer flex-shrink-0 hover:bg-primary/10"
-                      onClick={() =>
-                        setSelectedTheme(selectedTheme === theme ? null : theme)
-                      }
-                    >
-                      {theme}
-                    </Badge>
-                  ))}
-                </div>
+              <div className="relative max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by topic, scripture, keyword..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 pr-10"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={clearSearch}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
               </div>
             </div>
           </section>
@@ -400,14 +374,14 @@ const Teachings = () => {
                     Showing {filteredTeachings.length} of {totalCount || teachings.length} teachings
                     {selectedPhase && <> in {phases.find(p => p.slug === selectedPhase)?.name}</>}
                     {!selectedPhase && <> across all phases</>}
-                    {(searchQuery || selectedTheme) && filteredTeachings.length !== teachings.length && (
+                    {searchQuery && filteredTeachings.length !== teachings.length && (
                       <> (filtered)</>
                     )}
                   </div>
 
                   {filteredTeachings.length > 0 ? (
                     <>
-                      {selectedPhase && !searchQuery && !selectedTheme ? (
+                      {selectedPhase && !searchQuery ? (
                         // Grouped by module view for phase tabs (when not searching/filtering)
                         <ModuleGroupedTeachings teachings={filteredTeachings} />
                       ) : (
@@ -428,7 +402,7 @@ const Teachings = () => {
                       <p className="text-muted-foreground mb-4">
                         No teachings found matching your filters.
                       </p>
-                      <Button variant="warm" onClick={clearFilters}>
+                      <Button variant="warm" onClick={clearSearch}>
                         Clear Filters
                       </Button>
                     </div>
