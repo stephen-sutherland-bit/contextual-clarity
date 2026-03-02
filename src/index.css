@@ -14,12 +14,12 @@
 
 @layer base {
   :root {
-    /* Crinkled parchment background */
-    --background: 36 30% 91%;
+    /* Warm aged parchment background */
+    --background: 38 35% 88%;
     --foreground: 20 35% 12%;
 
     /* Aged paper cards */
-    --card: 38 28% 94%;
+    --card: 40 32% 92%;
     --card-foreground: 20 35% 12%;
 
     --popover: 38 28% 94%;
@@ -211,7 +211,7 @@
 
   /* ===== REAL TEXTURES ===== */
 
-  /* Crinkled/crumpled paper texture for light backgrounds */
+  /* Aged parchment texture for light backgrounds */
   .texture-paper {
     position: relative;
   }
@@ -220,26 +220,10 @@
     position: absolute;
     inset: 0;
     pointer-events: none;
-    background-image:
-      radial-gradient(ellipse at 20% 50%, hsl(30 20% 70% / 0.08) 0%, transparent 50%),
-      radial-gradient(ellipse at 80% 20%, hsl(35 25% 65% / 0.06) 0%, transparent 40%),
-      radial-gradient(ellipse at 40% 80%, hsl(25 20% 60% / 0.07) 0%, transparent 45%),
-      radial-gradient(ellipse at 70% 60%, hsl(40 15% 75% / 0.05) 0%, transparent 35%),
-      radial-gradient(ellipse at 10% 90%, hsl(28 20% 68% / 0.06) 0%, transparent 40%),
-      repeating-linear-gradient(
-        0deg,
-        transparent,
-        transparent 40px,
-        hsl(30 15% 50% / 0.015) 40px,
-        hsl(30 15% 50% / 0.015) 41px
-      ),
-      repeating-linear-gradient(
-        90deg,
-        transparent,
-        transparent 60px,
-        hsl(30 15% 50% / 0.01) 60px,
-        hsl(30 15% 50% / 0.01) 61px
-      );
+    background-image: url('/textures/aged-parchment.png');
+    background-repeat: repeat;
+    background-size: 512px 512px;
+    opacity: 0.35;
     z-index: 0;
   }
 
@@ -252,27 +236,29 @@
     position: absolute;
     inset: 0;
     pointer-events: none;
-    background-image:
-      radial-gradient(circle at 15% 25%, hsl(25 40% 35% / 0.15) 0%, transparent 25%),
-      radial-gradient(circle at 85% 75%, hsl(20 35% 25% / 0.12) 0%, transparent 30%),
-      radial-gradient(circle at 50% 10%, hsl(30 30% 40% / 0.08) 0%, transparent 20%),
-      radial-gradient(circle at 30% 70%, hsl(18 40% 30% / 0.1) 0%, transparent 25%),
-      radial-gradient(circle at 70% 40%, hsl(22 35% 35% / 0.08) 0%, transparent 20%),
-      repeating-linear-gradient(
-        45deg,
-        transparent,
-        transparent 2px,
-        hsl(20 30% 50% / 0.03) 2px,
-        hsl(20 30% 50% / 0.03) 3px
-      ),
-      repeating-linear-gradient(
-        -30deg,
-        transparent,
-        transparent 3px,
-        hsl(25 25% 45% / 0.02) 3px,
-        hsl(25 25% 45% / 0.02) 4px
-      );
+    background-image: url('/textures/leather-grain.png');
+    background-repeat: repeat;
+    background-size: 512px 512px;
+    opacity: 0.4;
     z-index: 0;
+  }
+
+  /* Burnt/darkened edge vignette for aged page effect */
+  .texture-page-burnt {
+    position: relative;
+  }
+  .texture-page-burnt::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    background:
+      radial-gradient(ellipse at 0% 0%, hsl(20 30% 10% / 0.15) 0%, transparent 40%),
+      radial-gradient(ellipse at 100% 0%, hsl(20 30% 10% / 0.12) 0%, transparent 35%),
+      radial-gradient(ellipse at 0% 100%, hsl(20 30% 10% / 0.12) 0%, transparent 35%),
+      radial-gradient(ellipse at 100% 100%, hsl(20 30% 10% / 0.15) 0%, transparent 40%);
+    z-index: 1;
   }
 
   /* Decorative flourish divider */

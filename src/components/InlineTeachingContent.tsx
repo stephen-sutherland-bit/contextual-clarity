@@ -528,7 +528,7 @@ const InlineTeachingContent = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-background overflow-y-auto">
+    <div className="fixed inset-0 z-50 bg-background texture-paper overflow-y-auto">
       {/* Sticky header */}
       <div className="sticky top-0 bg-primary/95 backdrop-blur-sm border-b border-accent/20 z-10 shadow-md">
         <div className="absolute inset-0 texture-leather pointer-events-none" />
@@ -577,7 +577,7 @@ const InlineTeachingContent = ({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="page-edge bg-card rounded-xl p-6 md:p-8 border border-accent/15 mb-10"
+          className="page-edge bg-card texture-page-burnt rounded-xl p-6 md:p-8 border border-accent/15 mb-10"
         >
           <div className="flex items-center gap-2 mb-4 text-accent">
             <HelpCircle className="h-5 w-5" />
@@ -598,7 +598,7 @@ const InlineTeachingContent = ({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.1 }}
-          className="mb-10 page-edge bg-card rounded-xl p-6 md:p-10 border border-border"
+          className="mb-10 page-edge bg-card texture-page-burnt rounded-xl p-6 md:p-10 border border-border"
         >
           <div className="flex items-center gap-2 mb-6 pb-3 border-b border-accent/20">
             <BookOpen className="h-5 w-5 text-accent" />
@@ -677,7 +677,7 @@ const InlineTeachingContent = ({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.2 }}
-            className="mb-10 page-edge bg-card rounded-xl p-6 md:p-10 border border-border"
+            className="mb-10 page-edge bg-card texture-page-burnt rounded-xl p-6 md:p-10 border border-border"
           >
             <div className="flex items-center gap-2 mb-6 pb-3 border-b border-accent/20">
               <Lightbulb className="h-5 w-5 text-accent" />
@@ -713,7 +713,7 @@ const InlineTeachingContent = ({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.2 }}
-            className="mb-10 page-edge bg-card rounded-xl p-6 md:p-8 border border-border"
+            className="mb-10 page-edge bg-card texture-page-burnt rounded-xl p-6 md:p-8 border border-border"
           >
             <div className="flex items-center gap-2 mb-4 pb-3 border-b border-accent/20">
               <BookOpen className="h-4 w-4 text-accent" />
