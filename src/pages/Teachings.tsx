@@ -214,6 +214,8 @@ const Teachings = () => {
       const matchesSearch =
         searchQuery === "" ||
         teaching.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        teaching.quickAnswer.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        teaching.primaryTheme.toLowerCase().includes(searchQuery.toLowerCase()) ||
         teaching.keywords.some((k) =>
           k.toLowerCase().includes(searchQuery.toLowerCase())
         ) ||

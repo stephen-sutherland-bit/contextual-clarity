@@ -5,8 +5,8 @@ import Footer from "@/components/Footer";
 import TeachingCard from "@/components/TeachingCard";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search as SearchIcon, BookOpen, HelpCircle, Tag, Loader2, BookMarked } from "lucide-react";
-import { themes, type Teaching, type Phase } from "@/data/teachings";
+import { Search as SearchIcon, BookOpen, HelpCircle, Loader2, BookMarked } from "lucide-react";
+import { type Teaching, type Phase } from "@/data/teachings";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
@@ -104,12 +104,9 @@ const Search = () => {
       });
     });
 
-    const matchedThemes = themes.filter((t) => t.toLowerCase().includes(query));
-
     return {
       teachings: matchedTeachings,
       questions: matchedQuestions,
-      themes: matchedThemes,
       scriptures: Array.from(scriptureMap.entries()),
     };
   }, [searchQuery, teachings]);
@@ -117,7 +114,6 @@ const Search = () => {
   const hasResults =
     results.teachings.length > 0 ||
     results.questions.length > 0 ||
-    results.themes.length > 0 ||
     results.scriptures.length > 0;
 
   return (
@@ -248,37 +244,6 @@ const Search = () => {
                               className="cursor-pointer bg-scripture-bg text-scripture hover:bg-scripture/10 border-scripture/30"
                             >
                               {scripture}
-                            </Badge>
-                          </Link>
-                        ))}
-                      </div>
-                    </motion.div>
-                  )}
-
-                  {/* Themes */}
-                  {results.themes.length > 0 && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.4, delay: 0.1 }}
-                    >
-                      <div className="flex items-center gap-2 mb-4">
-                        <Tag className="h-5 w-5 text-primary" />
-                        <h2 className="font-heading font-semibold text-lg">
-                          Themes ({results.themes.length})
-                        </h2>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {results.themes.map((theme) => (
-                          <Link
-                            key={theme}
-                            to={`/teachings?theme=${encodeURIComponent(theme)}`}
-                          >
-                            <Badge
-                              variant="secondary"
-                              className="cursor-pointer hover:bg-primary/10"
-                            >
-                              {theme}
                             </Badge>
                           </Link>
                         ))}
