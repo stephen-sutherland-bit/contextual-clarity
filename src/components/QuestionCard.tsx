@@ -23,8 +23,8 @@ const QuestionCard = ({ question, teachingId, teachingTitle, quickAnswer, index 
         <Card variant="question" className="group h-full">
           <CardContent className="p-5">
             <div className="flex items-start gap-3">
-              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                <HelpCircle className="h-4 w-4 text-primary" />
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-accent/10 flex items-center justify-center group-hover:bg-accent/20 transition-colors">
+                <HelpCircle className="h-4 w-4 text-accent" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-foreground group-hover:text-primary transition-colors leading-snug">
@@ -34,7 +34,7 @@ const QuestionCard = ({ question, teachingId, teachingTitle, quickAnswer, index 
                   From: <span className="text-foreground/70">{teachingTitle}</span>
                 </p>
               </div>
-              <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all flex-shrink-0 mt-1" />
+              <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-accent group-hover:translate-x-1 transition-all flex-shrink-0 mt-1" />
             </div>
           </CardContent>
         </Card>

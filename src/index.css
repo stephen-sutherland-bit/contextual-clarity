@@ -10,124 +10,127 @@
 @import '@fontsource/source-sans-3/500.css';
 @import '@fontsource/source-sans-3/600.css';
 
-/* The Christian Theologist - Warm Scholarly Design System */
+/* The Berean Press - Ancient Leather-Bound Bible Design System */
 
 @layer base {
   :root {
-    /* Warm ivory/parchment background */
-    --background: 40 33% 97%;
-    --foreground: 25 30% 15%;
+    /* Deep aged parchment/vellum background */
+    --background: 36 30% 93%;
+    --foreground: 20 35% 12%;
 
-    /* Cards with subtle warmth */
-    --card: 40 30% 99%;
-    --card-foreground: 25 30% 15%;
+    /* Aged paper cards */
+    --card: 38 28% 95%;
+    --card-foreground: 20 35% 12%;
 
-    --popover: 40 30% 99%;
-    --popover-foreground: 25 30% 15%;
+    --popover: 38 28% 95%;
+    --popover-foreground: 20 35% 12%;
 
-    /* Rich amber/brown primary */
-    --primary: 25 60% 35%;
-    --primary-foreground: 40 30% 98%;
+    /* Rich saddle-leather brown primary */
+    --primary: 20 55% 28%;
+    --primary-foreground: 38 30% 95%;
 
-    /* Soft sage secondary */
-    --secondary: 45 20% 90%;
-    --secondary-foreground: 25 30% 20%;
+    /* Warm sepia secondary */
+    --secondary: 30 22% 85%;
+    --secondary-foreground: 20 35% 15%;
 
-    /* Muted warm tones */
-    --muted: 40 15% 92%;
-    --muted-foreground: 25 15% 45%;
+    /* Foxed-paper muted tones */
+    --muted: 35 18% 88%;
+    --muted-foreground: 20 18% 42%;
 
-    /* Accent - deep amber gold */
-    --accent: 35 70% 45%;
-    --accent-foreground: 40 30% 98%;
+    /* Antique gold-leaf accent */
+    --accent: 38 65% 40%;
+    --accent-foreground: 38 30% 95%;
 
     /* Warm destructive */
-    --destructive: 0 65% 45%;
-    --destructive-foreground: 40 30% 98%;
+    --destructive: 0 60% 42%;
+    --destructive-foreground: 38 30% 95%;
 
-    --border: 35 20% 85%;
-    --input: 35 20% 88%;
-    --ring: 25 60% 35%;
+    /* Leather-stitch borders - darker, more defined */
+    --border: 28 22% 76%;
+    --input: 30 20% 82%;
+    --ring: 20 55% 28%;
 
     --radius: 0.5rem;
 
     /* Custom semantic tokens */
-    --scripture: 200 40% 35%;
-    --scripture-bg: 200 30% 95%;
-    --highlight: 45 80% 70%;
-    --highlight-soft: 45 60% 92%;
+    --scripture: 200 35% 30%;
+    --scripture-bg: 200 20% 92%;
+    --highlight: 42 75% 62%;
+    --highlight-soft: 42 45% 88%;
     
-    /* Gradients */
-    --gradient-hero: linear-gradient(180deg, hsl(40 33% 97%) 0%, hsl(35 25% 93%) 100%);
-    --gradient-card-hover: linear-gradient(135deg, hsl(40 30% 99%) 0%, hsl(45 25% 96%) 100%);
-    --gradient-accent: linear-gradient(135deg, hsl(25 60% 35%) 0%, hsl(35 70% 40%) 100%);
+    /* Gradients - leather and parchment */
+    --gradient-hero: linear-gradient(180deg, hsl(25 28% 22%) 0%, hsl(20 32% 16%) 100%);
+    --gradient-card-hover: linear-gradient(135deg, hsl(38 28% 95%) 0%, hsl(40 22% 91%) 100%);
+    --gradient-accent: linear-gradient(135deg, hsl(20 55% 28%) 0%, hsl(30 50% 32%) 100%);
 
     /* Typography */
     --font-heading: 'Playfair Display', Georgia, serif;
     --font-body: 'Source Sans 3', system-ui, sans-serif;
 
-    /* Shadows */
-    --shadow-soft: 0 2px 8px -2px hsl(25 30% 20% / 0.08);
-    --shadow-card: 0 4px 20px -4px hsl(25 30% 20% / 0.1);
-    --shadow-elevated: 0 8px 30px -6px hsl(25 30% 20% / 0.15);
+    /* Shadows - warm leather tones */
+    --shadow-soft: 0 2px 8px -2px hsl(20 30% 15% / 0.1);
+    --shadow-card: 0 4px 20px -4px hsl(20 30% 15% / 0.12);
+    --shadow-elevated: 0 8px 30px -6px hsl(20 30% 15% / 0.18);
+    --shadow-inset: inset 0 2px 6px -2px hsl(20 30% 15% / 0.08);
 
     /* Sidebar defaults */
-    --sidebar-background: 40 25% 96%;
-    --sidebar-foreground: 25 30% 20%;
-    --sidebar-primary: 25 60% 35%;
-    --sidebar-primary-foreground: 40 30% 98%;
-    --sidebar-accent: 45 20% 92%;
-    --sidebar-accent-foreground: 25 30% 20%;
-    --sidebar-border: 35 20% 88%;
-    --sidebar-ring: 25 60% 35%;
+    --sidebar-background: 32 22% 90%;
+    --sidebar-foreground: 20 35% 15%;
+    --sidebar-primary: 20 55% 28%;
+    --sidebar-primary-foreground: 38 30% 95%;
+    --sidebar-accent: 35 20% 86%;
+    --sidebar-accent-foreground: 20 35% 15%;
+    --sidebar-border: 28 22% 78%;
+    --sidebar-ring: 20 55% 28%;
   }
 
   .dark {
-    --background: 25 25% 10%;
-    --foreground: 40 20% 92%;
+    /* Deep mahogany/espresso */
+    --background: 20 28% 8%;
+    --foreground: 36 20% 88%;
 
-    --card: 25 22% 13%;
-    --card-foreground: 40 20% 92%;
+    --card: 20 25% 11%;
+    --card-foreground: 36 20% 88%;
 
-    --popover: 25 22% 13%;
-    --popover-foreground: 40 20% 92%;
+    --popover: 20 25% 11%;
+    --popover-foreground: 36 20% 88%;
 
-    --primary: 35 55% 55%;
-    --primary-foreground: 25 25% 10%;
+    --primary: 35 50% 50%;
+    --primary-foreground: 20 28% 8%;
 
-    --secondary: 25 18% 18%;
-    --secondary-foreground: 40 20% 88%;
+    --secondary: 20 20% 16%;
+    --secondary-foreground: 36 20% 84%;
 
-    --muted: 25 18% 18%;
-    --muted-foreground: 40 15% 60%;
+    --muted: 20 20% 16%;
+    --muted-foreground: 36 15% 55%;
 
-    --accent: 35 60% 50%;
-    --accent-foreground: 25 25% 10%;
+    --accent: 38 55% 48%;
+    --accent-foreground: 20 28% 8%;
 
-    --destructive: 0 55% 50%;
-    --destructive-foreground: 40 20% 95%;
+    --destructive: 0 50% 48%;
+    --destructive-foreground: 36 20% 92%;
 
-    --border: 25 18% 22%;
-    --input: 25 18% 22%;
-    --ring: 35 55% 55%;
+    --border: 20 20% 20%;
+    --input: 20 20% 20%;
+    --ring: 35 50% 50%;
 
-    --scripture: 200 35% 65%;
-    --scripture-bg: 200 25% 18%;
-    --highlight: 45 70% 55%;
-    --highlight-soft: 45 40% 20%;
+    --scripture: 200 30% 60%;
+    --scripture-bg: 200 20% 15%;
+    --highlight: 42 65% 50%;
+    --highlight-soft: 42 35% 18%;
 
-    --gradient-hero: linear-gradient(180deg, hsl(25 25% 10%) 0%, hsl(25 22% 13%) 100%);
-    --gradient-card-hover: linear-gradient(135deg, hsl(25 22% 14%) 0%, hsl(30 20% 16%) 100%);
-    --gradient-accent: linear-gradient(135deg, hsl(35 55% 50%) 0%, hsl(40 60% 45%) 100%);
+    --gradient-hero: linear-gradient(180deg, hsl(20 28% 8%) 0%, hsl(20 25% 11%) 100%);
+    --gradient-card-hover: linear-gradient(135deg, hsl(20 25% 12%) 0%, hsl(25 22% 14%) 100%);
+    --gradient-accent: linear-gradient(135deg, hsl(35 50% 45%) 0%, hsl(38 55% 42%) 100%);
 
-    --sidebar-background: 25 22% 12%;
-    --sidebar-foreground: 40 20% 90%;
-    --sidebar-primary: 35 55% 55%;
-    --sidebar-primary-foreground: 25 25% 10%;
-    --sidebar-accent: 25 18% 18%;
-    --sidebar-accent-foreground: 40 20% 88%;
-    --sidebar-border: 25 18% 20%;
-    --sidebar-ring: 35 55% 55%;
+    --sidebar-background: 20 25% 10%;
+    --sidebar-foreground: 36 20% 86%;
+    --sidebar-primary: 35 50% 50%;
+    --sidebar-primary-foreground: 20 28% 8%;
+    --sidebar-accent: 20 20% 16%;
+    --sidebar-accent-foreground: 36 20% 84%;
+    --sidebar-border: 20 20% 18%;
+    --sidebar-ring: 35 50% 50%;
   }
 }
 
@@ -189,6 +192,55 @@
     box-shadow: var(--shadow-elevated);
   }
 
+  .shadow-inset {
+    box-shadow: var(--shadow-inset);
+  }
+
+  /* Aged leather texture for headers/hero */
+  .texture-leather {
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='5' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.06'/%3E%3C/svg%3E");
+  }
+
+  /* Aged vellum/paper texture */
+  .texture-paper {
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    opacity: 0.04;
+  }
+
+  /* Decorative flourish divider */
+  .flourish-divider {
+    @apply flex items-center justify-center gap-4 my-8;
+  }
+
+  .flourish-divider::before,
+  .flourish-divider::after {
+    content: '';
+    @apply flex-1 h-px bg-border;
+  }
+
+  /* Drop cap for first paragraph of teachings */
+  .drop-cap::first-letter {
+    @apply font-heading font-bold text-primary float-left;
+    font-size: 3.5em;
+    line-height: 0.85;
+    margin-right: 0.12em;
+    margin-top: 0.05em;
+  }
+
+  /* Page-edge effect for sections */
+  .page-edge {
+    @apply relative;
+    box-shadow: inset 4px 0 8px -4px hsl(20 30% 15% / 0.06), var(--shadow-soft);
+  }
+
+  /* Gold-leaf ribbon badge */
+  .gold-ribbon {
+    @apply inline-block px-5 py-1.5 text-sm font-medium rounded-sm;
+    background: linear-gradient(135deg, hsl(38 65% 40%) 0%, hsl(42 70% 50%) 50%, hsl(38 65% 40%) 100%);
+    color: hsl(38 30% 95%);
+    box-shadow: 0 2px 8px -2px hsl(38 65% 40% / 0.4);
+  }
+
   /* Prose styling for long-form content */
   .prose-teaching {
     @apply text-foreground leading-relaxed;
@@ -247,9 +299,8 @@
     @apply border-l-4 border-primary/30 pl-4 py-2 my-4 italic text-foreground/80;
   }
 
-  /* Subtle texture overlay */
-  .texture-paper {
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
-    opacity: 0.03;
+  /* Letterpress heading effect */
+  .letterpress {
+    text-shadow: 0 1px 0 hsl(20 30% 15% / 0.1);
   }
 }

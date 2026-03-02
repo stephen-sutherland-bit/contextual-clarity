@@ -21,7 +21,7 @@ const TeachingCard = ({ teaching, index }: TeachingCardProps) => {
     >
       <Card variant="teaching" className="h-full flex flex-col group">
         <CardHeader>
-          <CardTitle className="group-hover:text-primary transition-colors">
+          <CardTitle className="group-hover:text-accent transition-colors letterpress">
             {teaching.title}
           </CardTitle>
           <CardDescription className="flex items-center gap-2">
@@ -51,7 +51,7 @@ const TeachingCard = ({ teaching, index }: TeachingCardProps) => {
           </div>
         </CardContent>
         <CardFooter>
-          <Button variant="ghost" size="sm" className="group/btn" asChild>
+          <Button variant="ghost" size="sm" className="group/btn text-primary hover:text-accent" asChild>
             <Link to={`/teaching/${teaching.id}`} className="flex items-center gap-2">
               <BookOpen className="h-4 w-4" />
               Read Teaching

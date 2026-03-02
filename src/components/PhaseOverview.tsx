@@ -15,7 +15,7 @@ const phaseIcons = {
 
 const PhaseOverview = () => {
   return (
-    <section className="py-16 md:py-24 bg-secondary/30">
+    <section className="relative py-16 md:py-24 bg-secondary/50 border-y border-border">
       <div className="container px-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
