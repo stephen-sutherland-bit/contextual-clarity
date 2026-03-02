@@ -1,50 +1,39 @@
 
 
-# Fix Teaching Content Formatting — Hybrid Content Detection
+# Add Inline Bold and Italic Support to Teaching Reader
 
 ## Problem
+Currently, the legacy parser strips ALL markdown bold (`**text**`) and italic (`*text*`) markers from paragraph content via `stripInlineMarkdown()`. This means even if the AI produces nicely formatted text with emphasis, the reader throws it all away. The AI prompt also only instructs bold for headings, not for emphasis within body paragraphs.
 
-The teaching "Bible Time Periods Explained" (and many others) has content that's wrapped in a single `<p>` tag but uses markdown-style formatting inside (`**Bold Headings**`, `*italics*`, plain newlines for paragraph breaks). The current `isHtmlContent()` function detects the `<p>` tag and routes it through the HTML rendering path, which:
+## Solution — Two Changes
 
-1. Renders everything as one giant paragraph (no line breaks in HTML mode)
-2. Shows raw `**asterisks**` instead of bold headings
-3. Loses all the legacy parser benefits (drop caps, heading detection, flourish dividers, bullet formatting)
+### 1. Update the AI Rewriting Prompt (`process-transcript`)
 
-Out of ~30+ teachings checked, roughly half have proper TipTap HTML (multiple `<p>` tags + `<h4>` headings — like "Playing in the Garden"), and the other half are plain markdown wrapped in a single `<p>` tag or no HTML at all.
+Add formatting instructions telling the AI to use bold and italic meaningfully within body text:
 
-## Solution
+- **Bold** for key theological terms on first use, scripture book names, and important concepts (e.g., `**Mosaic Covenant**`, `**chesed**`)
+- **Italic** for foreign/transliterated words, book titles, gentle emphasis, and the credit line (e.g., `*mathetes*`, `*ekklesia*`, `*This suggests...*)
 
-Update the HTML detection in `InlineTeachingContent.tsx` to check for **properly structured** HTML — not just the presence of a `<p>` tag. Specifically, require **multiple** `<p>` or heading tags to qualify as real TipTap HTML. Content with a single `<p>` wrapper gets unwrapped and sent through the legacy parser.
+Update the FORMATTING section (around line 162) to add these rules alongside the existing heading-bold rule.
 
-### Changes to `src/components/InlineTeachingContent.tsx`
+### 2. Render Inline Bold/Italic in the Legacy Parser
 
-**1. Refine `isHtmlContent()` (lines 25-29)**
+Instead of stripping markdown with `stripInlineMarkdown()`, convert it to React elements:
 
-Instead of just checking for any block-level tag, check that the content has **at least 2 closing `</p>` tags** or contains heading tags like `<h2>`, `<h3>`, `<h4>`. A single `<p>` wrapping the entire content is not "real" HTML structure.
+- Replace `stripInlineMarkdown(text)` calls on **paragraph**, **bullet**, and **italic-paragraph** content with a new `renderInlineMarkdown(text)` function
+- This function splits the text on `**bold**` and `*italic*` patterns and returns an array of React elements (`<strong>`, `<em>`, and plain text spans)
+- Headings will continue to use `stripInlineMarkdown` since their formatting comes from CSS
 
-```text
-Before: /<(p|h[1-6]|ul|ol|blockquote|div|section|article)\b/i.test(content)
-After:  Check for multiple </p> closings OR any <h2>-<h6> tag
-```
-
-**2. Add content unwrapper**
-
-Add a small helper that strips a single outer `<p>...</p>` wrapper so the legacy parser receives clean plain text. This handles the case where the AI processing wrapped the whole teaching in one `<p>` tag.
-
-**3. Remove the Summary and Questions sections from the reader**
-
-Per the user's request, the Summary box (lines 589-603), the flourish divider after it (lines 605-608), and any "Questions This Teaching Answers" section inside the reader should be removed, since these are already shown on the teaching detail page before clicking "Read Full Teaching". The drop cap on the first paragraph is kept.
-
-## What This Preserves
-
-- Properly formatted TipTap teachings (like "Playing in the Garden") continue to render perfectly via the HTML path
-- Legacy/markdown teachings get full parsing: bold headings in dark brown, paragraph breaks, drop caps, flourish dividers, bullet points
-- All existing textures, colours, and ancient book aesthetic remain untouched
-- The drop cap on the first letter stays
-
-## Files Modified
+### Files Modified
 
 | File | Change |
 |------|--------|
-| `src/components/InlineTeachingContent.tsx` | (1) Stricter `isHtmlContent` requiring multiple `</p>` or heading tags. (2) Unwrap single-`<p>` content for legacy parser. (3) Remove Summary box and flourish divider from reader. |
+| `supabase/functions/process-transcript/index.ts` | Add bold/italic usage rules to the FORMATTING section of the system prompt (~lines 162-168) |
+| `src/components/InlineTeachingContent.tsx` | Add `renderInlineMarkdown()` helper that converts `**bold**` to `<strong>` and `*italic*` to `<em>`. Use it for paragraph, bullet, and italic-paragraph content instead of `stripInlineMarkdown`. |
 
+### What This Means
+
+- Existing teachings that already have `**bold**` and `*italic*` in their content will immediately render with proper formatting
+- Newly rewritten teachings will have richer formatting from the updated prompt
+- Previously rewritten teachings can be re-run through "Rewrite" to pick up the new formatting
+- TipTap HTML teachings are unaffected (they use the HTML rendering path)
