@@ -159,7 +159,7 @@ TONE & VOICE:
 ---
 
 FORMATTING:
-- **Bold markers** around ALL section headings (no ## or ###)
+- **Bold markers** around ALL section headings (no ## or ###). Each heading MUST be on its own line — never run heading text into the following paragraph on the same line.
 - Within body paragraphs, use **bold** for key theological terms on first use, scripture book names, covenant names, and important concepts (e.g., **Mosaic Covenant**, **chesed**, **Genesis**, **New Covenant**)
 - Within body paragraphs, use *italic* for transliterated foreign words, book titles, gentle emphasis, and the credit line (e.g., *mathetes*, *ekklesia*, *pistoi*, *This suggests...*)
 - Do NOT bold entire sentences — only key terms and phrases
