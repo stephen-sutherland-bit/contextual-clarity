@@ -1,94 +1,130 @@
 
 
-# Ancient Leather-Bound Bible Redesign
+# Prompt Rework and Dynamic CCM Outline System
 
-## Vision
+## The Problem
 
-Transform the entire website from its current "warm scholarly" aesthetic into a rich, aged leather-bound Bible feel -- like discovering an ancient manuscript for the first time. The AI-generated cover images on teachings already have this golden, heavenly warmth; we're extending that across everything.
+Dad uses two separate prompts with DeepSeek -- a rewrite prompt (11 pages) and an examination prompt (5 pages). These are extremely verbose, with repeated content between them and so many detailed instructions that the AI frequently ignores parts, apologises, and has to redo work. Our current `process-transcript` edge function has a ~330-line system prompt that is similarly dense.
+
+Meanwhile, the CCM methodology itself has evolved (new outline uploaded), and there's no way to update the rules without a code change.
+
+## The Solution: Three Changes
+
+### 1. Store the CCM Outline as a Living Document (Database + Admin Tab)
+
+Instead of baking CCM rules into the prompt, store the CCM Outline text in the database so the AI references it dynamically. Dad can update it from the Admin panel without touching code.
+
+**Database**: Create a new `system_documents` table with columns:
+- `id` (uuid, primary key)
+- `document_key` (text, unique) -- e.g. `"ccm_outline"`
+- `title` (text) -- e.g. `"CCM Methodology Outline"`
+- `content` (text) -- the full extracted text of the PDF
+- `updated_at` (timestamptz)
+- `updated_by` (uuid, nullable)
+
+This table stores the parsed text content, not the raw PDF. When Dad uploads a new PDF, we parse it and store the text.
+
+**Admin Tab**: Add a 4th tab "CCM Outline" next to Cover Art. It will show:
+- The current outline's last-updated date
+- A preview of the stored content
+- A drag-and-drop zone to upload a replacement PDF
+- A confirmation dialog warning that this will replace the existing outline
+- Uses the existing `parse-pdf` edge function to extract text from the uploaded PDF
+
+### 2. Redesign the Rewrite Prompt (Shorter, Reference-Based)
+
+Replace the current ~330-line system prompt with a much shorter one (~80-100 lines) that:
+
+- States the AI's role and tone in 3-4 sentences
+- References the CCM Outline document (injected at runtime from the database) as "THE RULES" rather than repeating them inline
+- Keeps the 4-Step Guided Discovery Framework as a compact list (not pages of examples)
+- Keeps the terminology mandates as a compact correction table
+- Keeps the formatting rules (bold headings, NZ English, no meta-commentary, no questions section)
+- Removes all the "failure mode" examples, "required language patterns," and verbose tables that duplicate what's already in the CCM Outline
+- Removes the mandatory verification checklist (the AI wastes tokens on this instead of writing)
+
+The key insight: Dad's two-prompt workflow (rewrite then examine) fails because each prompt is too long. A single shorter prompt that says "follow the attached CCM Outline as your governing rules" will be more effective because:
+- The AI has more context window for the actual teaching content
+- Fewer competing instructions means fewer ignored instructions
+- The CCM Outline itself is well-structured and concise (5 pages vs 11+5 pages of prompts)
+
+### 3. Add a Post-Rewrite CCM Compliance Check (Optional Second Pass)
+
+After the rewrite completes, add an optional "Verify CCM Compliance" button that runs a second, shorter AI pass using the examination logic. This replaces Dad's manual second-prompt workflow. The check will:
+
+- Take the rewritten output + the stored CCM Outline
+- Use a compact examination prompt (~30 lines) that asks the AI to identify anomalies only
+- Return a simple report: consistencies, anomalies, and verdict
+- Display the results in the Admin UI so Dad can see if anything needs fixing
+
+This is a new edge function (`verify-ccm-compliance`).
 
 ## What Changes
 
-### 1. Color System Overhaul (index.css)
+### Files Created
+| File | Purpose |
+|------|---------|
+| `supabase/functions/verify-ccm-compliance/index.ts` | New edge function for the CCM compliance check |
 
-Shift the palette from "warm ivory/parchment" to deeper, richer tones that evoke aged leather and yellowed pages:
-
-- **Background**: Deeper parchment/vellum tone (more saturated, slightly darker ivory)
-- **Cards**: Aged paper with subtle warmth, like pages from an old book
-- **Primary**: Richer, deeper leather brown (less amber, more saddle-leather)
-- **Secondary**: Warm sepia tones instead of sage
-- **Borders**: Leather-stitch style -- darker, more defined
-- **Accents**: Antique gold leaf instead of bright amber
-- **Muted tones**: Aged, foxed-paper quality
-
-The dark mode will shift to deep, rich mahogany/espresso tones.
-
-### 2. Texture and Atmosphere (index.css + components)
-
-- Enhance the existing `texture-paper` utility to feel more like aged vellum/leather grain
-- Add a new `texture-leather` utility for header areas and hero sections
-- Subtle inner shadows on cards to create a "recessed page" feeling
-- Slightly more rounded corners with visible "binding" borders on card edges
-
-### 3. Hero Section Redesign (HeroSection.tsx)
-
-- Deeper, richer gradient background evoking a leather book cover
-- Add decorative corner flourishes (CSS-based ornamental borders)
-- Title text with a slightly embossed/letterpress quality
-- The badge becomes a gold-leaf ribbon style element
-
-### 4. Teaching Reader -- "Page" Feel (InlineTeachingContent.tsx)
-
-This is the biggest visual change. Instead of flowing text in a white container:
-
-- **Page sections**: Each major content block (summary, paragraphs, scripture refs) gets subtle "page edge" styling -- a faint shadow on the left edge and slight cream background variation between sections, creating a visual rhythm like turning pages
-- **Section dividers**: Replace plain `border-b` lines with decorative flourish dividers (a simple CSS ornament like `~***~` or a small cross/book icon)
-- **Drop caps**: First paragraph of the teaching gets a large decorative initial letter (CSS `::first-letter` styling) -- classic old-book feel
-- **Margins and gutters**: Wider left margin to suggest a book binding gutter
-- **Background**: Alternating very subtle background tints between sections to create a "page stack" effect
-
-### 5. Cards Throughout the Site (card.tsx, TeachingCard, QuestionCard)
-
-- Teaching cards get an "old book cover" feel: slightly darker border-bottom to simulate depth, subtle leather-like shadow
-- On hover, cards lift slightly with a warm gold inner glow instead of blue/gray shadows
-- Question cards get a parchment background with a faint "ink on paper" feel
-
-### 6. Header and Footer (Header.tsx, Footer.tsx)
-
-- Header gets a darker leather-brown top bar
-- Footer styled like the back cover or endpapers of a leather book
-- Navigation links styled to look like a table of contents
-
-### 7. Typography Refinements
-
-- Slightly adjust heading weight and letter-spacing for a more "printed letterpress" feel
-- Section headers get subtle small-caps treatment where appropriate
-
-## What Stays the Same
-
-- The overall layout and navigation structure
-- All functionality (editor, book preview, search, etc.)
-- The AI-generated cover images (they already match perfectly)
-- The dual-path HTML/legacy rendering in the teaching reader
-- Mobile responsiveness
-
-## Files Modified
-
+### Files Modified
 | File | What Changes |
 |------|-------------|
-| `src/index.css` | Color variables, textures, new utilities, prose styling |
-| `src/components/HeroSection.tsx` | Richer background, decorative elements |
-| `src/components/InlineTeachingContent.tsx` | Page-edge styling, drop caps, section dividers |
-| `src/components/ui/card.tsx` | Leather-book card variants |
-| `src/components/TeachingCard.tsx` | Styling tweaks for old-book feel |
-| `src/components/QuestionCard.tsx` | Parchment styling |
-| `src/components/Header.tsx` | Leather-tone header bar |
-| `src/components/Footer.tsx` | Endpaper-style footer |
-| `src/components/FeaturedQuestions.tsx` | Section styling |
-| `src/components/MethodologyPreview.tsx` | Section styling |
-| `src/components/PhaseOverview.tsx` | Section styling |
-| `tailwind.config.ts` | Any new animation keyframes or utilities |
+| `supabase/functions/process-transcript/index.ts` | Replace the 330-line prompt with a ~100-line version that injects the CCM Outline from the database at runtime |
+| `src/pages/Admin.tsx` | Add 4th "CCM Outline" tab with PDF upload, preview, and replace functionality. Add "Verify CCM" button to Audio Import results |
 
-## Risk
+### Database Migration
+- Create `system_documents` table with RLS (admin-only write, public read for edge functions)
+- Seed with the current CCM Outline content from the uploaded PDF
 
-**Low-medium.** This is purely visual -- no database, API, or logic changes. All changes are CSS variables, Tailwind classes, and component styling. The teaching reader content rendering (HTML/legacy paths) remains untouched.
+## Technical Details
+
+### How the Prompt Injection Works
+
+When `process-transcript` runs:
+1. Fetch the `ccm_outline` document from `system_documents`
+2. Construct the system prompt as: compact instructions + `\n\n---\n\nCCM METHODOLOGY RULES (You MUST follow these):\n\n` + outline content
+3. Send to Gemini 2.5 Pro as before
+
+### The New Compact Rewrite Prompt (Approximate Structure)
+
+```text
+You are a pedagogical editor rewriting theological transcripts using Covenantal-Contextual Methodology (CCM).
+
+RULES: The CCM Outline below is your governing methodology. Every interpretive decision must align with it.
+
+TASK: Expand and enrich the transcript through guided discovery. Output must be >= input length.
+
+FRAMEWORK: For each concept, follow: (1) Common question/assumption, (2) CCM principle as lens, (3) Walk through evidence, (4) State the CCM understanding clearly.
+
+TONE: Collaborative ("we", "us"), scholarly not devotional, humble, invitational.
+
+TERMINOLOGY: [compact correction table - 10 rows]
+
+FORMATTING: Bold headings only. NZ English. ESV quotes. No markdown ##. No meta-commentary. No questions section. End with Appendix + Key Takeaways + credit line.
+
+DO NOT: Summarise, extract "timeless principles", use Trinitarian language, present NT offices as permanent, add reflective questions.
+
+---
+CCM METHODOLOGY OUTLINE:
+[injected from database]
+```
+
+This is dramatically shorter while preserving all the critical rules -- because the CCM Outline itself contains the methodology details.
+
+### Admin "CCM Outline" Tab Flow
+
+1. Dad clicks "CCM Outline" tab
+2. Sees current outline with last-updated date and a text preview
+3. Drags a new PDF into the drop zone
+4. Confirmation dialog: "This will replace the current CCM Outline. The AI will use the new version for all future rewrites. Continue?"
+5. On confirm: PDF parsed via `parse-pdf`, text stored in `system_documents`, UI updates
+
+## Risk Assessment
+
+**Medium.** The prompt redesign changes how the AI processes teachings. However:
+- The CCM Outline document is well-written and comprehensive
+- A shorter prompt with clear rules tends to perform better than a verbose one
+- The compliance check provides a safety net
+- Dad can always update the outline if results need tuning
+- No existing teachings are affected -- only future rewrites
 
