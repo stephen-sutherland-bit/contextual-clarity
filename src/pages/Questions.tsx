@@ -4,7 +4,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import QuestionCard from "@/components/QuestionCard";
 import { Input } from "@/components/ui/input";
-import { Search, Loader2 } from "lucide-react";
+import { Search, Loader2, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Helmet } from "react-helmet-async";
 
@@ -50,10 +50,12 @@ const Questions = () => {
   }, []);
 
   const filteredQuestions = useMemo(() => {
-    if (searchQuery === "") return allQuestions;
-    return allQuestions.filter((q) =>
-      q.question.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    if (searchQuery.trim() === "") return allQuestions;
+    const words = searchQuery.toLowerCase().trim().split(/\s+/);
+    return allQuestions.filter((q) => {
+      const searchable = `${q.question} ${q.teachingTitle} ${q.quickAnswer}`.toLowerCase();
+      return words.every((word) => searchable.includes(word));
+    });
   }, [allQuestions, searchQuery]);
 
   return (
@@ -95,11 +97,19 @@ const Questions = () => {
               <div className="relative max-w-xl">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search questions..."
+                  placeholder="Search questions, topics, answers..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 pr-10"
                 />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
               </div>
             </div>
           </section>
