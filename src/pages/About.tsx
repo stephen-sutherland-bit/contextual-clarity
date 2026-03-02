@@ -15,22 +15,22 @@ const About = () => {
           content="Learn about The Berean Press and our mission to correct misinterpretations through Covenantal Contextual Methodology." 
         />
       </Helmet>
-      <div className="min-h-screen flex flex-col">
+      <div className="min-h-screen flex flex-col texture-paper">
         <Header />
         <main className="flex-1">
           {/* Hero */}
-          <section className="bg-gradient-hero py-16 md:py-24 border-b border-border/50">
-            <div className="container px-4">
+          <section className="relative bg-gradient-hero py-16 md:py-24 border-b border-border/50 texture-leather">
+            <div className="container px-4 relative z-10">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
                 className="max-w-3xl mx-auto text-center"
               >
-                <h1 className="text-4xl md:text-5xl font-heading font-bold mb-6">
+                <h1 className="text-4xl md:text-5xl font-heading font-bold mb-6 hero-text letterpress">
                   About The Berean Press
                 </h1>
-                <p className="text-lg md:text-xl text-muted-foreground leading-relaxed">
+                <p className="text-lg md:text-xl hero-text-muted leading-relaxed">
                   Correcting misinterpretations through Covenantal Contextual Methodology—like the 
                   Bereans of Acts 17:11 who diligently searched the scriptures.
                 </p>

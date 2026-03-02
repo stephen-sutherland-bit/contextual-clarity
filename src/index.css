@@ -14,27 +14,27 @@
 
 @layer base {
   :root {
-    /* Deep aged parchment/vellum background */
-    --background: 36 30% 93%;
+    /* Crinkled parchment background */
+    --background: 36 30% 91%;
     --foreground: 20 35% 12%;
 
     /* Aged paper cards */
-    --card: 38 28% 95%;
+    --card: 38 28% 94%;
     --card-foreground: 20 35% 12%;
 
-    --popover: 38 28% 95%;
+    --popover: 38 28% 94%;
     --popover-foreground: 20 35% 12%;
 
     /* Rich saddle-leather brown primary */
     --primary: 20 55% 28%;
-    --primary-foreground: 38 30% 95%;
+    --primary-foreground: 40 40% 92%;
 
     /* Warm sepia secondary */
-    --secondary: 30 22% 85%;
+    --secondary: 30 22% 84%;
     --secondary-foreground: 20 35% 15%;
 
     /* Foxed-paper muted tones */
-    --muted: 35 18% 88%;
+    --muted: 35 18% 86%;
     --muted-foreground: 20 18% 42%;
 
     /* Antique gold-leaf accent */
@@ -45,12 +45,16 @@
     --destructive: 0 60% 42%;
     --destructive-foreground: 38 30% 95%;
 
-    /* Leather-stitch borders - darker, more defined */
+    /* Leather-stitch borders */
     --border: 28 22% 76%;
     --input: 30 20% 82%;
     --ring: 20 55% 28%;
 
     --radius: 0.5rem;
+
+    /* Hero sections - dark leather with HIGH contrast text */
+    --hero-foreground: 40 40% 92%;
+    --hero-muted: 40 25% 75%;
 
     /* Custom semantic tokens */
     --scripture: 200 35% 30%;
@@ -58,34 +62,33 @@
     --highlight: 42 75% 62%;
     --highlight-soft: 42 45% 88%;
     
-    /* Gradients - leather and parchment */
+    /* Gradients */
     --gradient-hero: linear-gradient(180deg, hsl(25 28% 22%) 0%, hsl(20 32% 16%) 100%);
-    --gradient-card-hover: linear-gradient(135deg, hsl(38 28% 95%) 0%, hsl(40 22% 91%) 100%);
+    --gradient-card-hover: linear-gradient(135deg, hsl(38 28% 94%) 0%, hsl(40 22% 90%) 100%);
     --gradient-accent: linear-gradient(135deg, hsl(20 55% 28%) 0%, hsl(30 50% 32%) 100%);
 
     /* Typography */
     --font-heading: 'Playfair Display', Georgia, serif;
     --font-body: 'Source Sans 3', system-ui, sans-serif;
 
-    /* Shadows - warm leather tones */
+    /* Shadows */
     --shadow-soft: 0 2px 8px -2px hsl(20 30% 15% / 0.1);
     --shadow-card: 0 4px 20px -4px hsl(20 30% 15% / 0.12);
     --shadow-elevated: 0 8px 30px -6px hsl(20 30% 15% / 0.18);
     --shadow-inset: inset 0 2px 6px -2px hsl(20 30% 15% / 0.08);
 
-    /* Sidebar defaults */
-    --sidebar-background: 32 22% 90%;
+    /* Sidebar */
+    --sidebar-background: 32 22% 88%;
     --sidebar-foreground: 20 35% 15%;
     --sidebar-primary: 20 55% 28%;
     --sidebar-primary-foreground: 38 30% 95%;
-    --sidebar-accent: 35 20% 86%;
+    --sidebar-accent: 35 20% 84%;
     --sidebar-accent-foreground: 20 35% 15%;
     --sidebar-border: 28 22% 78%;
     --sidebar-ring: 20 55% 28%;
   }
 
   .dark {
-    /* Deep mahogany/espresso */
     --background: 20 28% 8%;
     --foreground: 36 20% 88%;
 
@@ -113,6 +116,9 @@
     --border: 20 20% 20%;
     --input: 20 20% 20%;
     --ring: 35 50% 50%;
+
+    --hero-foreground: 36 20% 88%;
+    --hero-muted: 36 15% 65%;
 
     --scripture: 200 30% 60%;
     --scripture-bg: 200 20% 15%;
@@ -152,12 +158,10 @@
     @apply font-heading font-semibold tracking-tight;
   }
 
-  /* Scripture quotation styling */
   .scripture-quote {
     @apply bg-scripture-bg text-scripture border-l-4 border-scripture pl-4 py-3 my-4 italic;
   }
 
-  /* Highlighted text for key terms */
   .term-highlight {
     @apply bg-highlight-soft px-1 rounded;
   }
@@ -196,15 +200,79 @@
     box-shadow: var(--shadow-inset);
   }
 
-  /* Aged leather texture for headers/hero */
-  .texture-leather {
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='5' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.06'/%3E%3C/svg%3E");
+  /* Hero text - bright and readable on dark leather backgrounds */
+  .hero-text {
+    color: hsl(var(--hero-foreground));
   }
 
-  /* Aged vellum/paper texture */
+  .hero-text-muted {
+    color: hsl(var(--hero-muted));
+  }
+
+  /* ===== REAL TEXTURES ===== */
+
+  /* Crinkled/crumpled paper texture for light backgrounds */
   .texture-paper {
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
-    opacity: 0.04;
+    position: relative;
+  }
+  .texture-paper::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      radial-gradient(ellipse at 20% 50%, hsl(30 20% 70% / 0.08) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 20%, hsl(35 25% 65% / 0.06) 0%, transparent 40%),
+      radial-gradient(ellipse at 40% 80%, hsl(25 20% 60% / 0.07) 0%, transparent 45%),
+      radial-gradient(ellipse at 70% 60%, hsl(40 15% 75% / 0.05) 0%, transparent 35%),
+      radial-gradient(ellipse at 10% 90%, hsl(28 20% 68% / 0.06) 0%, transparent 40%),
+      repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 40px,
+        hsl(30 15% 50% / 0.015) 40px,
+        hsl(30 15% 50% / 0.015) 41px
+      ),
+      repeating-linear-gradient(
+        90deg,
+        transparent,
+        transparent 60px,
+        hsl(30 15% 50% / 0.01) 60px,
+        hsl(30 15% 50% / 0.01) 61px
+      );
+    z-index: 0;
+  }
+
+  /* Leather grain texture for dark header/hero/footer */
+  .texture-leather {
+    position: relative;
+  }
+  .texture-leather::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      radial-gradient(circle at 15% 25%, hsl(25 40% 35% / 0.15) 0%, transparent 25%),
+      radial-gradient(circle at 85% 75%, hsl(20 35% 25% / 0.12) 0%, transparent 30%),
+      radial-gradient(circle at 50% 10%, hsl(30 30% 40% / 0.08) 0%, transparent 20%),
+      radial-gradient(circle at 30% 70%, hsl(18 40% 30% / 0.1) 0%, transparent 25%),
+      radial-gradient(circle at 70% 40%, hsl(22 35% 35% / 0.08) 0%, transparent 20%),
+      repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 2px,
+        hsl(20 30% 50% / 0.03) 2px,
+        hsl(20 30% 50% / 0.03) 3px
+      ),
+      repeating-linear-gradient(
+        -30deg,
+        transparent,
+        transparent 3px,
+        hsl(25 25% 45% / 0.02) 3px,
+        hsl(25 25% 45% / 0.02) 4px
+      );
+    z-index: 0;
   }
 
   /* Decorative flourish divider */
@@ -218,7 +286,7 @@
     @apply flex-1 h-px bg-border;
   }
 
-  /* Drop cap for first paragraph of teachings */
+  /* Drop cap for first paragraph */
   .drop-cap::first-letter {
     @apply font-heading font-bold text-primary float-left;
     font-size: 3.5em;
@@ -227,7 +295,7 @@
     margin-top: 0.05em;
   }
 
-  /* Page-edge effect for sections */
+  /* Page-edge effect */
   .page-edge {
     @apply relative;
     box-shadow: inset 4px 0 8px -4px hsl(20 30% 15% / 0.06), var(--shadow-soft);
@@ -237,8 +305,13 @@
   .gold-ribbon {
     @apply inline-block px-5 py-1.5 text-sm font-medium rounded-sm;
     background: linear-gradient(135deg, hsl(38 65% 40%) 0%, hsl(42 70% 50%) 50%, hsl(38 65% 40%) 100%);
-    color: hsl(38 30% 95%);
+    color: hsl(40 40% 95%);
     box-shadow: 0 2px 8px -2px hsl(38 65% 40% / 0.4);
+  }
+
+  /* Letterpress heading effect */
+  .letterpress {
+    text-shadow: 0 1px 0 hsl(20 30% 15% / 0.1);
   }
 
   /* Prose styling for long-form content */
@@ -258,7 +331,7 @@
     @apply text-xl mt-6 mb-3;
   }
 
-  /* HTML content from TipTap editor - matches reader aesthetic */
+  /* HTML content from TipTap editor */
   .prose-teaching-html {
     @apply text-foreground leading-relaxed;
   }
@@ -297,10 +370,5 @@
 
   .prose-teaching-html blockquote {
     @apply border-l-4 border-primary/30 pl-4 py-2 my-4 italic text-foreground/80;
-  }
-
-  /* Letterpress heading effect */
-  .letterpress {
-    text-shadow: 0 1px 0 hsl(20 30% 15% / 0.1);
   }
 }

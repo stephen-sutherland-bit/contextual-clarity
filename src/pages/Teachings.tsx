@@ -277,22 +277,22 @@ const Teachings = () => {
           content="Browse all contextual Bible study teachings. Search by topic, scripture, or keyword. Sound exegesis with context as king."
         />
       </Helmet>
-      <div className="min-h-screen flex flex-col">
+      <div className="min-h-screen flex flex-col texture-paper">
         <Header />
         <main className="flex-1">
           {/* Page Header */}
-          <section className="bg-gradient-hero py-12 md:py-16 border-b border-border/50">
-            <div className="container px-4">
+          <section className="relative bg-gradient-hero py-12 md:py-16 border-b border-border/50 texture-leather">
+            <div className="container px-4 relative z-10">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
                 className="max-w-2xl"
               >
-                <h1 className="text-3xl md:text-4xl font-heading font-bold mb-4">
+                <h1 className="text-3xl md:text-4xl font-heading font-bold mb-4 hero-text letterpress">
                   All Teachings
                 </h1>
-                <p className="text-lg text-muted-foreground">
+                <p className="text-lg hero-text-muted">
                   Browse our library of contextual Bible studies. Filter by phase,
                   theme, or search for specific topics.
                 </p>
