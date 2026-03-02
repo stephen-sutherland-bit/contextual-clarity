@@ -150,23 +150,7 @@ const Teachings = () => {
           .order("created_at", { ascending: false });
       }
 
-      // Only paginate when viewing "All Phases" (no phase filter)
-      if (!phaseFilter) {
-        const from = pageNum * PAGE_SIZE;
-        const to = from + PAGE_SIZE - 1;
-        query = query.range(from, to);
-
-        // Get total count only for "All Phases" view on first page
-        if (pageNum === 0) {
-          const { count, error: countError } = await supabase
-            .from("teachings")
-            .select("*", { count: "exact", head: true });
-          
-          if (!countError && count !== null) {
-            setTotalCount(count);
-          }
-        }
-      }
+      // No pagination - fetch all teachings (full_content excluded so payload is small)
 
       const { data, error: fetchError } = await query;
 
@@ -197,8 +181,7 @@ const Teachings = () => {
         } else {
           setTeachings(mapped);
         }
-        // Only show "Load More" for All Phases view
-        setHasMore(!phaseFilter && data.length === PAGE_SIZE);
+        setHasMore(false);
       }
     } catch (err) {
       console.error("Error fetching teachings:", err);
