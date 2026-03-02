@@ -615,66 +615,71 @@ const InlineTeachingContent = ({
           
           <div className={isHtml ? "prose-teaching-html" : "prose-teaching"}>
             {isHtml ? (
-              <div className="drop-cap" dangerouslySetInnerHTML={{ __html: /<p\b/i.test(content) ? content : preprocessMarkdownToHtml(content) }} />
+              <div dangerouslySetInnerHTML={{ __html: (/<p\b/i.test(content) ? content : preprocessMarkdownToHtml(content)).replace(/<p/, '<p class="drop-cap"') }} />
             ) : (
-              parsedContent.map((item, idx) => {
-                if (item.type === "heading") {
-                  return (
-                    <>
-                      {idx > 0 && (
-                        <div key={`div-${item.key}`} className="flourish-divider my-6">
-                          <span className="text-accent/40 text-xs">✦</span>
-                        </div>
-                      )}
-                      <h4
+              (() => {
+                let firstParagraphFound = false;
+                return parsedContent.map((item, idx) => {
+                  if (item.type === "heading") {
+                    return (
+                      <>
+                        {idx > 0 && (
+                          <div key={`div-${item.key}`} className="flourish-divider my-6">
+                            <span className="text-accent/40 text-xs">✦</span>
+                          </div>
+                        )}
+                        <h4
+                          key={item.key}
+                          className="font-heading text-xl font-bold text-primary mt-8 mb-4 first:mt-0 letterpress"
+                        >
+                          {item.content}
+                        </h4>
+                      </>
+                    );
+                  }
+                  if (item.type === "subheading") {
+                    return (
+                      <h5
                         key={item.key}
-                        className="font-heading text-xl font-bold text-primary mt-8 mb-4 first:mt-0 letterpress"
+                        className="font-heading text-lg font-semibold text-foreground/90 mt-6 mb-3"
                       >
                         {item.content}
-                      </h4>
-                    </>
-                  );
-                }
-                if (item.type === "subheading") {
-                  return (
-                    <h5
-                      key={item.key}
-                      className="font-heading text-lg font-semibold text-foreground/90 mt-6 mb-3"
-                    >
-                      {item.content}
-                    </h5>
-                  );
-                }
-                if (item.type === "bullet") {
+                      </h5>
+                    );
+                  }
+                  if (item.type === "bullet") {
+                    return (
+                      <p
+                        key={item.key}
+                        className="text-base md:text-[17px] leading-[1.75] text-foreground/90 mb-3 text-left flex"
+                      >
+                        <span className="mr-3 text-accent">•</span>
+                        <span>{item.content}</span>
+                      </p>
+                    );
+                  }
+                  if (item.type === "italic-paragraph") {
+                    return (
+                      <p
+                        key={item.key}
+                        className="text-base md:text-[17px] leading-[1.75] text-foreground/90 mb-5 text-left italic"
+                      >
+                        {item.content}
+                      </p>
+                    );
+                  }
+                  const useDropCap = !firstParagraphFound;
+                  if (!firstParagraphFound) firstParagraphFound = true;
                   return (
                     <p
                       key={item.key}
-                      className="text-base md:text-[17px] leading-[1.75] text-foreground/90 mb-3 text-left flex"
-                    >
-                      <span className="mr-3 text-accent">•</span>
-                      <span>{item.content}</span>
-                    </p>
-                  );
-                }
-                if (item.type === "italic-paragraph") {
-                  return (
-                    <p
-                      key={item.key}
-                      className="text-base md:text-[17px] leading-[1.75] text-foreground/90 mb-5 text-left italic"
+                      className={`text-base md:text-[17px] leading-[1.75] text-foreground/90 mb-5 text-left ${useDropCap ? 'drop-cap' : ''}`}
                     >
                       {item.content}
                     </p>
                   );
-                }
-                return (
-                  <p
-                    key={item.key}
-                    className={`text-base md:text-[17px] leading-[1.75] text-foreground/90 mb-5 text-left ${idx === 0 ? 'drop-cap' : ''}`}
-                  >
-                    {item.content}
-                  </p>
-                );
-              })
+                });
+              })()
             )}
           </div>
         </motion.section>
