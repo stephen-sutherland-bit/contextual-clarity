@@ -51,6 +51,14 @@ const insertParagraphBreaks = (text: string): string => {
   // Step 1: Insert \n\n before **Bold Heading** patterns that appear mid-text
   // Pattern: end of sentence (. ? ! ") followed by whitespace then **Heading**
   let result = text.replace(/([.?!""'])\s+(\*\*[A-Z])/g, '$1\n\n$2');
+  
+  // Also break before --- (horizontal rules) and treat them as separators
+  result = result.replace(/\s*---\s*/g, '\n\n---\n\n');
+  
+  // Break before bullet items: * **Bold** patterns (markdown list items)
+  result = result.replace(/([.?!""'])\s+(\* \*\*)/g, '$1\n\n$2');
+  // Also break between consecutive bullet items
+  result = result.replace(/(\*)\s+(\* \*\*)/g, '$1\n\n$2');
 
   // Step 2: Split remaining long paragraphs at sentence boundaries
   // Process each block that's still very long (>800 chars with no breaks)
@@ -341,11 +349,12 @@ const parseContentWithHeadings = (content: string) => {
       return;
     }
     
-    // Check for bullet point lines (- Something)
-    if (trimmed.startsWith("- ")) {
+    // Check for bullet point lines (- Something or * Something)
+    if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
+      const bulletContent = trimmed.startsWith("- ") ? trimmed.slice(2) : trimmed.slice(2);
       results.push({
         type: "bullet",
-        content: stripInlineMarkdown(trimmed.slice(2)),
+        content: stripInlineMarkdown(bulletContent),
         key: index * 100,
       });
       return;
