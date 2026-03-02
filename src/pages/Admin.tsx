@@ -11,13 +11,23 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   Loader2, FileUp, Check, AlertCircle, RefreshCw, Download, Copy, X, 
-  Mic, FileText, Image, Play, Square, ShieldX
+  Mic, FileText, Image, Play, Square, ShieldX, BookOpen, Upload, Shield
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import ApiUsageCard from "@/components/ApiUsageCard";
 import ImportHistoryPanel from "@/components/ImportHistoryPanel";
 
@@ -74,6 +84,170 @@ const Admin = () => {
   const [isGeneratingCovers, setIsGeneratingCovers] = useState(false);
   const [coverProgress, setCoverProgress] = useState({ current: 0, total: 0 });
 
+  // ============== CCM OUTLINE STATE ==============
+  const [ccmOutline, setCcmOutline] = useState<{ content: string; updated_at: string } | null>(null);
+  const [isLoadingOutline, setIsLoadingOutline] = useState(false);
+  const [isUploadingOutline, setIsUploadingOutline] = useState(false);
+  const [outlineDragOver, setOutlineDragOver] = useState(false);
+  const [showReplaceDialog, setShowReplaceDialog] = useState(false);
+  const [pendingOutlineFile, setPendingOutlineFile] = useState<File | null>(null);
+
+  // ============== CCM VERIFY STATE ==============
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verifyReport, setVerifyReport] = useState("");
+
+  // ============== FETCH CCM OUTLINE ==============
+  const fetchOutline = useCallback(async () => {
+    setIsLoadingOutline(true);
+    try {
+      const { data, error } = await supabase
+        .from('system_documents')
+        .select('content, updated_at')
+        .eq('document_key', 'ccm_outline')
+        .single();
+      
+      if (error) {
+        console.error('Error fetching outline:', error);
+        setCcmOutline(null);
+      } else {
+        setCcmOutline(data);
+      }
+    } catch (err) {
+      console.error('Error:', err);
+    } finally {
+      setIsLoadingOutline(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isAdmin) {
+      fetchOutline();
+    }
+  }, [isAdmin, fetchOutline]);
+
+  // ============== CCM OUTLINE UPLOAD ==============
+  const handleOutlineUpload = async (file: File) => {
+    if (!file.type.includes('pdf') && !file.name.endsWith('.pdf')) {
+      toast({ title: "Invalid file", description: "Please upload a PDF file", variant: "destructive" });
+      return;
+    }
+
+    // If outline already exists, show confirmation dialog
+    if (ccmOutline) {
+      setPendingOutlineFile(file);
+      setShowReplaceDialog(true);
+      return;
+    }
+
+    await processOutlineUpload(file);
+  };
+
+  const processOutlineUpload = async (file: File) => {
+    setIsUploadingOutline(true);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve((reader.result as string).split(',')[1]);
+        reader.onerror = reject;
+      });
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Not authenticated");
+
+      // Parse PDF
+      const parseResponse = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/parse-pdf`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ pdfBase64: base64, filename: file.name }),
+        }
+      );
+
+      if (!parseResponse.ok) {
+        const errData = await parseResponse.json().catch(() => ({ error: 'Parse failed' }));
+        throw new Error(errData.error || 'PDF parsing failed');
+      }
+
+      const { text } = await parseResponse.json();
+
+      if (!text || text.trim().length < 100) {
+        throw new Error('Extracted text is too short — the PDF may be image-only or corrupt');
+      }
+
+      // Upsert into system_documents
+      const { error: upsertError } = await supabase
+        .from('system_documents')
+        .upsert({
+          document_key: 'ccm_outline',
+          title: 'CCM Methodology Outline',
+          content: text.trim(),
+          updated_at: new Date().toISOString(),
+          updated_by: session.user.id,
+        }, { onConflict: 'document_key' });
+
+      if (upsertError) throw new Error(upsertError.message);
+
+      toast({ title: "CCM Outline updated", description: `${text.length.toLocaleString()} characters extracted and saved` });
+      await fetchOutline();
+    } catch (err) {
+      console.error("Outline upload error:", err);
+      toast({
+        title: "Upload failed",
+        description: err instanceof Error ? err.message : "Unknown error",
+        variant: "destructive"
+      });
+    } finally {
+      setIsUploadingOutline(false);
+      setPendingOutlineFile(null);
+    }
+  };
+
+  // ============== CCM VERIFY ==============
+  const verifyCCMCompliance = async () => {
+    if (!processedText) return;
+    setIsVerifying(true);
+    setVerifyReport("");
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Not authenticated");
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-ccm-compliance`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ teaching_text: processedText }),
+        }
+      );
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({ error: 'Verification failed' }));
+        throw new Error(errData.error || 'Verification failed');
+      }
+
+      const { report } = await response.json();
+      setVerifyReport(report);
+      toast({ title: "CCM verification complete" });
+    } catch (err) {
+      console.error("Verify error:", err);
+      toast({
+        title: "Verification failed",
+        description: err instanceof Error ? err.message : "Unknown error",
+        variant: "destructive"
+      });
+    } finally {
+      setIsVerifying(false);
+    }
+  };
 
   // ============== PDF IMPORT LOGIC ==============
   
@@ -211,7 +385,7 @@ const Admin = () => {
     if (pdfQueue.length === 0) return;
 
     // Ensure we have the latest duplicate scan before we decide what to import.
-    // This prevents “Retry Failed” / fast clicks from re-processing everything.
+    // This prevents "Retry Failed" / fast clicks from re-processing everything.
     let importedSet = alreadyImported;
     if (skipAlreadyImported) {
       setIsCheckingDb(true);
@@ -516,6 +690,7 @@ const Admin = () => {
       setAudioFile(file);
       setTranscriptText("");
       setProcessedText("");
+      setVerifyReport("");
     }
   };
 
@@ -573,6 +748,7 @@ const Admin = () => {
     
     setIsProcessing(true);
     setProcessedText("");
+    setVerifyReport("");
     
     try {
       // Get current session for auth token
@@ -709,8 +885,6 @@ const Admin = () => {
         .maybeSingle();
       
       const nextReadingOrder = (maxOrderData?.reading_order || 0) + 1;
-      
-      // Use UUID-based document ID to prevent collisions
       const documentId = `D-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
       
       const { error: insertError } = await supabase.from("teachings").insert({
@@ -735,10 +909,10 @@ const Admin = () => {
       
       toast({ title: "Teaching saved successfully!" });
       
-      // Reset state
       setAudioFile(null);
       setTranscriptText("");
       setProcessedText("");
+      setVerifyReport("");
       
     } catch (err) {
       console.error("Save error:", err);
@@ -847,7 +1021,6 @@ const Admin = () => {
     });
   };
 
-
   // Computed values for PDF import
   const newFilesCount = pdfQueue.filter(f => !alreadyImported.has(f.name)).length;
   const alreadyImportedCount = pdfQueue.filter(f => alreadyImported.has(f.name)).length;
@@ -925,7 +1098,7 @@ const Admin = () => {
 
           {/* Main Tabs */}
           <Tabs defaultValue="pdf" className="mb-8">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="pdf" className="flex items-center gap-2">
                 <FileUp className="h-4 w-4" />
                 <span className="hidden sm:inline">PDF Import</span>
@@ -940,6 +1113,11 @@ const Admin = () => {
                 <Image className="h-4 w-4" />
                 <span className="hidden sm:inline">Cover Art</span>
                 <span className="sm:hidden">Covers</span>
+              </TabsTrigger>
+              <TabsTrigger value="ccm" className="flex items-center gap-2">
+                <BookOpen className="h-4 w-4" />
+                <span className="hidden sm:inline">CCM Outline</span>
+                <span className="sm:hidden">CCM</span>
               </TabsTrigger>
             </TabsList>
 
@@ -977,26 +1155,26 @@ const Admin = () => {
                         isDragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
                       }`}
                     >
-                      <FileUp className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                      <p className="text-muted-foreground mb-4">
-                        Drop PDF files here, or click to browse
+                      <FileUp className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground mb-2">
+                        Drop PDFs here or click to browse
                       </p>
                       <label>
                         <input
                           type="file"
-                          accept=".pdf,application/pdf"
                           multiple
+                          accept=".pdf"
                           onChange={handleFileInput}
                           className="hidden"
                         />
-                        <Button variant="outline" asChild>
-                          <span>Choose Files</span>
+                        <Button variant="outline" size="sm" asChild>
+                          <span>Browse Files</span>
                         </Button>
                       </label>
                     </div>
 
                     {pdfQueue.length > 0 && (
-                      <div className="space-y-4">
+                      <div className="space-y-3">
                         <div className="bg-muted/50 rounded-lg p-4">
                           <div className="flex items-center justify-between mb-2">
                             <span className="font-medium">{pdfQueue.length} PDF{pdfQueue.length !== 1 ? 's' : ''} selected</span>
@@ -1275,7 +1453,7 @@ const Admin = () => {
                   {/* Step 3: Process */}
                   {transcriptText && (
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">3. Process with CBS Methodology</label>
+                      <label className="text-sm font-medium">3. Process with CCM Methodology</label>
                       <Button 
                         onClick={processTranscript} 
                         disabled={isProcessing}
@@ -1297,6 +1475,40 @@ const Admin = () => {
                       {processedText && (
                         <ScrollArea className="h-60 border rounded-lg p-3">
                           <p className="text-sm whitespace-pre-wrap">{processedText}</p>
+                        </ScrollArea>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Step 3.5: Verify CCM Compliance */}
+                  {processedText && !isProcessing && (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium flex items-center gap-2">
+                        <Shield className="h-4 w-4" />
+                        3.5 Verify CCM Compliance (Optional)
+                      </label>
+                      <Button 
+                        onClick={verifyCCMCompliance} 
+                        disabled={isVerifying}
+                        variant="outline"
+                        className="w-full"
+                      >
+                        {isVerifying ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Verifying against CCM...
+                          </>
+                        ) : (
+                          <>
+                            <Shield className="h-4 w-4 mr-2" />
+                            Verify CCM Compliance
+                          </>
+                        )}
+                      </Button>
+                      
+                      {verifyReport && (
+                        <ScrollArea className="h-60 border rounded-lg p-3 bg-muted/30">
+                          <p className="text-sm whitespace-pre-wrap">{verifyReport}</p>
                         </ScrollArea>
                       )}
                     </div>
@@ -1401,6 +1613,114 @@ const Admin = () => {
               </Card>
             </TabsContent>
 
+            {/* CCM Outline Tab */}
+            <TabsContent value="ccm" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <BookOpen className="h-5 w-5" />
+                    CCM Methodology Outline
+                  </CardTitle>
+                  <CardDescription>
+                    The AI references this document as its governing rules when processing teachings.
+                    Upload a new PDF to update the methodology.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {isLoadingOutline ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : ccmOutline ? (
+                    <>
+                      {/* Current outline info */}
+                      <div className="flex items-center justify-between p-3 rounded-lg bg-green-500/10 border border-green-500/30">
+                        <div className="flex items-center gap-2">
+                          <Check className="h-4 w-4 text-green-600" />
+                          <span className="text-sm font-medium text-green-700 dark:text-green-400">
+                            Outline loaded
+                          </span>
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          Updated: {new Date(ccmOutline.updated_at).toLocaleDateString('en-NZ', { 
+                            day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                          })}
+                        </span>
+                      </div>
+
+                      {/* Preview */}
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">Content Preview</label>
+                        <ScrollArea className="h-60 border rounded-lg p-4 bg-muted/20">
+                          <p className="text-sm whitespace-pre-wrap text-muted-foreground leading-relaxed">
+                            {ccmOutline.content}
+                          </p>
+                        </ScrollArea>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {ccmOutline.content.length.toLocaleString()} characters
+                        </p>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                      <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
+                        No CCM Outline uploaded yet. Upload a PDF below to get started.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Upload zone */}
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">
+                      {ccmOutline ? 'Replace Outline' : 'Upload Outline'}
+                    </label>
+                    <div
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setOutlineDragOver(false);
+                        const file = e.dataTransfer.files[0];
+                        if (file) handleOutlineUpload(file);
+                      }}
+                      onDragOver={(e) => { e.preventDefault(); setOutlineDragOver(true); }}
+                      onDragLeave={(e) => { e.preventDefault(); setOutlineDragOver(false); }}
+                      className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+                        outlineDragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
+                      } ${isUploadingOutline ? 'opacity-50 pointer-events-none' : ''}`}
+                    >
+                      {isUploadingOutline ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                          <span className="text-sm">Parsing PDF and saving...</span>
+                        </div>
+                      ) : (
+                        <>
+                          <Upload className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
+                          <p className="text-sm text-muted-foreground mb-2">
+                            Drop a PDF here or click to browse
+                          </p>
+                          <label>
+                            <input
+                              type="file"
+                              accept=".pdf"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleOutlineUpload(file);
+                                e.target.value = '';
+                              }}
+                              className="hidden"
+                            />
+                            <Button variant="outline" size="sm" asChild>
+                              <span>Browse Files</span>
+                            </Button>
+                          </label>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
           </Tabs>
 
           {/* Import History */}
@@ -1409,6 +1729,28 @@ const Admin = () => {
         
         <Footer />
       </div>
+
+      {/* Replace CCM Outline Confirmation Dialog */}
+      <AlertDialog open={showReplaceDialog} onOpenChange={setShowReplaceDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Replace CCM Outline?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will replace the current CCM Methodology Outline. The AI will use the new version 
+              for all future rewrites. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPendingOutlineFile(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              setShowReplaceDialog(false);
+              if (pendingOutlineFile) processOutlineUpload(pendingOutlineFile);
+            }}>
+              Replace Outline
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };
