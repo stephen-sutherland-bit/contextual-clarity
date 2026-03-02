@@ -6,8 +6,14 @@ import { Link } from "react-router-dom";
 const HeroSection = () => {
   return (
     <section className="relative overflow-hidden bg-gradient-hero py-20 md:py-28">
-      {/* Subtle texture overlay */}
-      <div className="absolute inset-0 texture-paper pointer-events-none" />
+      {/* Leather texture overlay */}
+      <div className="absolute inset-0 texture-leather pointer-events-none" />
+      
+      {/* Corner flourishes */}
+      <div className="absolute top-6 left-6 w-16 h-16 border-t-2 border-l-2 border-accent/30 rounded-tl-sm opacity-60" />
+      <div className="absolute top-6 right-6 w-16 h-16 border-t-2 border-r-2 border-accent/30 rounded-tr-sm opacity-60" />
+      <div className="absolute bottom-6 left-6 w-16 h-16 border-b-2 border-l-2 border-accent/30 rounded-bl-sm opacity-60" />
+      <div className="absolute bottom-6 right-6 w-16 h-16 border-b-2 border-r-2 border-accent/30 rounded-br-sm opacity-60" />
       
       <div className="container relative px-4">
         <div className="max-w-3xl mx-auto text-center">
@@ -16,7 +22,7 @@ const HeroSection = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <span className="inline-block px-4 py-1.5 mb-6 text-sm font-medium text-primary bg-primary/10 rounded-full border border-primary/20">
+            <span className="gold-ribbon mb-6 inline-block">
               Correcting Misinterpretations Through Covenantal Contextual Methodology
             </span>
           </motion.div>
@@ -25,17 +31,17 @@ const HeroSection = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.1 }}
-            className="text-4xl md:text-5xl lg:text-6xl font-heading font-bold leading-tight mb-6"
+            className="text-4xl md:text-5xl lg:text-6xl font-heading font-bold leading-tight mb-6 text-primary-foreground letterpress"
           >
             Answers Your Pastor{" "}
-            <span className="text-primary">Couldn't Explain</span>
+            <span className="text-accent">Couldn't Explain</span>
           </motion.h1>
 
           <motion.p
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="text-lg md:text-xl text-muted-foreground mb-8 leading-relaxed"
+            className="text-lg md:text-xl text-primary-foreground/80 mb-8 leading-relaxed"
           >
             Discover biblical teachings where context is king. No more confusing analogies 
             or contradictory explanations—just sound exegesis that makes ancient Scripture 
@@ -64,12 +70,12 @@ const HeroSection = () => {
           </motion.div>
         </div>
 
-        {/* Decorative elements */}
+        {/* Warm glow */}
         <motion.div
           initial={{ opacity: 0 }}
-          animate={{ opacity: 0.5 }}
+          animate={{ opacity: 0.4 }}
           transition={{ duration: 1, delay: 0.5 }}
-          className="absolute -bottom-20 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-primary/5 rounded-full blur-3xl pointer-events-none"
+          className="absolute -bottom-20 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-accent/10 rounded-full blur-3xl pointer-events-none"
         />
       </div>
     </section>

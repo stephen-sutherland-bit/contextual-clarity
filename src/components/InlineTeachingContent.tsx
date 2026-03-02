@@ -530,15 +530,16 @@ const InlineTeachingContent = ({
   return (
     <div className="fixed inset-0 z-50 bg-background overflow-y-auto">
       {/* Sticky header */}
-      <div className="sticky top-0 bg-background/95 backdrop-blur-sm border-b border-border z-10">
-        <div className="container max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-          <h1 className="font-heading font-semibold text-lg truncate pr-4">{title}</h1>
+      <div className="sticky top-0 bg-primary/95 backdrop-blur-sm border-b border-accent/20 z-10 shadow-md">
+        <div className="absolute inset-0 texture-leather pointer-events-none" />
+        <div className="container max-w-4xl mx-auto px-6 py-4 flex items-center justify-between relative">
+          <h1 className="font-heading font-semibold text-lg truncate pr-4 text-primary-foreground letterpress">{title}</h1>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={handlePrint} className="hidden md:flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={handlePrint} className="hidden md:flex items-center gap-2 text-primary-foreground/70 hover:text-primary-foreground hover:bg-primary-foreground/10">
               <Download className="h-4 w-4" />
               Print / Save PDF
             </Button>
-            <Button variant="ghost" size="icon" onClick={onClose}>
+            <Button variant="ghost" size="icon" onClick={onClose} className="text-primary-foreground/70 hover:text-primary-foreground hover:bg-primary-foreground/10">
               <X className="h-5 w-5" />
             </Button>
           </div>
@@ -561,7 +562,7 @@ const InlineTeachingContent = ({
               <p className="text-sm text-muted-foreground mb-2 uppercase tracking-wider">
                 {primaryTheme}
               </p>
-              <h2 className="font-heading text-2xl md:text-3xl font-bold text-foreground">
+              <h2 className="font-heading text-2xl md:text-3xl font-bold text-foreground letterpress">
                 {title}
               </h2>
             </div>
@@ -570,15 +571,15 @@ const InlineTeachingContent = ({
       )}
 
       {/* Main content - this ref is used for print/PDF */}
-      <div ref={contentRef} className="container max-w-4xl mx-auto px-6 py-8 md:py-12">
+      <div ref={contentRef} className="container max-w-4xl mx-auto px-6 md:px-12 py-8 md:py-12">
         {/* Summary box */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="bg-primary/5 rounded-xl p-6 md:p-8 border border-primary/10 mb-10"
+          className="page-edge bg-card rounded-xl p-6 md:p-8 border border-accent/15 mb-10"
         >
-          <div className="flex items-center gap-2 mb-4 text-primary">
+          <div className="flex items-center gap-2 mb-4 text-accent">
             <HelpCircle className="h-5 w-5" />
             <h3 className="font-heading font-semibold text-lg">Summary</h3>
           </div>
@@ -587,31 +588,43 @@ const InlineTeachingContent = ({
           </p>
         </motion.section>
 
+        {/* Flourish divider */}
+        <div className="flourish-divider">
+          <BookOpen className="h-4 w-4 text-accent/50" />
+        </div>
+
         {/* Full teaching content */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.1 }}
-          className="mb-10"
+          className="mb-10 page-edge bg-card rounded-xl p-6 md:p-10 border border-border"
         >
-          <div className="flex items-center gap-2 mb-6 pb-3 border-b border-border">
-            <BookOpen className="h-5 w-5 text-primary" />
-            <h3 className="font-heading font-semibold text-xl text-primary">Full Teaching</h3>
+          <div className="flex items-center gap-2 mb-6 pb-3 border-b border-accent/20">
+            <BookOpen className="h-5 w-5 text-accent" />
+            <h3 className="font-heading font-semibold text-xl text-primary letterpress">Full Teaching</h3>
           </div>
           
           <div className={isHtml ? "prose-teaching-html" : "prose-teaching"}>
             {isHtml ? (
-              <div dangerouslySetInnerHTML={{ __html: content }} />
+              <div className="drop-cap" dangerouslySetInnerHTML={{ __html: content }} />
             ) : (
-              parsedContent.map((item) => {
+              parsedContent.map((item, idx) => {
                 if (item.type === "heading") {
                   return (
-                    <h4
-                      key={item.key}
-                      className="font-heading text-xl font-bold text-foreground mt-8 mb-4 first:mt-0"
-                    >
-                      {item.content}
-                    </h4>
+                    <>
+                      {idx > 0 && (
+                        <div key={`div-${item.key}`} className="flourish-divider my-6">
+                          <span className="text-accent/40 text-xs">✦</span>
+                        </div>
+                      )}
+                      <h4
+                        key={item.key}
+                        className="font-heading text-xl font-bold text-primary mt-8 mb-4 first:mt-0 letterpress"
+                      >
+                        {item.content}
+                      </h4>
+                    </>
                   );
                 }
                 if (item.type === "subheading") {
@@ -630,7 +643,7 @@ const InlineTeachingContent = ({
                       key={item.key}
                       className="text-base md:text-[17px] leading-[1.75] text-foreground/90 mb-3 text-left flex"
                     >
-                      <span className="mr-3 text-primary">•</span>
+                      <span className="mr-3 text-accent">•</span>
                       <span>{item.content}</span>
                     </p>
                   );
@@ -646,9 +659,9 @@ const InlineTeachingContent = ({
                   );
                 }
                 return (
-                <p
+                  <p
                     key={item.key}
-                    className="text-base md:text-[17px] leading-[1.75] text-foreground/90 mb-5 text-left"
+                    className={`text-base md:text-[17px] leading-[1.75] text-foreground/90 mb-5 text-left ${idx === 0 ? 'drop-cap' : ''}`}
                   >
                     {item.content}
                   </p>
@@ -664,11 +677,11 @@ const InlineTeachingContent = ({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.2 }}
-            className="mb-10"
+            className="mb-10 page-edge bg-card rounded-xl p-6 md:p-10 border border-border"
           >
-            <div className="flex items-center gap-2 mb-6 pb-3 border-b border-border">
-              <Lightbulb className="h-5 w-5 text-primary" />
-              <h3 className="font-heading font-bold text-xl text-primary">Clarifying Common Questions</h3>
+            <div className="flex items-center gap-2 mb-6 pb-3 border-b border-accent/20">
+              <Lightbulb className="h-5 w-5 text-accent" />
+              <h3 className="font-heading font-bold text-xl text-primary letterpress">Clarifying Common Questions</h3>
             </div>
             
             <p className="text-base italic text-muted-foreground mb-6">
@@ -700,11 +713,11 @@ const InlineTeachingContent = ({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.2 }}
-            className="mb-10"
+            className="mb-10 page-edge bg-card rounded-xl p-6 md:p-8 border border-border"
           >
-            <div className="flex items-center gap-2 mb-4 pb-3 border-b border-border">
-              <BookOpen className="h-4 w-4 text-primary" />
-              <h3 className="font-heading font-semibold text-lg text-primary">Scripture References</h3>
+            <div className="flex items-center gap-2 mb-4 pb-3 border-b border-accent/20">
+              <BookOpen className="h-4 w-4 text-accent" />
+              <h3 className="font-heading font-semibold text-lg text-primary letterpress">Scripture References</h3>
             </div>
             <div className="flex flex-wrap gap-2">
               {scriptures.map((scripture, i) => (
@@ -721,15 +734,18 @@ const InlineTeachingContent = ({
 
       </div>
 
-      {/* Footer */}
-      <div className="text-center py-8 border-t border-border bg-muted/30">
-        <p className="text-sm text-muted-foreground">The Berean Press</p>
-        <p className="text-xs text-muted-foreground/60 mt-1">
-          Teachings derived from The Christian Theologist
-        </p>
-        <Button variant="outline" size="sm" className="mt-4" onClick={onClose}>
-          Close Reader
-        </Button>
+      {/* Footer - endpaper style */}
+      <div className="relative text-center py-8 border-t-2 border-accent/20 bg-primary/90">
+        <div className="absolute inset-0 texture-leather pointer-events-none" />
+        <div className="relative">
+          <p className="text-sm text-primary-foreground/70">The Berean Press</p>
+          <p className="text-xs text-primary-foreground/40 mt-1">
+            Teachings derived from The Christian Theologist
+          </p>
+          <Button variant="outline" size="sm" className="mt-4 border-primary-foreground/20 text-primary-foreground/70 hover:text-primary-foreground hover:bg-primary-foreground/10" onClick={onClose}>
+            Close Reader
+          </Button>
+        </div>
       </div>
     </div>
   );
