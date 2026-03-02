@@ -160,7 +160,9 @@ TONE & VOICE:
 
 FORMATTING:
 - **Bold markers** around ALL section headings (no ## or ###)
-- Do NOT bold regular sentences
+- Within body paragraphs, use **bold** for key theological terms on first use, scripture book names, covenant names, and important concepts (e.g., **Mosaic Covenant**, **chesed**, **Genesis**, **New Covenant**)
+- Within body paragraphs, use *italic* for transliterated foreign words, book titles, gentle emphasis, and the credit line (e.g., *mathetes*, *ekklesia*, *pistoi*, *This suggests...*)
+- Do NOT bold entire sentences — only key terms and phrases
 - NZ English: fulfilment, baptise, judgement, honour, neighbour, realisation, organise, colour
 - ESV translation, quoted in full
 - Occasionally use Māori words: whānau, whakapapa, aroha (with translation)
