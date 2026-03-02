@@ -742,7 +742,7 @@ const InlineTeachingContent = ({
           <p className="text-xs text-primary-foreground/40 mt-1">
             Teachings derived from The Christian Theologist
           </p>
-          <Button variant="outline" size="sm" className="mt-4 border-primary-foreground/20 text-primary-foreground/70 hover:text-primary-foreground hover:bg-primary-foreground/10" onClick={onClose}>
+          <Button variant="outline" size="sm" className="mt-4 border-primary-foreground/40 text-primary-foreground hover:text-primary-foreground hover:bg-primary-foreground/10" onClick={onClose}>
             Close Reader
           </Button>
         </div>
