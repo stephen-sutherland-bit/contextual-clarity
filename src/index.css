@@ -212,9 +212,6 @@
   /* ===== REAL TEXTURES ===== */
 
   /* Aged parchment texture for light backgrounds */
-  .texture-paper {
-    position: relative;
-  }
   .texture-paper::before {
     content: '';
     position: absolute;
@@ -228,9 +225,6 @@
   }
 
   /* Leather grain texture for dark header/hero/footer */
-  .texture-leather {
-    position: relative;
-  }
   .texture-leather::before {
     content: '';
     position: absolute;
@@ -244,9 +238,6 @@
   }
 
   /* Burnt/darkened edge vignette for aged page effect */
-  .texture-page-burnt {
-    position: relative;
-  }
   .texture-page-burnt::after {
     content: '';
     position: absolute;

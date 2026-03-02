@@ -528,9 +528,9 @@ const InlineTeachingContent = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-background texture-paper overflow-y-auto" style={{ isolation: 'isolate' }}>
+    <div className="fixed inset-0 z-50 bg-background texture-paper overflow-y-auto">
       {/* Sticky header */}
-      <div className="sticky top-0 bg-primary/95 backdrop-blur-sm border-b border-accent/20 z-10 shadow-md" style={{ position: 'sticky' }}>
+      <div className="sticky top-0 bg-primary/95 backdrop-blur-sm border-b border-accent/20 z-10 shadow-md">
         <div className="absolute inset-0 texture-leather pointer-events-none" />
         <div className="container max-w-4xl mx-auto px-6 py-4 flex items-center justify-between relative">
           <h1 className="font-heading font-semibold text-lg truncate pr-4 text-primary-foreground letterpress">{title}</h1>
