@@ -44,6 +44,7 @@ const Header = () => {
             to="/methodology" 
             className="text-sm font-medium text-primary-foreground/70 hover:text-primary-foreground transition-colors"
           >
+            CCM Methodology
           </Link>
           <Link 
             to="/teachings" 
