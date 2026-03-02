@@ -41,6 +41,45 @@ const unwrapSingleParagraph = (content: string): string => {
   return trimmed;
 };
 
+// Insert paragraph breaks into continuous text that has no newlines.
+// Splits before **Bold Heading** markers and at sentence boundaries for long runs.
+const insertParagraphBreaks = (text: string): string => {
+  // If the text already has enough paragraph breaks, leave it alone
+  const newlineCount = (text.match(/\n/g) || []).length;
+  if (newlineCount > 3) return text;
+
+  // Step 1: Insert \n\n before **Bold Heading** patterns that appear mid-text
+  // Pattern: end of sentence (. ? ! ") followed by whitespace then **Heading**
+  let result = text.replace(/([.?!""'])\s+(\*\*[A-Z])/g, '$1\n\n$2');
+
+  // Step 2: Split remaining long paragraphs at sentence boundaries
+  // Process each block that's still very long (>800 chars with no breaks)
+  const blocks = result.split(/\n\n+/);
+  const processed = blocks.map(block => {
+    if (block.length < 800) return block;
+    
+    // Split at sentence boundaries roughly every 400-600 chars
+    const sentences: string[] = [];
+    let current = '';
+    // Match sentence-ending punctuation followed by a space and capital letter
+    const parts = block.split(/(?<=[.!?][""]?\s)(?=[A-Z])/);
+    
+    for (const part of parts) {
+      if (current.length + part.length > 500 && current.length > 200) {
+        sentences.push(current.trim());
+        current = part;
+      } else {
+        current += (current ? '' : '') + part;
+      }
+    }
+    if (current.trim()) sentences.push(current.trim());
+    
+    return sentences.join('\n\n');
+  });
+
+  return processed.join('\n\n');
+};
+
 // Pre-process legacy/markdown content that was misdetected as HTML
 // Converts newlines to paragraphs and **bold** to <strong>
 const preprocessMarkdownToHtml = (content: string): string => {
@@ -342,7 +381,7 @@ const InlineTeachingContent = ({
 }: InlineTeachingContentProps) => {
   const isHtml = useMemo(() => isHtmlContent(content), [content]);
   // If not real HTML, unwrap any single <p> wrapper before legacy parsing
-  const cleanContent = useMemo(() => isHtml ? content : unwrapSingleParagraph(content), [content, isHtml]);
+  const cleanContent = useMemo(() => isHtml ? content : insertParagraphBreaks(unwrapSingleParagraph(content)), [content, isHtml]);
   const parsedContent = useMemo(() => isHtml ? [] : parseContentWithHeadings(cleanContent), [cleanContent, isHtml]);
   const hasPonderedQuestions = ponderedQuestions && ponderedQuestions.length > 0;
   const contentRef = useRef<HTMLDivElement>(null);
