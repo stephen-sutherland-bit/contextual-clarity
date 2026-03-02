@@ -23,7 +23,11 @@ const HeroSection = () => {
             <img 
               src="/images/logo-emblem.png" 
               alt="The Berean Press emblem" 
-              className="h-24 w-24 md:h-32 md:w-32 mx-auto drop-shadow-lg"
+              className="h-28 w-28 md:h-36 md:w-36 mx-auto"
+              style={{ 
+                WebkitMaskImage: 'radial-gradient(circle, black 50%, transparent 80%)',
+                maskImage: 'radial-gradient(circle, black 50%, transparent 80%)',
+              }}
             />
           </motion.div>
 
