@@ -116,6 +116,33 @@ export type Database = {
         }
         Relationships: []
       }
+      system_documents: {
+        Row: {
+          content: string
+          document_key: string
+          id: string
+          title: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          content: string
+          document_key: string
+          id?: string
+          title: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          content?: string
+          document_key?: string
+          id?: string
+          title?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       teachings: {
         Row: {
           cover_image: string | null
