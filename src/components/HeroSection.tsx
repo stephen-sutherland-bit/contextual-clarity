@@ -15,9 +15,22 @@ const HeroSection = () => {
       <div className="container relative px-4 z-10">
         <div className="max-w-3xl mx-auto text-center">
           <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.7 }}
+            className="mb-6"
+          >
+            <img 
+              src="/images/logo-emblem.png" 
+              alt="The Berean Press emblem" 
+              className="h-24 w-24 md:h-32 md:w-32 mx-auto drop-shadow-lg"
+            />
+          </motion.div>
+
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
           >
             <span className="gold-ribbon mb-6 inline-block">
               Correcting Misinterpretations Through Covenantal Contextual Methodology
