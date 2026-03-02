@@ -22,9 +22,23 @@ interface InlineTeachingContentProps {
   onClose: () => void;
 }
 
-// Detect if content contains real HTML tags (from TipTap editor)
+// Detect if content contains real block-level HTML tags (from TipTap editor)
+// Only match block-level tags — stray <strong>/<em> in plain text should NOT trigger HTML path
 const isHtmlContent = (content: string): boolean => {
-  return /<(p|h[1-6]|ul|ol|blockquote|div|strong|em)\b/i.test(content);
+  return /<(p|h[1-6]|ul|ol|blockquote|div|section|article)\b/i.test(content);
+};
+
+// Pre-process legacy/markdown content that was misdetected as HTML
+// Converts newlines to paragraphs and **bold** to <strong>
+const preprocessMarkdownToHtml = (content: string): string => {
+  return content
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .split(/\n\n+/)
+    .map(p => p.trim())
+    .filter(p => p)
+    .map(p => `<p>${p.replace(/\n/g, '<br/>')}</p>`)
+    .join('\n');
 };
 
 // Helper function to strip inline markdown symbols from text
@@ -607,7 +621,7 @@ const InlineTeachingContent = ({
           
           <div className={isHtml ? "prose-teaching-html" : "prose-teaching"}>
             {isHtml ? (
-              <div className="drop-cap" dangerouslySetInnerHTML={{ __html: content }} />
+              <div className="drop-cap" dangerouslySetInnerHTML={{ __html: /<p\b/i.test(content) ? content : preprocessMarkdownToHtml(content) }} />
             ) : (
               parsedContent.map((item, idx) => {
                 if (item.type === "heading") {
