@@ -21,8 +21,8 @@ const HeroSection = () => {
             className="mb-6"
           >
             <img 
-              src="/images/logo-emblem.png" 
-              alt="The Berean Press emblem" 
+              src={`${import.meta.env.BASE_URL}images/logo-emblem.png`} 
+              alt="The Berean Press emblem"
               className="h-28 w-28 md:h-36 md:w-36 mx-auto"
               style={{ 
                 WebkitMaskImage: 'radial-gradient(circle, black 50%, transparent 80%)',

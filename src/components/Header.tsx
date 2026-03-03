@@ -20,7 +20,7 @@ const Header = () => {
       <div className="container relative flex h-16 items-center justify-between px-4">
         <Link to="/" className="flex items-center gap-3 group">
           <div className="flex h-10 w-10 items-center justify-center">
-            <img src="/images/logo-emblem.png" alt="The Berean Press logo" className="h-10 w-10 object-cover" style={{ WebkitMaskImage: 'radial-gradient(circle, black 45%, transparent 75%)', maskImage: 'radial-gradient(circle, black 45%, transparent 75%)' }} />
+            <img src={`${import.meta.env.BASE_URL}images/logo-emblem.png`} alt="The Berean Press logo" className="h-10 w-10 object-cover" style={{ WebkitMaskImage: 'radial-gradient(circle, black 45%, transparent 75%)', maskImage: 'radial-gradient(circle, black 45%, transparent 75%)' }} />
           </div>
           <div className="flex flex-col">
             <span className="font-heading text-lg font-semibold leading-tight text-primary-foreground">
