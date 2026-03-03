@@ -707,28 +707,6 @@ const InlineTeachingContent = ({
 
       {/* Main content - this ref is used for print/PDF */}
       <div ref={contentRef} className="container max-w-4xl mx-auto px-6 md:px-12 py-8 md:py-12 relative z-[2]">
-        {/* Questions this teaching explores - teaser before content */}
-        {hasQuestions && (
-          <motion.section
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-            className="mb-6 page-edge bg-card texture-page-burnt rounded-xl p-6 md:p-8 border border-border"
-          >
-            <div className="flex items-center gap-2 mb-4 pb-3 border-b border-accent/20">
-              <HelpCircle className="h-5 w-5 text-accent" />
-              <h3 className="font-heading font-semibold text-lg text-primary letterpress">What This Teaching Explores</h3>
-            </div>
-            <ul className="space-y-2">
-              {questionsAnswered.map((question, i) => (
-                <li key={i} className="flex items-start gap-2 text-foreground/80">
-                  <span className="text-accent mt-1">•</span>
-                  <span className="text-base">{question}</span>
-                </li>
-              ))}
-            </ul>
-          </motion.section>
-        )}
 
         {/* Full teaching content */}
         <motion.section
