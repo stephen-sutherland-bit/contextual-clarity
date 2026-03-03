@@ -365,31 +365,6 @@ const TeachingDetail = () => {
                 </motion.div>
               )}
 
-              {/* Questions Answered */}
-              {teaching.questionsAnswered.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.4 }}
-                  className="mb-8"
-                >
-                  <h3 className="font-heading font-semibold mb-3 flex items-center gap-2">
-                    <HelpCircle className="h-4 w-4 text-primary" />
-                    Questions This Teaching Answers
-                  </h3>
-                  <ul className="space-y-2">
-                    {teaching.questionsAnswered.map((question) => (
-                      <li
-                        key={question}
-                        className="flex items-start gap-2 text-muted-foreground"
-                      >
-                        <span className="text-primary mt-1.5">•</span>
-                        {question}
-                      </li>
-                    ))}
-                  </ul>
-                </motion.div>
-              )}
 
               {/* Keywords/Tags */}
               {teaching.keywords.length > 0 && (

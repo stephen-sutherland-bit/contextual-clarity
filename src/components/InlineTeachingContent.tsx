@@ -421,6 +421,17 @@ const parseContentWithHeadings = (content: string) => {
   return results;
 };
 
+// Decode HTML entities that leak through from AI output (e.g. &gt; &lt; &amp; &quot;)
+const decodeHtmlEntities = (text: string): string => {
+  return text
+    .replace(/&gt;/g, '>')
+    .replace(/&lt;/g, '<')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'");
+};
+
 const InlineTeachingContent = ({
   title,
   primaryTheme,
@@ -432,11 +443,14 @@ const InlineTeachingContent = ({
   ponderedQuestions = [],
   onClose,
 }: InlineTeachingContentProps) => {
-  const isHtml = useMemo(() => isHtmlContent(content), [content]);
+  // Decode HTML entities defensively before any other processing
+  const decodedContent = useMemo(() => decodeHtmlEntities(content), [content]);
+  const isHtml = useMemo(() => isHtmlContent(decodedContent), [decodedContent]);
   // If not real HTML, unwrap any single <p> wrapper before legacy parsing
-  const cleanContent = useMemo(() => isHtml ? content : insertParagraphBreaks(unwrapSingleParagraph(content)), [content, isHtml]);
+  const cleanContent = useMemo(() => isHtml ? decodedContent : insertParagraphBreaks(unwrapSingleParagraph(decodedContent)), [decodedContent, isHtml]);
   const parsedContent = useMemo(() => isHtml ? [] : parseContentWithHeadings(cleanContent), [cleanContent, isHtml]);
   const hasPonderedQuestions = ponderedQuestions && ponderedQuestions.length > 0;
+  const hasQuestions = questionsAnswered && questionsAnswered.length > 0;
   const contentRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = () => {
@@ -693,6 +707,29 @@ const InlineTeachingContent = ({
 
       {/* Main content - this ref is used for print/PDF */}
       <div ref={contentRef} className="container max-w-4xl mx-auto px-6 md:px-12 py-8 md:py-12 relative z-[2]">
+        {/* Questions this teaching explores - teaser before content */}
+        {hasQuestions && (
+          <motion.section
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="mb-6 page-edge bg-card texture-page-burnt rounded-xl p-6 md:p-8 border border-border"
+          >
+            <div className="flex items-center gap-2 mb-4 pb-3 border-b border-accent/20">
+              <HelpCircle className="h-5 w-5 text-accent" />
+              <h3 className="font-heading font-semibold text-lg text-primary letterpress">What This Teaching Explores</h3>
+            </div>
+            <ul className="space-y-2">
+              {questionsAnswered.map((question, i) => (
+                <li key={i} className="flex items-start gap-2 text-foreground/80">
+                  <span className="text-accent mt-1">•</span>
+                  <span className="text-base">{question}</span>
+                </li>
+              ))}
+            </ul>
+          </motion.section>
+        )}
+
         {/* Full teaching content */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}
@@ -707,7 +744,7 @@ const InlineTeachingContent = ({
           
           <div className={isHtml ? "prose-teaching-html" : "prose-teaching"}>
             {isHtml ? (
-              <div dangerouslySetInnerHTML={{ __html: (/<p\b/i.test(content) ? content : preprocessMarkdownToHtml(content)).replace(/<p/, '<p class="drop-cap"') }} />
+              <div dangerouslySetInnerHTML={{ __html: (/<p\b/i.test(decodedContent) ? decodedContent : preprocessMarkdownToHtml(decodedContent)).replace(/<p/, '<p class="drop-cap"') }} />
             ) : (
               (() => {
                 let firstParagraphFound = false;
