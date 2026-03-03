@@ -316,6 +316,33 @@ const TeachingDetail = () => {
                 </Card>
               </motion.div>
 
+              {/* Questions This Teaching Explores */}
+              {teaching.questionsAnswered.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.15 }}
+                  className="mb-8"
+                >
+                  <Card className="bg-secondary/30 border-border/50">
+                    <CardContent className="p-6">
+                      <div className="flex items-center gap-2 mb-4 text-primary">
+                        <HelpCircle className="h-5 w-5" />
+                        <h2 className="font-heading font-semibold">What This Teaching Explores</h2>
+                      </div>
+                      <ul className="space-y-2">
+                        {teaching.questionsAnswered.map((q, i) => (
+                          <li key={i} className="flex items-start gap-2 text-muted-foreground">
+                            <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary/50 flex-shrink-0" />
+                            {q}
+                          </li>
+                        ))}
+                      </ul>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              )}
+
               {/* Want to know more? */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
