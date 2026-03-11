@@ -305,8 +305,9 @@ const TeachingEditor = ({ teaching, ponderedQuestions: initialPondered = [], ope
     setter: React.Dispatch<React.SetStateAction<string[]>>,
     inputSetter: React.Dispatch<React.SetStateAction<string>>
   ) => {
-    if (value.trim()) {
-      setter(prev => [...prev, value.trim()]);
+    const items = value.split(/\n/).map(s => s.trim()).filter(Boolean);
+    if (items.length > 0) {
+      setter(prev => [...prev, ...items]);
       inputSetter("");
     }
   };
@@ -350,12 +351,24 @@ const TeachingEditor = ({ teaching, ponderedQuestions: initialPondered = [], ope
         ))}
       </div>
       <div className="flex gap-2">
-        <Input
+        <Textarea
           value={newValue}
           onChange={(e) => setNewValue(e.target.value)}
-          placeholder={placeholder}
+          placeholder={`${placeholder} (paste multiple lines to bulk-add)`}
+          rows={2}
+          className="resize-y min-h-[40px]"
+          onPaste={(e) => {
+            const text = e.clipboardData.getData("text");
+            if (text.includes("\n")) {
+              e.preventDefault();
+              const items = text.split(/\n/).map(s => s.trim()).filter(Boolean);
+              if (items.length > 0) {
+                setTags(prev => [...prev, ...items]);
+              }
+            }
+          }}
           onKeyDown={(e) => {
-            if (e.key === "Enter") {
+            if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
               addTag(newValue, setTags, setNewValue);
             }
@@ -365,6 +378,7 @@ const TeachingEditor = ({ teaching, ponderedQuestions: initialPondered = [], ope
           type="button"
           variant="outline"
           size="icon"
+          className="self-end"
           onClick={() => addTag(newValue, setTags, setNewValue)}
         >
           <Plus className="h-4 w-4" />
