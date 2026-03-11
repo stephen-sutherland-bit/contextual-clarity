@@ -305,8 +305,9 @@ const TeachingEditor = ({ teaching, ponderedQuestions: initialPondered = [], ope
     setter: React.Dispatch<React.SetStateAction<string[]>>,
     inputSetter: React.Dispatch<React.SetStateAction<string>>
   ) => {
-    if (value.trim()) {
-      setter(prev => [...prev, value.trim()]);
+    const items = value.split(/\n/).map(s => s.trim()).filter(Boolean);
+    if (items.length > 0) {
+      setter(prev => [...prev, ...items]);
       inputSetter("");
     }
   };
