@@ -46,7 +46,7 @@ interface TeachingEditorProps {
   onSave: () => void;
 }
 
-const TeachingEditor = ({ teaching, ponderedQuestions: initialPondered = [], open, onOpenChange, onSave }: TeachingEditorProps) => {
+const TeachingEditor = ({ teaching, coverImage: initialCoverImage, ponderedQuestions: initialPondered = [], open, onOpenChange, onSave }: TeachingEditorProps) => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [isSaving, setIsSaving] = useState(false);
