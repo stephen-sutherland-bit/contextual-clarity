@@ -39,6 +39,7 @@ interface TeachingEditorProps {
     module?: string;
     moduleOrder?: number;
   };
+  coverImage?: string;
   ponderedQuestions?: PonderedQuestion[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
