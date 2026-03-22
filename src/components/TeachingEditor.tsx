@@ -723,7 +723,7 @@ const TeachingEditor = ({ teaching, coverImage: initialCoverImage, ponderedQuest
                           type="button"
                           size="sm"
                           onClick={handleCustomGenerate}
-                          disabled={coverMode === "generating"}
+                          disabled={!customPrompt.trim()}
                           className="gap-1.5"
                         >
                           <Sparkles className="h-3.5 w-3.5" />
