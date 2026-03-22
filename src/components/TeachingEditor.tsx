@@ -76,6 +76,146 @@ const TeachingEditor = ({ teaching, coverImage: initialCoverImage, ponderedQuest
   const [newKeyword, setNewKeyword] = useState("");
   const [newQuestion, setNewQuestion] = useState("");
 
+  // Cover image state
+  const [currentCover, setCurrentCover] = useState<string | undefined>(initialCoverImage);
+  const [candidateImage, setCandidateImage] = useState<string | undefined>();
+  const [coverMode, setCoverMode] = useState<"idle" | "custom" | "generating" | "uploading">("idle");
+  const [customPrompt, setCustomPrompt] = useState("");
+  const [referenceImage, setReferenceImage] = useState<string | undefined>();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const refImageInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileToBase64 = useCallback((file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }, []);
+
+  const handleUploadImage = async (file: File) => {
+    setCoverMode("uploading");
+    try {
+      const dataUrl = await handleFileToBase64(file);
+      setCandidateImage(dataUrl);
+      setCoverMode("idle");
+    } catch {
+      toast({ title: "Upload failed", variant: "destructive" });
+      setCoverMode("idle");
+    }
+  };
+
+  const handleCustomGenerate = async () => {
+    if (!customPrompt.trim()) {
+      toast({ title: "Please describe the image you'd like", variant: "destructive" });
+      return;
+    }
+    setCoverMode("generating");
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Not authenticated");
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-illustration`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            title,
+            customPrompt: customPrompt.trim(),
+            referenceImage,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || `Failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (!data.imageUrl) throw new Error("No image returned");
+      setCandidateImage(data.imageUrl);
+    } catch (error) {
+      console.error("Custom generation failed:", error);
+      toast({
+        title: "Generation failed",
+        description: error instanceof Error ? error.message : "Could not generate image",
+        variant: "destructive",
+      });
+    } finally {
+      setCoverMode("idle");
+    }
+  };
+
+  const handleAutoGenerate = async () => {
+    setCoverMode("generating");
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Not authenticated");
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-illustration`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            title,
+            theme: primaryTheme,
+            scriptures: scriptures.slice(0, 5),
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || `Failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (!data.imageUrl) throw new Error("No image returned");
+      setCandidateImage(data.imageUrl);
+    } catch (error) {
+      console.error("Auto generation failed:", error);
+      toast({
+        title: "Generation failed",
+        description: error instanceof Error ? error.message : "Could not generate image",
+        variant: "destructive",
+      });
+    } finally {
+      setCoverMode("idle");
+    }
+  };
+
+  const handleAcceptCover = async () => {
+    if (!candidateImage) return;
+    try {
+      const { error } = await supabase
+        .from("teachings")
+        .update({ cover_image: candidateImage })
+        .eq("id", teaching.id);
+      if (error) throw error;
+      setCurrentCover(candidateImage);
+      setCandidateImage(undefined);
+      setCustomPrompt("");
+      setReferenceImage(undefined);
+      toast({ title: "Cover image saved" });
+    } catch {
+      toast({ title: "Failed to save cover", variant: "destructive" });
+    }
+  };
+
+  const handleRejectCover = () => {
+    setCandidateImage(undefined);
+  };
+
   const handleSave = async () => {
     setIsSaving(true);
     
