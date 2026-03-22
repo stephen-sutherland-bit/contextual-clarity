@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, X, Plus, Trash2, Sparkles } from "lucide-react";
+import { Loader2, X, Plus, Trash2, Sparkles, ImagePlus, Upload, Check, Wand2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { phases, type Phase } from "@/data/teachings";
@@ -39,13 +39,14 @@ interface TeachingEditorProps {
     module?: string;
     moduleOrder?: number;
   };
+  coverImage?: string;
   ponderedQuestions?: PonderedQuestion[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: () => void;
 }
 
-const TeachingEditor = ({ teaching, ponderedQuestions: initialPondered = [], open, onOpenChange, onSave }: TeachingEditorProps) => {
+const TeachingEditor = ({ teaching, coverImage: initialCoverImage, ponderedQuestions: initialPondered = [], open, onOpenChange, onSave }: TeachingEditorProps) => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [isSaving, setIsSaving] = useState(false);
@@ -74,6 +75,146 @@ const TeachingEditor = ({ teaching, ponderedQuestions: initialPondered = [], ope
   const [newScripture, setNewScripture] = useState("");
   const [newKeyword, setNewKeyword] = useState("");
   const [newQuestion, setNewQuestion] = useState("");
+
+  // Cover image state
+  const [currentCover, setCurrentCover] = useState<string | undefined>(initialCoverImage);
+  const [candidateImage, setCandidateImage] = useState<string | undefined>();
+  const [coverMode, setCoverMode] = useState<"idle" | "custom" | "generating" | "uploading">("idle");
+  const [customPrompt, setCustomPrompt] = useState("");
+  const [referenceImage, setReferenceImage] = useState<string | undefined>();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const refImageInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileToBase64 = useCallback((file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }, []);
+
+  const handleUploadImage = async (file: File) => {
+    setCoverMode("uploading");
+    try {
+      const dataUrl = await handleFileToBase64(file);
+      setCandidateImage(dataUrl);
+      setCoverMode("idle");
+    } catch {
+      toast({ title: "Upload failed", variant: "destructive" });
+      setCoverMode("idle");
+    }
+  };
+
+  const handleCustomGenerate = async () => {
+    if (!customPrompt.trim()) {
+      toast({ title: "Please describe the image you'd like", variant: "destructive" });
+      return;
+    }
+    setCoverMode("generating");
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Not authenticated");
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-illustration`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            title,
+            customPrompt: customPrompt.trim(),
+            referenceImage,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || `Failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (!data.imageUrl) throw new Error("No image returned");
+      setCandidateImage(data.imageUrl);
+    } catch (error) {
+      console.error("Custom generation failed:", error);
+      toast({
+        title: "Generation failed",
+        description: error instanceof Error ? error.message : "Could not generate image",
+        variant: "destructive",
+      });
+    } finally {
+      setCoverMode("idle");
+    }
+  };
+
+  const handleAutoGenerate = async () => {
+    setCoverMode("generating");
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Not authenticated");
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-illustration`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            title,
+            theme: primaryTheme,
+            scriptures: scriptures.slice(0, 5),
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || `Failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (!data.imageUrl) throw new Error("No image returned");
+      setCandidateImage(data.imageUrl);
+    } catch (error) {
+      console.error("Auto generation failed:", error);
+      toast({
+        title: "Generation failed",
+        description: error instanceof Error ? error.message : "Could not generate image",
+        variant: "destructive",
+      });
+    } finally {
+      setCoverMode("idle");
+    }
+  };
+
+  const handleAcceptCover = async () => {
+    if (!candidateImage) return;
+    try {
+      const { error } = await supabase
+        .from("teachings")
+        .update({ cover_image: candidateImage })
+        .eq("id", teaching.id);
+      if (error) throw error;
+      setCurrentCover(candidateImage);
+      setCandidateImage(undefined);
+      setCustomPrompt("");
+      setReferenceImage(undefined);
+      toast({ title: "Cover image saved" });
+    } catch {
+      toast({ title: "Failed to save cover", variant: "destructive" });
+    }
+  };
+
+  const handleRejectCover = () => {
+    setCandidateImage(undefined);
+  };
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -484,6 +625,153 @@ const TeachingEditor = ({ teaching, ponderedQuestions: initialPondered = [], ope
                 onChange={(e) => setQuickAnswer(e.target.value)}
                 rows={3}
               />
+            </div>
+
+            {/* Cover Image Manager */}
+            <div className="space-y-3 pt-2 border-t">
+              <Label className="text-base">Cover Image</Label>
+              
+              {/* Current / Candidate preview */}
+              <div className="flex gap-4 items-start">
+                {(candidateImage || currentCover) && (
+                  <div className="relative w-24 h-36 rounded-md overflow-hidden border bg-muted flex-shrink-0">
+                    <img
+                      src={candidateImage || currentCover}
+                      alt="Cover preview"
+                      className="w-full h-full object-cover"
+                    />
+                    {candidateImage && (
+                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                        <Badge className="bg-accent text-accent-foreground text-[10px]">Preview</Badge>
+                      </div>
+                    )}
+                  </div>
+                )}
+                <div className="flex-1 space-y-2">
+                  {candidateImage ? (
+                    <div className="flex gap-2">
+                      <Button type="button" size="sm" onClick={handleAcceptCover} className="gap-1.5">
+                        <Check className="h-3.5 w-3.5" />
+                        Accept
+                      </Button>
+                      <Button type="button" variant="outline" size="sm" onClick={handleRejectCover} className="gap-1.5">
+                        <X className="h-3.5 w-3.5" />
+                        Reject
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleAutoGenerate}
+                        disabled={coverMode === "generating"}
+                        className="gap-1.5"
+                      >
+                        {coverMode === "generating" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}
+                        Auto-Generate
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCoverMode(coverMode === "custom" ? "idle" : "custom")}
+                        disabled={coverMode === "generating"}
+                        className="gap-1.5"
+                      >
+                        <Wand2 className="h-3.5 w-3.5" />
+                        Custom AI Image
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={coverMode === "generating"}
+                        className="gap-1.5"
+                      >
+                        <Upload className="h-3.5 w-3.5" />
+                        Upload Image
+                      </Button>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleUploadImage(file);
+                          e.target.value = "";
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  {/* Custom AI prompt area */}
+                  {coverMode === "custom" && !candidateImage && (
+                    <div className="space-y-2 p-3 bg-muted/50 rounded-lg">
+                      <Textarea
+                        value={customPrompt}
+                        onChange={(e) => setCustomPrompt(e.target.value)}
+                        placeholder="Describe the cover image you'd like... e.g., 'A golden scroll unfurling with light streaming through ancient temple columns'"
+                        rows={3}
+                        className="text-sm"
+                      />
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={handleCustomGenerate}
+                          disabled={!customPrompt.trim()}
+                          className="gap-1.5"
+                        >
+                          <Sparkles className="h-3.5 w-3.5" />
+                          Generate
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => refImageInputRef.current?.click()}
+                          className="gap-1.5 text-xs"
+                        >
+                          <ImagePlus className="h-3.5 w-3.5" />
+                          {referenceImage ? "Change Reference" : "Add Reference Image"}
+                        </Button>
+                        <input
+                          ref={refImageInputRef}
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const dataUrl = await handleFileToBase64(file);
+                              setReferenceImage(dataUrl);
+                            }
+                            e.target.value = "";
+                          }}
+                        />
+                      </div>
+                      {referenceImage && (
+                        <div className="flex items-center gap-2">
+                          <div className="w-12 h-12 rounded border overflow-hidden">
+                            <img src={referenceImage} alt="Reference" className="w-full h-full object-cover" />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setReferenceImage(undefined)}
+                            className="text-xs text-muted-foreground hover:text-foreground"
+                          >
+                            Remove reference
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Full Content */}
