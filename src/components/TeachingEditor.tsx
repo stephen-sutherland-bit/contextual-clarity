@@ -627,6 +627,153 @@ const TeachingEditor = ({ teaching, coverImage: initialCoverImage, ponderedQuest
               />
             </div>
 
+            {/* Cover Image Manager */}
+            <div className="space-y-3 pt-2 border-t">
+              <Label className="text-base">Cover Image</Label>
+              
+              {/* Current / Candidate preview */}
+              <div className="flex gap-4 items-start">
+                {(candidateImage || currentCover) && (
+                  <div className="relative w-24 h-36 rounded-md overflow-hidden border bg-muted flex-shrink-0">
+                    <img
+                      src={candidateImage || currentCover}
+                      alt="Cover preview"
+                      className="w-full h-full object-cover"
+                    />
+                    {candidateImage && (
+                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                        <Badge className="bg-accent text-accent-foreground text-[10px]">Preview</Badge>
+                      </div>
+                    )}
+                  </div>
+                )}
+                <div className="flex-1 space-y-2">
+                  {candidateImage ? (
+                    <div className="flex gap-2">
+                      <Button type="button" size="sm" onClick={handleAcceptCover} className="gap-1.5">
+                        <Check className="h-3.5 w-3.5" />
+                        Accept
+                      </Button>
+                      <Button type="button" variant="outline" size="sm" onClick={handleRejectCover} className="gap-1.5">
+                        <X className="h-3.5 w-3.5" />
+                        Reject
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleAutoGenerate}
+                        disabled={coverMode === "generating"}
+                        className="gap-1.5"
+                      >
+                        {coverMode === "generating" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}
+                        Auto-Generate
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCoverMode(coverMode === "custom" ? "idle" : "custom")}
+                        disabled={coverMode === "generating"}
+                        className="gap-1.5"
+                      >
+                        <Wand2 className="h-3.5 w-3.5" />
+                        Custom AI Image
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={coverMode === "generating"}
+                        className="gap-1.5"
+                      >
+                        <Upload className="h-3.5 w-3.5" />
+                        Upload Image
+                      </Button>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleUploadImage(file);
+                          e.target.value = "";
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  {/* Custom AI prompt area */}
+                  {coverMode === "custom" && !candidateImage && (
+                    <div className="space-y-2 p-3 bg-muted/50 rounded-lg">
+                      <Textarea
+                        value={customPrompt}
+                        onChange={(e) => setCustomPrompt(e.target.value)}
+                        placeholder="Describe the cover image you'd like... e.g., 'A golden scroll unfurling with light streaming through ancient temple columns'"
+                        rows={3}
+                        className="text-sm"
+                      />
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={handleCustomGenerate}
+                          disabled={coverMode === "generating"}
+                          className="gap-1.5"
+                        >
+                          <Sparkles className="h-3.5 w-3.5" />
+                          Generate
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => refImageInputRef.current?.click()}
+                          className="gap-1.5 text-xs"
+                        >
+                          <ImagePlus className="h-3.5 w-3.5" />
+                          {referenceImage ? "Change Reference" : "Add Reference Image"}
+                        </Button>
+                        <input
+                          ref={refImageInputRef}
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const dataUrl = await handleFileToBase64(file);
+                              setReferenceImage(dataUrl);
+                            }
+                            e.target.value = "";
+                          }}
+                        />
+                      </div>
+                      {referenceImage && (
+                        <div className="flex items-center gap-2">
+                          <div className="w-12 h-12 rounded border overflow-hidden">
+                            <img src={referenceImage} alt="Reference" className="w-full h-full object-cover" />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setReferenceImage(undefined)}
+                            className="text-xs text-muted-foreground hover:text-foreground"
+                          >
+                            Remove reference
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {/* Full Content */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">

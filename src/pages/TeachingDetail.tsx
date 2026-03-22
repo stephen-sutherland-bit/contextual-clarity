@@ -519,6 +519,7 @@ const TeachingDetail = () => {
       {teaching && (
         <TeachingEditor
           teaching={teaching}
+          coverImage={coverImage}
           ponderedQuestions={ponderedQuestions}
           open={showEditor}
           onOpenChange={setShowEditor}
