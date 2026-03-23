@@ -683,15 +683,15 @@ const InlineTeachingContent = ({
 
       {/* Cover image hero - full width, consistent across all devices */}
       {coverImage && (
-        <div className="relative w-full h-[50vh] sm:h-[55vh] md:h-[60vh] lg:h-[65vh] bg-gradient-accent overflow-hidden">
+        <div className="relative w-full bg-gradient-accent overflow-hidden">
           <img
             src={coverImage}
             alt="Teaching cover illustration"
-            className="w-full h-full object-cover object-center"
+            className="w-full max-h-[75vh] object-contain object-center"
             loading="lazy"
             decoding="async"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent pointer-events-none" />
           <div className="absolute bottom-6 left-0 right-0">
             <div className="container max-w-4xl mx-auto px-6">
               <p className="text-sm text-muted-foreground mb-2 uppercase tracking-wider">
