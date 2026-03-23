@@ -681,27 +681,16 @@ const InlineTeachingContent = ({
         </div>
       </div>
 
-      {/* Cover image hero - full width, consistent across all devices */}
+      {/* Cover image as fixed background behind content */}
       {coverImage && (
-        <div className="relative w-full bg-gradient-accent overflow-hidden">
+        <div className="fixed inset-0 z-0 pointer-events-none" style={{ top: '56px' }}>
           <img
             src={coverImage}
-            alt="Teaching cover illustration"
-            className="w-full max-h-[75vh] object-contain object-center"
+            alt=""
+            className="w-full h-full object-cover object-center opacity-20"
             loading="lazy"
             decoding="async"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent pointer-events-none" />
-          <div className="absolute bottom-6 left-0 right-0">
-            <div className="container max-w-4xl mx-auto px-6">
-              <p className="text-sm text-muted-foreground mb-2 uppercase tracking-wider">
-                {primaryTheme}
-              </p>
-              <h2 className="font-heading text-2xl md:text-3xl font-bold text-foreground letterpress">
-                {title}
-              </h2>
-            </div>
-          </div>
         </div>
       )}
 
