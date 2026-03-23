@@ -695,7 +695,7 @@ const InlineTeachingContent = ({
       )}
 
       {/* Main content - this ref is used for print/PDF */}
-      <div ref={contentRef} className="container max-w-4xl mx-auto px-6 md:px-12 py-8 md:py-12 relative z-[2]">
+      <div ref={contentRef} className="container max-w-4xl mx-auto px-6 md:px-12 pt-[30vh] pb-8 md:pb-12 relative z-[2]">
 
         {/* Full teaching content */}
         <motion.section
